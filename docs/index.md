@@ -54,6 +54,11 @@ The package includes:
 - Contact policies
 - Continuity plans
 
+## Specification
+
+- [PEP XXXX - Identity Packages for Python](spec/PEP.md)
+- [PEP 11 - Identity Package Metadata](spec/PEP11.md)
+
 ## API Reference
 
 ```{eval-rst}
