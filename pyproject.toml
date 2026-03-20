@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "matthewdeanmartin"
+version = "0.1.0"
+description = "Identity package for Matthew Dean Martin — the profile page PyPI won't let you make"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    { name = "Matthew Dean Martin", email = "matthewdeanmartin@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Software Development",
+]
+keywords = ["identity", "trust", "pypi", "profile"]
+
+[project.urls]
+Homepage = "https://github.com/matthewdeanmartin"
+Repository = "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi"
+Issues = "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues"
+
+[project.scripts]
+matthewdeanmartin = "matthewdeanmartin.__main__:main"
+
+[project.optional-dependencies]
+dev = [
+    "furo>=2025.12.19",
+    "myst-parser>=3.0.1",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
+    "ruff>=0.15.7",
+    "sphinx>=7.4.7",
+]
