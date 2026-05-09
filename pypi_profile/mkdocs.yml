@@ -1,9 +1,10 @@
 ---
 site_name: pypi_profile
 site_url: https://pypi_profile.readthedocs.io/
-site_author: {{ cookiecutter.author_name }} <{{ cookiecutter.author_email }}>
+site_author: '{{ cookiecutter.author_name }} <{{ cookiecutter.author_email }}>'
 site_description: pypi_profile
-repo_url: https://github.com/{{ cookiecutter.github_username }}/{{ cookiecutter.github_repo }}
+repo_url: https://github.com/{{ cookiecutter.github_username }}/{{ cookiecutter.github_repo
+  }}
 theme:
   name: readthedocs
   features: [navigation.footer]

@@ -4,27 +4,37 @@ from __future__ import annotations
 
 import json
 import re
-import urllib.request
 import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+
+def _open_http_url(request: urllib.request.Request) -> Any:
+    """Open an HTTP(S) request after rejecting other URL schemes."""
+    scheme = urllib.parse.urlsplit(request.full_url).scheme
+    if scheme not in {"http", "https"}:
+        raise ValueError(f"Unsupported URL scheme: {scheme}")
+    return urllib.request.urlopen(request, timeout=10)  # nosec B310
 
 
 def _get_json(url: str, accept: str = "application/json") -> Any:
     req = urllib.request.Request(url, headers={"Accept": accept, "User-Agent": "pypi-profile/0.1"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        return json.loads(resp.read().decode())
+    with _open_http_url(req) as resp:
+        return json.loads(cast(bytes, resp.read()).decode())
 
 
 def _get_text(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "pypi-profile/0.1"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        return resp.read().decode()
+    with _open_http_url(req) as resp:
+        return cast(bytes, resp.read()).decode()
 
 
 # ---------------------------------------------------------------------------
 # JSON Resume  (https://jsonresume.org/schema/)
 # ---------------------------------------------------------------------------
+
 
 def from_json_resume(path: Path) -> dict[str, Any]:
     """Convert a JSON Resume file into a pypi_profile data dict."""
@@ -44,11 +54,13 @@ def _map_json_resume(r: dict[str, Any]) -> dict[str, Any]:
     summary = basics.get("summary", "")
     location_obj = basics.get("location", {})
     location = ", ".join(
-        v for v in [
+        v
+        for v in [
             location_obj.get("city", ""),
             location_obj.get("region", ""),
             location_obj.get("countryCode", ""),
-        ] if v
+        ]
+        if v
     )
     profiles_raw = basics.get("profiles", [])
 
@@ -64,73 +76,124 @@ def _map_json_resume(r: dict[str, Any]) -> dict[str, Any]:
         username = p.get("username", "")
         if network == "github":
             github_url = url or f"https://github.com/{username}"
-            profiles.append({"kind": "github", "label": "GitHub", "url": github_url, "verification": "self_asserted"})
+            profiles.append(
+                {
+                    "kind": "github",
+                    "label": "GitHub",
+                    "url": github_url,
+                    "verification": "self_asserted",
+                }
+            )
         elif network == "mastodon":
             mastodon_url = url
-            profiles.append({"kind": "mastodon", "label": "Mastodon", "url": mastodon_url, "verification": "self_asserted"})
+            profiles.append(
+                {
+                    "kind": "mastodon",
+                    "label": "Mastodon",
+                    "url": mastodon_url,
+                    "verification": "self_asserted",
+                }
+            )
         elif network == "gitlab":
             gitlab_url = url or f"https://gitlab.com/{username}"
-            profiles.append({"kind": "gitlab", "label": "GitLab", "url": gitlab_url, "verification": "self_asserted"})
+            profiles.append(
+                {
+                    "kind": "gitlab",
+                    "label": "GitLab",
+                    "url": gitlab_url,
+                    "verification": "self_asserted",
+                }
+            )
         elif network == "linkedin":
-            profiles.append({"kind": "linkedin", "label": "LinkedIn", "url": url, "verification": "self_asserted"})
-        elif network == "twitter" or network == "x":
-            profiles.append({"kind": "twitter", "label": "Twitter/X", "url": url, "verification": "self_asserted"})
+            profiles.append(
+                {
+                    "kind": "linkedin",
+                    "label": "LinkedIn",
+                    "url": url,
+                    "verification": "self_asserted",
+                }
+            )
+        elif network in ("twitter", "x"):
+            profiles.append(
+                {
+                    "kind": "twitter",
+                    "label": "Twitter/X",
+                    "url": url,
+                    "verification": "self_asserted",
+                }
+            )
         elif url:
-            profiles.append({"kind": "website", "label": p.get("network", "Website"), "url": url, "verification": "self_asserted"})
+            profiles.append(
+                {
+                    "kind": "website",
+                    "label": p.get("network", "Website"),
+                    "url": url,
+                    "verification": "self_asserted",
+                }
+            )
 
     contact_methods: list[dict[str, Any]] = []
     if email:
-        contact_methods.append({
-            "kind": "email",
-            "label": "Professional email",
-            "value": email,
-            "audience": ["hiring", "consulting", "security"],
-            "visibility": "public",
-        })
+        contact_methods.append(
+            {
+                "kind": "email",
+                "label": "Professional email",
+                "value": email,
+                "audience": ["hiring", "consulting", "security"],
+                "visibility": "public",
+            }
+        )
     website = basics.get("url", "")
     if website:
-        contact_methods.append({
-            "kind": "website",
-            "label": "Personal website",
-            "value": website,
-            "audience": ["general"],
-            "visibility": "public",
-        })
+        contact_methods.append(
+            {
+                "kind": "website",
+                "label": "Personal website",
+                "value": website,
+                "audience": ["general"],
+                "visibility": "public",
+            }
+        )
     phone = basics.get("phone", "")
     if phone:
-        contact_methods.append({
-            "kind": "phone",
-            "label": "Phone",
-            "value": phone,
-            "audience": ["hiring"],
-            "visibility": "public",
-        })
+        contact_methods.append(
+            {
+                "kind": "phone",
+                "label": "Phone",
+                "value": phone,
+                "audience": ["hiring"],
+                "visibility": "public",
+            }
+        )
 
     work_raw = r.get("work", [])
     work_experience: list[dict[str, Any]] = []
     for w in work_raw:
-        work_experience.append({
-            "organization": w.get("name", w.get("company", "")),
-            "title": w.get("position", ""),
-            "start_date": _normalize_date(w.get("startDate", "")),
-            "end_date": _normalize_date(w.get("endDate", "present")) or "present",
-            "summary": w.get("summary", ""),
-        })
+        work_experience.append(
+            {
+                "organization": w.get("name", w.get("company", "")),
+                "title": w.get("position", ""),
+                "start_date": _normalize_date(w.get("startDate", "")),
+                "end_date": _normalize_date(w.get("endDate", "present")) or "present",
+                "summary": w.get("summary", ""),
+            }
+        )
 
     skills_raw = r.get("skills", [])
     skills = [s.get("name", "") for s in skills_raw if s.get("name")]
 
-    awards = r.get("awards", [])
     projects_raw = r.get("projects", [])
     projects: list[dict[str, Any]] = []
     for p in projects_raw:
-        projects.append({
-            "name": p.get("name", ""),
-            "url": p.get("url", ""),
-            "role": "creator",
-            "state": "active",
-            "summary": p.get("description", ""),
-        })
+        projects.append(
+            {
+                "name": p.get("name", ""),
+                "url": p.get("url", ""),
+                "role": "creator",
+                "state": "active",
+                "summary": p.get("description", ""),
+            }
+        )
 
     data: dict[str, Any] = {
         "profile": {
@@ -183,21 +246,10 @@ def _normalize_date(d: str) -> str:
 # PyPI live data
 # ---------------------------------------------------------------------------
 
+
 def fetch_pypi_packages(username: str) -> list[dict[str, Any]]:
     """Return list of package dicts for packages where username is a maintainer/owner."""
-    try:
-        data = _get_json(f"https://pypi.org/user/{username}/")
-    except Exception:
-        pass
-
-    # PyPI doesn't have a direct user packages API; use the search endpoint
-    try:
-        url = f"https://pypi.org/simple/"
-        # We'll use the warehouse API endpoint
-        packages = _fetch_pypi_user_packages(username)
-        return packages
-    except Exception:
-        return []
+    return _fetch_pypi_user_packages(username)
 
 
 def _fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
@@ -215,23 +267,34 @@ def _fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
                 info = meta.get("info", {})
                 maintainers = [m.get("username", "") for m in (info.get("maintainers") or [])]
                 role = "owner" if username in maintainers else "maintainer"
-                results.append({
-                    "name": name,
-                    "role": role,
-                    "state": "active",
-                    "summary": (info.get("summary") or "")[:200],
-                    "url": info.get("project_url") or f"https://pypi.org/project/{name}/",
-                })
-            except Exception:
-                results.append({
-                    "name": name,
-                    "role": "maintainer",
-                    "state": "active",
-                    "summary": "",
-                    "url": f"https://pypi.org/project/{name}/",
-                })
-    except Exception:
-        pass
+                results.append(
+                    {
+                        "name": name,
+                        "role": role,
+                        "state": "active",
+                        "summary": (info.get("summary") or "")[:200],
+                        "url": info.get("project_url") or f"https://pypi.org/project/{name}/",
+                    }
+                )
+            except (
+                json.JSONDecodeError,
+                OSError,
+                TimeoutError,
+                urllib.error.HTTPError,
+                urllib.error.URLError,
+                ValueError,
+            ):
+                results.append(
+                    {
+                        "name": name,
+                        "role": "maintainer",
+                        "state": "active",
+                        "summary": "",
+                        "url": f"https://pypi.org/project/{name}/",
+                    }
+                )
+    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
+        return []
     return results
 
 
@@ -252,7 +315,7 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
             "classifiers": info.get("classifiers", []),
             "requires_python": info.get("requires_python", ""),
         }
-    except Exception:
+    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
         return {}
 
 
@@ -260,7 +323,8 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
 # GitHub live data
 # ---------------------------------------------------------------------------
 
-def fetch_github_profile(username: str, token: str = "") -> dict[str, Any]:
+
+def fetch_github_profile(username: str, token: str | None = None) -> dict[str, Any]:
     """Fetch public GitHub user profile data."""
     try:
         url = f"https://api.github.com/users/{username}"
@@ -269,7 +333,7 @@ def fetch_github_profile(username: str, token: str = "") -> dict[str, Any]:
         req.add_header("User-Agent", "pypi-profile/0.1")
         if token:
             req.add_header("Authorization", f"Bearer {token}")
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with _open_http_url(req) as resp:
             data = json.loads(resp.read().decode())
         return {
             "name": data.get("name", ""),
@@ -285,11 +349,11 @@ def fetch_github_profile(username: str, token: str = "") -> dict[str, Any]:
             "html_url": data.get("html_url", f"https://github.com/{username}"),
             "twitter_username": data.get("twitter_username", ""),
         }
-    except Exception:
+    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
         return {}
 
 
-def fetch_github_repos(username: str, token: str = "") -> list[dict[str, Any]]:
+def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str, Any]]:
     """Fetch public repos for a GitHub user (top 30 by stars)."""
     try:
         url = f"https://api.github.com/users/{username}/repos?sort=stars&per_page=30&type=owner"
@@ -298,7 +362,7 @@ def fetch_github_repos(username: str, token: str = "") -> list[dict[str, Any]]:
         req.add_header("User-Agent", "pypi-profile/0.1")
         if token:
             req.add_header("Authorization", f"Bearer {token}")
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with _open_http_url(req) as resp:
             repos = json.loads(resp.read().decode())
         return [
             {
@@ -315,11 +379,11 @@ def fetch_github_repos(username: str, token: str = "") -> list[dict[str, Any]]:
             for r in repos
             if not r.get("fork", False)
         ]
-    except Exception:
+    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
         return []
 
 
-def fetch_github_funding(username: str, repo: str = "", token: str = "") -> dict[str, Any]:
+def fetch_github_funding(username: str, repo: str = "", _token: str | None = None) -> dict[str, Any]:
     """Fetch FUNDING.yml from a GitHub user's .github or specified repo."""
     targets = []
     if repo:
@@ -332,7 +396,7 @@ def fetch_github_funding(username: str, repo: str = "", token: str = "") -> dict
         try:
             text = _get_text(url)
             return _parse_funding_yml(text)
-        except Exception:
+        except (OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
             continue
     return {}
 
@@ -368,7 +432,8 @@ def load_local_funding_yml(search_dirs: list[Path] | None = None) -> dict[str, A
 # GitLab live data
 # ---------------------------------------------------------------------------
 
-def fetch_gitlab_profile(username: str, token: str = "") -> dict[str, Any]:
+
+def fetch_gitlab_profile(username: str, token: str | None = None) -> dict[str, Any]:
     """Fetch public GitLab user profile data."""
     try:
         url = f"https://gitlab.com/api/v4/users?username={username}"
@@ -376,7 +441,7 @@ def fetch_gitlab_profile(username: str, token: str = "") -> dict[str, Any]:
         req.add_header("User-Agent", "pypi-profile/0.1")
         if token:
             req.add_header("PRIVATE-TOKEN", token)
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with _open_http_url(req) as resp:
             users = json.loads(resp.read().decode())
         if not users:
             return {}
@@ -391,13 +456,14 @@ def fetch_gitlab_profile(username: str, token: str = "") -> dict[str, Any]:
             "avatar_url": user.get("avatar_url", ""),
             "web_url": user.get("web_url", f"https://gitlab.com/{username}"),
         }
-    except Exception:
+    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
         return {}
 
 
 # ---------------------------------------------------------------------------
 # Mastodon live data
 # ---------------------------------------------------------------------------
+
 
 def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
     """Fetch a Mastodon user profile given a profile URL like https://fosstodon.org/@user."""
@@ -409,16 +475,18 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
         instance, username = m.group(1), m.group(2)
         url = f"https://{instance}/api/v1/accounts/lookup?acct={username}"
         req = urllib.request.Request(url, headers={"User-Agent": "pypi-profile/0.1"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with _open_http_url(req) as resp:
             data = json.loads(resp.read().decode())
         # Parse metadata fields (e.g., verification links)
         fields = []
         for field in data.get("fields", []):
-            fields.append({
-                "name": field.get("name", ""),
-                "value": field.get("value", ""),
-                "verified_at": field.get("verified_at"),
-            })
+            fields.append(
+                {
+                    "name": field.get("name", ""),
+                    "value": field.get("value", ""),
+                    "verified_at": field.get("verified_at"),
+                }
+            )
         return {
             "username": data.get("username", ""),
             "display_name": data.get("display_name", ""),
@@ -427,13 +495,14 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
             "followers_count": data.get("followers_count", 0),
             "fields": fields,
         }
-    except Exception:
+    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
         return {}
 
 
 # ---------------------------------------------------------------------------
 # Profile assembly helpers
 # ---------------------------------------------------------------------------
+
 
 def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, Any]) -> dict[str, Any]:
     """Merge fetched live data into a profile dict, preferring existing non-empty values."""
@@ -449,7 +518,11 @@ def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, A
 
     # Fill identity from GitHub
     fill("identity", "location", github.get("location", "") or gitlab.get("location", ""))
-    fill("profile", "summary", github.get("bio", "") or gitlab.get("bio", "") or mastodon.get("note", ""))
+    fill(
+        "profile",
+        "summary",
+        github.get("bio", "") or gitlab.get("bio", "") or mastodon.get("note", ""),
+    )
     fill("profile", "display_name", github.get("name", "") or gitlab.get("name", ""))
     fill("identity", "display_name", github.get("name", "") or gitlab.get("name", ""))
     fill("identity", "legal_name", github.get("name", "") or gitlab.get("name", ""))
@@ -458,24 +531,28 @@ def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, A
     if github.get("email"):
         existing_emails = [c["value"] for c in profile_data.get("contact_methods", []) if c.get("kind") == "email"]
         if github["email"] not in existing_emails:
-            profile_data.setdefault("contact_methods", []).append({
-                "kind": "email",
-                "label": "GitHub email",
-                "value": github["email"],
-                "audience": ["general"],
-                "visibility": "public",
-            })
+            profile_data.setdefault("contact_methods", []).append(
+                {
+                    "kind": "email",
+                    "label": "GitHub email",
+                    "value": github["email"],
+                    "audience": ["general"],
+                    "visibility": "public",
+                }
+            )
 
     # Twitter from GitHub
     if github.get("twitter_username"):
         existing_kinds = [p["kind"] for p in profile_data.get("profiles", [])]
         if "twitter" not in existing_kinds:
-            profile_data.setdefault("profiles", []).append({
-                "kind": "twitter",
-                "label": "Twitter/X",
-                "url": f"https://twitter.com/{github['twitter_username']}",
-                "verification": "self_asserted",
-            })
+            profile_data.setdefault("profiles", []).append(
+                {
+                    "kind": "twitter",
+                    "label": "Twitter/X",
+                    "url": f"https://twitter.com/{github['twitter_username']}",
+                    "verification": "self_asserted",
+                }
+            )
 
     # Blog/website from GitHub
     if github.get("blog"):
@@ -484,13 +561,15 @@ def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, A
             blog = f"https://{blog}"
         existing_contact = [c["value"] for c in profile_data.get("contact_methods", [])]
         if blog not in existing_contact:
-            profile_data.setdefault("contact_methods", []).append({
-                "kind": "website",
-                "label": "Personal website",
-                "value": blog,
-                "audience": ["general"],
-                "visibility": "public",
-            })
+            profile_data.setdefault("contact_methods", []).append(
+                {
+                    "kind": "website",
+                    "label": "Personal website",
+                    "value": blog,
+                    "audience": ["general"],
+                    "visibility": "public",
+                }
+            )
 
     # PyPI packages
     if pypi_packages and not profile_data.get("packages"):

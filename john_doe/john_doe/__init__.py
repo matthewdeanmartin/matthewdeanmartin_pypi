@@ -1,7 +1,8 @@
 """Example pypi-profile plugin — proves two plugins can coexist."""
 
-from john_doe.__about__ import __version__
 from pypi_profile.plugin_spec import hookimpl
+
+from john_doe.__about__ import __version__
 
 __all__ = ["__version__"]
 

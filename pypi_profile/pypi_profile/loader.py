@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import importlib.metadata as meta
 import sys
 from pathlib import Path
+
+from pypi_profile.models import ProfileData
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -11,9 +14,7 @@ else:
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
-
-from pypi_profile.models import ProfileData
+        import tomli as tomllib
 
 
 def load_profile(path: Path) -> ProfileData:
@@ -40,7 +41,6 @@ def find_profile(source: str) -> Path:
             return toml_in_dir
     # Try installed package dist-info
     try:
-        import importlib.metadata as meta
         dist = meta.distribution(source)
         data_path = dist.locate_file("pypi_profile.toml")
         if Path(str(data_path)).exists():

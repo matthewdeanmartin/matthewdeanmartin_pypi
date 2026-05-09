@@ -1,6 +1,5 @@
 """Tests for the ProfileData model and loader."""
 
-import sys
 from pathlib import Path
 
 import pytest

@@ -3,7 +3,9 @@
 
 def test_import() -> None:
     """Package can be imported."""
-    import john_doe  # noqa: F401
+    import john_doe
+
+    assert john_doe.__name__ == "john_doe"
 
 
 def test_version() -> None:

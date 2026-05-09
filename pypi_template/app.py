@@ -1,12 +1,11 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import ChoiceLoader, FileSystemLoader
 from starlette.templating import Jinja2Templates
-
 
 project_root = Path(__file__).resolve().parent
 repo_root = project_root.parent
@@ -15,7 +14,6 @@ if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
 from pypi_ds.paths import static_root_path, template_root_path
-
 
 app = FastAPI(title="PyPI Template Demo")
 
@@ -28,7 +26,11 @@ template_loader = ChoiceLoader(
 templates = Jinja2Templates(directory=str(project_root / "templates"))
 templates.env.loader = template_loader
 
-app.mount("/static/pypi_ds", StaticFiles(directory=str(static_root_path())), name="pypi_ds_static")
+app.mount(
+    "/static/pypi_ds",
+    StaticFiles(directory=str(static_root_path())),
+    name="pypi_ds_static",
+)
 
 
 def build_catalog() -> list[dict[str, object]]:
@@ -46,15 +48,30 @@ def build_catalog() -> list[dict[str, object]]:
             "pip_command": "pip install pypi-ds",
             "summary": "A PyPI-flavored template library for other websites.",
             "project_links": [
-                {"label": "Documentation", "href": "https://example.invalid/docs/pypi-ds"},
+                {
+                    "label": "Documentation",
+                    "href": "https://example.invalid/docs/pypi-ds",
+                },
                 {"label": "Source", "href": "https://example.invalid/src/pypi-ds"},
                 {"label": "Issues", "href": "https://example.invalid/issues/pypi-ds"},
             ],
             "maintainers": ["PyPI team", "Packaging WG", "Site builders"],
             "release_history": [
-                {"version": "0.1.0", "released": "May 2026", "notes": "Standalone Warehouse-style design system"},
-                {"version": "0.0.5", "released": "Apr 2026", "notes": "Refined layout, package card, and footer"},
-                {"version": "0.0.1", "released": "Mar 2026", "notes": "Initial extraction prototype"},
+                {
+                    "version": "0.1.0",
+                    "released": "May 2026",
+                    "notes": "Standalone Warehouse-style design system",
+                },
+                {
+                    "version": "0.0.5",
+                    "released": "Apr 2026",
+                    "notes": "Refined layout, package card, and footer",
+                },
+                {
+                    "version": "0.0.1",
+                    "released": "Mar 2026",
+                    "notes": "Initial extraction prototype",
+                },
             ],
             "files": [
                 {
@@ -82,13 +99,27 @@ def build_catalog() -> list[dict[str, object]]:
             "pip_command": "pip install warehouse-search-demo",
             "summary": "A realistic search page fixture for template integration.",
             "project_links": [
-                {"label": "Documentation", "href": "https://example.invalid/docs/warehouse-search-demo"},
-                {"label": "Source", "href": "https://example.invalid/src/warehouse-search-demo"},
+                {
+                    "label": "Documentation",
+                    "href": "https://example.invalid/docs/warehouse-search-demo",
+                },
+                {
+                    "label": "Source",
+                    "href": "https://example.invalid/src/warehouse-search-demo",
+                },
             ],
             "maintainers": ["Search team", "Design systems"],
             "release_history": [
-                {"version": "2.3.1", "released": "Apr 2026", "notes": "Improved search summaries"},
-                {"version": "2.3.0", "released": "Mar 2026", "notes": "Added filter sidebar"},
+                {
+                    "version": "2.3.1",
+                    "released": "Apr 2026",
+                    "notes": "Improved search summaries",
+                },
+                {
+                    "version": "2.3.0",
+                    "released": "Mar 2026",
+                    "notes": "Added filter sidebar",
+                },
             ],
             "files": [
                 {
@@ -111,13 +142,27 @@ def build_catalog() -> list[dict[str, object]]:
             "pip_command": "pip install simple-index-kit",
             "summary": "A compact package portal starter.",
             "project_links": [
-                {"label": "Documentation", "href": "https://example.invalid/docs/simple-index-kit"},
-                {"label": "Source", "href": "https://example.invalid/src/simple-index-kit"},
+                {
+                    "label": "Documentation",
+                    "href": "https://example.invalid/docs/simple-index-kit",
+                },
+                {
+                    "label": "Source",
+                    "href": "https://example.invalid/src/simple-index-kit",
+                },
             ],
             "maintainers": ["Infra team"],
             "release_history": [
-                {"version": "1.4.0", "released": "Feb 2026", "notes": "Improved mobile table layouts"},
-                {"version": "1.3.0", "released": "Jan 2026", "notes": "Added package detail sidebar"},
+                {
+                    "version": "1.4.0",
+                    "released": "Feb 2026",
+                    "notes": "Improved mobile table layouts",
+                },
+                {
+                    "version": "1.3.0",
+                    "released": "Jan 2026",
+                    "notes": "Added package detail sidebar",
+                },
             ],
             "files": [
                 {
@@ -134,14 +179,22 @@ def build_header_nav(current_page: str) -> list[dict[str, object]]:
     nav_items = [
         {"label": "Home", "href": "/", "current": current_page == "home"},
         {"label": "Search", "href": "/search", "current": current_page == "search"},
-        {"label": "Project", "href": "/projects/pypi-ds", "current": current_page == "project"},
+        {
+            "label": "Project",
+            "href": "/projects/pypi-ds",
+            "current": current_page == "project",
+        },
     ]
     return nav_items
 
 
 def build_secondary_nav() -> list[dict[str, object]]:
     return [
-        {"label": "GitHub", "href": "https://github.com/pypi/warehouse", "current": False},
+        {
+            "label": "GitHub",
+            "href": "https://github.com/pypi/warehouse",
+            "current": False,
+        },
         {"label": "Docs", "href": "https://packaging.python.org/", "current": False},
     ]
 
@@ -159,7 +212,10 @@ def build_footer_menus() -> list[dict[str, object]]:
         {
             "title": "Design system",
             "links": [
-                {"label": "PyPI DS package", "href": "https://github.com/pypi/warehouse"},
+                {
+                    "label": "PyPI DS package",
+                    "href": "https://github.com/pypi/warehouse",
+                },
                 {"label": "Warehouse", "href": "https://github.com/pypi/warehouse"},
                 {"label": "Packaging guide", "href": "https://packaging.python.org/"},
             ],
@@ -175,7 +231,9 @@ def build_footer_menus() -> list[dict[str, object]]:
     ]
 
 
-def build_base_context(request: Request, current_page: str, page_title: str) -> dict[str, object]:
+def build_base_context(
+    request: Request, current_page: str, page_title: str
+) -> dict[str, object]:
     context = {
         "request": request,
         "asset_base": "/static/pypi_ds",
@@ -272,7 +330,9 @@ async def search(request: Request, q: str = Query(default="")) -> HTMLResponse:
 @app.get("/projects/{project_slug}", response_class=HTMLResponse)
 async def project_detail(request: Request, project_slug: str) -> HTMLResponse:
     project = find_project(project_slug)
-    context = build_base_context(request, current_page="project", page_title=str(project["name"]))
+    context = build_base_context(
+        request, current_page="project", page_title=str(project["name"])
+    )
     context.update(
         {
             "project": project,

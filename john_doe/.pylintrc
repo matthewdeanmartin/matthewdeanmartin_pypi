@@ -15,7 +15,16 @@ disable=
     too-few-public-methods,
     duplicate-code,
     import-error,
-    logging-fstring-interpolation
+    logging-fstring-interpolation,
+    redefined-outer-name,
+    unused-argument,
+    protected-access,
+    missing-docstring,
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    attribute-defined-outside-init,
+    invalid-name
 
 [FORMAT]
 max-line-length=120

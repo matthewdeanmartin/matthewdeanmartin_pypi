@@ -23,9 +23,10 @@ disable=
     missing-module-docstring,
     missing-class-docstring,
     missing-function-docstring,
-    no-self-use,
     attribute-defined-outside-init,
-    invalid-name
+    invalid-name,
+    import-outside-toplevel,
+    use-implicit-booleaness-not-comparison
 
 [FORMAT]
 max-line-length=120
@@ -44,4 +45,4 @@ score=yes
 min-similarity-lines=10
 
 [SCORING]
-fail-under=9.0
+fail-under=9.5

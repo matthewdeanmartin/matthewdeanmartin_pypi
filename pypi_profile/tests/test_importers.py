@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-
-import pytest
+from typing import Any
 
 JOHN_DOE_RESUME = Path(__file__).parent.parent.parent / "john_doe" / "resume.json"
 
@@ -91,7 +89,13 @@ def test_json_resume_from_dict() -> None:
             "name": "Alice",
             "email": "alice@example.com",
             "summary": "Test user.",
-            "profiles": [{"network": "GitHub", "username": "alice", "url": "https://github.com/alice"}],
+            "profiles": [
+                {
+                    "network": "GitHub",
+                    "username": "alice",
+                    "url": "https://github.com/alice",
+                }
+            ],
         }
     }
     data = from_json_resume_dict(raw)
@@ -156,7 +160,7 @@ def test_normalize_date() -> None:
 def test_merge_live_data_fills_empty_fields() -> None:
     from pypi_profile.importers import merge_live_data_into_profile
 
-    profile_data: dict = {
+    profile_data: dict[str, Any] = {
         "profile": {"kind": "individual", "display_name": "", "summary": ""},
         "identity": {"location": ""},
         "contact_methods": [],
@@ -185,8 +189,12 @@ def test_merge_live_data_fills_empty_fields() -> None:
 def test_merge_live_data_does_not_overwrite_existing() -> None:
     from pypi_profile.importers import merge_live_data_into_profile
 
-    profile_data: dict = {
-        "profile": {"kind": "individual", "display_name": "Existing Name", "summary": "Existing summary"},
+    profile_data: dict[str, Any] = {
+        "profile": {
+            "kind": "individual",
+            "display_name": "Existing Name",
+            "summary": "Existing summary",
+        },
         "identity": {"location": "Existing location"},
         "contact_methods": [],
         "profiles": [],
@@ -208,6 +216,7 @@ def test_merge_live_data_does_not_overwrite_existing() -> None:
 def test_init_from_json_resume_produces_valid_toml(tmp_path: Path) -> None:
     """End-to-end: init --from-json-resume should produce a parseable TOML."""
     import argparse
+
     from pypi_profile.cli import cmd_init
 
     dest = tmp_path / "pypi_profile.toml"
@@ -223,6 +232,7 @@ def test_init_from_json_resume_produces_valid_toml(tmp_path: Path) -> None:
     assert dest.exists()
 
     from pypi_profile.loader import load_profile
+
     profile = load_profile(dest)
     assert profile.profile.display_name == "John Doe"
     assert len(profile.work_experience) == 2

@@ -6,22 +6,56 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-
 ClaimStatus = Literal["self_asserted", "verified", "unverified", "invalid", "expired", "unknown"]
 
-PrincipalKind = Literal["individual", "team", "company", "llc", "foundation", "collective", "project", "other"]
+PrincipalKind = Literal[
+    "individual",
+    "team",
+    "company",
+    "llc",
+    "foundation",
+    "collective",
+    "project",
+    "other",
+]
 
 PackageState = Literal[
-    "active", "maintained", "stable", "experimental", "planning", "paused",
-    "archived", "deprecated", "abandoned", "transferred", "seeking-maintainer",
-    "security-only", "unmaintained-but-usable", "superseded", "private", "unknown",
+    "active",
+    "maintained",
+    "stable",
+    "experimental",
+    "planning",
+    "paused",
+    "archived",
+    "deprecated",
+    "abandoned",
+    "transferred",
+    "seeking-maintainer",
+    "security-only",
+    "unmaintained-but-usable",
+    "superseded",
+    "private",
+    "unknown",
 ]
 
 PackageRole = Literal[
-    "author", "creator", "owner", "maintainer", "co-maintainer", "contributor",
-    "release-manager", "security-contact", "documentation-maintainer",
-    "original-creator", "current-steward", "former-maintainer", "sponsor",
-    "employer", "client", "vendor", "successor",
+    "author",
+    "creator",
+    "owner",
+    "maintainer",
+    "co-maintainer",
+    "contributor",
+    "release-manager",
+    "security-contact",
+    "documentation-maintainer",
+    "original-creator",
+    "current-steward",
+    "former-maintainer",
+    "sponsor",
+    "employer",
+    "client",
+    "vendor",
+    "successor",
 ]
 
 

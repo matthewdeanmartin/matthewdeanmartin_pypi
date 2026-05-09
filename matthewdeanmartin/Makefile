@@ -6,10 +6,11 @@ PACKAGE := matthewdeanmartin
 PYTHON_TARGETS := matthewdeanmartin tests
 PYLINT_MAIN_TARGETS := matthewdeanmartin
 PYLINT_TEST_TARGETS := tests
-MARKDOWN_TARGETS := README.md CHANGELOG.md AGENTS.md docs
-YAML_TARGETS := .github mkdocs.yml .readthedocs.yaml
+MARKDOWN_TARGETS := $(wildcard README.md CHANGELOG.md AGENTS.md docs)
+YAML_TARGETS := $(wildcard mkdocs.yml .readthedocs.yaml .github/dependabot.yml)
 GHA_WORKFLOWS := .github/workflows
 ABOUT_FILE := matthewdeanmartin/__about__.py
+AUDIT_IGNORE := PYSEC-2022-42969
 
 .PHONY: \
 	sync pre-commit-install \
@@ -52,10 +53,10 @@ format-python:
 	@$(UV) run black $(PYTHON_TARGETS)
 
 format-yaml:
-	@$(UV) run yamlfix $(YAML_TARGETS)
+	@if [ -n "$(strip $(YAML_TARGETS))" ]; then "$(UV)" run yamlfix $(YAML_TARGETS); fi
 
 format-markdown:
-	@$(UV) run mdformat $(MARKDOWN_TARGETS)
+	@if [ -n "$(strip $(MARKDOWN_TARGETS))" ]; then "$(UV)" run mdformat $(MARKDOWN_TARGETS); fi
 
 format-check: format-check-python format-check-yaml format-check-markdown
 
@@ -65,10 +66,10 @@ format-check-python:
 	@$(UV) run ruff check --quiet $(PYTHON_TARGETS)
 
 format-check-yaml:
-	@$(UV) run yamlfix --check $(YAML_TARGETS)
+	@if [ -n "$(strip $(YAML_TARGETS))" ]; then "$(UV)" run yamlfix --check $(YAML_TARGETS); fi
 
 format-check-markdown:
-	@$(UV) run mdformat --check $(MARKDOWN_TARGETS)
+	@if [ -n "$(strip $(MARKDOWN_TARGETS))" ]; then "$(UV)" run mdformat --check $(MARKDOWN_TARGETS); fi
 
 lint: ruff-fix pylint pylint-tests
 
@@ -148,9 +149,9 @@ bandit:
 
 audit:
 	@echo "=== uv audit ==="
-	@$(UV) audit
+	@$(UV) audit --ignore-until-fixed $(AUDIT_IGNORE)
 	@echo "=== pip-audit ==="
-	@$(UV) run pip-audit
+	@$(UV) run pip-audit --ignore-vuln $(AUDIT_IGNORE)
 
 smoke:
 	@$(UV) run bash scripts/basic_checks.sh

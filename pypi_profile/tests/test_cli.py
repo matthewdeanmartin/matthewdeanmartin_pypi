@@ -3,7 +3,9 @@
 
 def test_import() -> None:
     """Package can be imported."""
-    import pypi_profile  # noqa: F401
+    import pypi_profile
+
+    assert pypi_profile.__name__ == "pypi_profile"
 
 
 def test_version() -> None:

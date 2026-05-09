@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from pypi_profile.__about__ import __version__
 
@@ -13,6 +14,7 @@ from pypi_profile.__about__ import __version__
 def cmd_serve(args: argparse.Namespace) -> None:
     """Start the FastAPI profile server."""
     import uvicorn
+
     from pypi_profile.loader import find_profile, load_profile
     from pypi_profile.server import build_app
 
@@ -25,6 +27,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
 def cmd_validate(args: argparse.Namespace) -> None:
     """Validate a pypi_profile.toml file."""
     from pydantic import ValidationError
+
     from pypi_profile.loader import load_profile
 
     path = Path(args.path)
@@ -53,11 +56,12 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     username = args.username or ""
     kind = args.kind or "individual"
-    data: dict = {}
+    data: dict[str, Any] = {}
 
     # Import from JSON Resume if provided
     if args.from_json_resume:
         from pypi_profile.importers import from_json_resume
+
         jrp = Path(args.from_json_resume)
         if not jrp.exists():
             print(f"ERROR: JSON Resume file not found: {jrp}", file=sys.stderr)
@@ -72,6 +76,7 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     # Detect local funding.yml
     from pypi_profile.importers import load_local_funding_yml
+
     funding = load_local_funding_yml()
     if funding:
         print(f"Found local FUNDING.yml: {list(funding.keys())}")
@@ -88,15 +93,17 @@ def cmd_init(args: argparse.Namespace) -> None:
         if not pypi_username and not github_url:
             print("WARNING: --fetch requires --username or a GitHub profile in JSON Resume. Skipping live fetch.")
         else:
+            import re
+
             from pypi_profile.importers import (
+                _fetch_pypi_user_packages,
+                fetch_github_funding,
                 fetch_github_profile,
                 fetch_github_repos,
-                fetch_github_funding,
-                _fetch_pypi_user_packages,
                 merge_live_data_into_profile,
             )
-            import re
-            live: dict = {}
+
+            live: dict[str, Any] = {}
             if pypi_username:
                 print(f"Fetching PyPI packages for {pypi_username!r} ...")
                 live["pypi_packages"] = _fetch_pypi_user_packages(pypi_username)
@@ -125,9 +132,8 @@ def cmd_init(args: argparse.Namespace) -> None:
         print("Tip: run with --fetch to pre-fill data from PyPI/GitHub/GitLab/Mastodon.")
 
 
-def _write_toml_from_data(dest: Path, data: dict, username: str = "", kind: str = "individual") -> None:
+def _write_toml_from_data(dest: Path, data: dict[str, Any], username: str = "", kind: str = "individual") -> None:
     """Write a pypi_profile.toml from a merged data dict."""
-    import tomllib as _tomllib  # only for reading; we write manually
 
     profile_sec = data.get("profile", {})
     identity_sec = data.get("identity", {})
@@ -153,19 +159,19 @@ def _write_toml_from_data(dest: Path, data: dict, username: str = "", kind: str 
 
     lines: list[str] = []
 
-    lines.append(f'[profile]')
+    lines.append("[profile]")
     lines.append(f'kind = "{kind}"')
-    lines.append(f'display_name = {_toml_str(display_name)}')
-    lines.append(f'summary = {_toml_str(summary)}')
+    lines.append(f"display_name = {_toml_str(display_name)}")
+    lines.append(f"summary = {_toml_str(summary)}")
     lines.append("")
 
     lines.append("[identity]")
-    lines.append(f'legal_name = {_toml_str(legal_name)}')
-    lines.append(f'display_name = {_toml_str(display_name)}')
-    lines.append(f'pypi_username = {_toml_str(pypi_username)}')
-    lines.append(f'pronouns = ""')
-    lines.append(f'timezone = {_toml_str(timezone)}')
-    lines.append(f'location = {_toml_str(location)}')
+    lines.append(f"legal_name = {_toml_str(legal_name)}")
+    lines.append(f"display_name = {_toml_str(display_name)}")
+    lines.append(f"pypi_username = {_toml_str(pypi_username)}")
+    lines.append('pronouns = ""')
+    lines.append(f"timezone = {_toml_str(timezone)}")
+    lines.append(f"location = {_toml_str(location)}")
     lines.append("")
 
     # Humans
@@ -182,26 +188,40 @@ def _write_toml_from_data(dest: Path, data: dict, username: str = "", kind: str 
 
     # Profiles (external links)
     if not profiles:
-        profiles = [{"kind": "github", "label": "GitHub", "url": f"https://github.com/{pypi_username}", "verification": "self_asserted"}]
+        profiles = [
+            {
+                "kind": "github",
+                "label": "GitHub",
+                "url": f"https://github.com/{pypi_username}",
+                "verification": "self_asserted",
+            }
+        ]
     for p in profiles:
         lines.append("[[profiles]]")
         lines.append(f'kind = {_toml_str(p.get("kind", "website"))}')
         lines.append(f'label = {_toml_str(p.get("label", ""))}')
         lines.append(f'url = {_toml_str(p.get("url", ""))}')
-        lines.append(f'verification = "self_asserted"')
+        lines.append('verification = "self_asserted"')
         lines.append("")
 
     # Contact methods
     if not contact_methods:
-        contact_methods = [{"kind": "email", "label": "Professional email", "value": "you@example.com",
-                            "audience": ["hiring", "consulting", "security"], "visibility": "public"}]
+        contact_methods = [
+            {
+                "kind": "email",
+                "label": "Professional email",
+                "value": "you@example.com",
+                "audience": ["hiring", "consulting", "security"],
+                "visibility": "public",
+            }
+        ]
     for c in contact_methods:
         lines.append("[[contact_methods]]")
         lines.append(f'kind = {_toml_str(c.get("kind", "email"))}')
         lines.append(f'label = {_toml_str(c.get("label", ""))}')
         lines.append(f'value = {_toml_str(c.get("value", ""))}')
         audience = c.get("audience", [])
-        lines.append(f'audience = {json.dumps(audience)}')
+        lines.append(f"audience = {json.dumps(audience)}")
         lines.append(f'visibility = {_toml_str(c.get("visibility", "public"))}')
         lines.append("")
 
@@ -219,10 +239,10 @@ def _write_toml_from_data(dest: Path, data: dict, username: str = "", kind: str 
             lines.append("")
     else:
         lines.append("[[packages]]")
-        lines.append(f'name = "your-package"')
-        lines.append(f'role = "maintainer"')
-        lines.append(f'state = "active"')
-        lines.append(f'summary = "A Python package."')
+        lines.append('name = "your-package"')
+        lines.append('role = "maintainer"')
+        lines.append('state = "active"')
+        lines.append('summary = "A Python package."')
         lines.append("")
 
     # Projects
@@ -262,7 +282,7 @@ def _write_toml_from_data(dest: Path, data: dict, username: str = "", kind: str 
         lines.append("[contracting]")
         lines.append(f'legal_entity = {_toml_str(contracting.get("legal_entity", ""))}')
         et = contracting.get("engagement_types", [])
-        lines.append(f'engagement_types = {json.dumps(et)}')
+        lines.append(f"engagement_types = {json.dumps(et)}")
         lines.append("")
 
     # Contact preferences
@@ -271,23 +291,23 @@ def _write_toml_from_data(dest: Path, data: dict, username: str = "", kind: str 
         dca = contact_prefs.get("do_contact_about", [])
         dnca = contact_prefs.get("do_not_contact_about", [])
         if dca:
-            lines.append(f'do_contact_about = {json.dumps(dca)}')
+            lines.append(f"do_contact_about = {json.dumps(dca)}")
         if dnca:
-            lines.append(f'do_not_contact_about = {json.dumps(dnca)}')
+            lines.append(f"do_not_contact_about = {json.dumps(dnca)}")
         lines.append("")
 
     # Succession
     succ_policy = succession.get("policy", "") if succession else ""
     succ_reviewed = succession.get("last_reviewed", "") if succession else ""
     lines.append("[succession]")
-    lines.append(f'policy = {_toml_str(succ_policy)}')
-    lines.append(f'last_reviewed = {_toml_str(succ_reviewed)}')
+    lines.append(f"policy = {_toml_str(succ_policy)}")
+    lines.append(f"last_reviewed = {_toml_str(succ_reviewed)}")
     lines.append("")
 
     # Verification
     lines.append("[verification]")
     lines.append(f'public_key = {_toml_str(verification.get("public_key", "") if verification else "")}')
-    lines.append(f'preferred_signature_backend = "minisign"')
+    lines.append('preferred_signature_backend = "minisign"')
     lines.append("")
 
     # Funding annotation (as TOML comment block)
@@ -334,6 +354,7 @@ def cmd_inspect(args: argparse.Namespace) -> None:
 def cmd_doctor(args: argparse.Namespace) -> None:
     """Diagnose local configuration and profile health."""
     import importlib
+
     ok = True
 
     def check(label: str, importable: str) -> None:
@@ -378,8 +399,8 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 
 def cmd_fetch(args: argparse.Namespace) -> None:
     """Fetch live metadata from PyPI, GitHub, GitLab, and Mastodon."""
+    from pypi_profile.fetcher import compare_packages, fetch_all
     from pypi_profile.loader import find_profile, load_profile
-    from pypi_profile.fetcher import fetch_all, compare_packages
 
     try:
         toml_path = find_profile(args.source)
@@ -397,7 +418,12 @@ def cmd_fetch(args: argparse.Namespace) -> None:
     print("=== PyPI Package Comparison ===")
     report = compare_packages(profile, live)
     for item in report:
-        status_icon = {"confirmed": "✓", "not_found": "✗", "no_data": "?", "unverified": "?"}.get(item["status"], "?")
+        status_icon = {
+            "confirmed": "✓",
+            "not_found": "✗",
+            "no_data": "?",
+            "unverified": "?",
+        }.get(item["status"], "?")
         print(f"  {status_icon} {item['name']!r} (asserted: {item['asserted_role']}) — {item['note']}")
         if item.get("pypi_version"):
             print(f"      latest version: {item['pypi_version']}  {item.get('pypi_summary', '')[:80]}")
@@ -469,16 +495,34 @@ def main() -> None:
     validate_p.set_defaults(func=cmd_validate)
 
     init_p = subparsers.add_parser("init", help="Create a starter pypi_profile.toml")
-    init_p.add_argument("--kind", default="individual", choices=[
-        "individual", "team", "company", "llc", "foundation", "collective", "project", "other"
-    ])
+    init_p.add_argument(
+        "--kind",
+        default="individual",
+        choices=[
+            "individual",
+            "team",
+            "company",
+            "llc",
+            "foundation",
+            "collective",
+            "project",
+            "other",
+        ],
+    )
     init_p.add_argument("--username", default="", help="PyPI username")
     init_p.add_argument("--output", default="", help="Output path (default: pypi_profile.toml)")
     init_p.add_argument("--force", action="store_true", help="Overwrite existing file")
-    init_p.add_argument("--from-json-resume", default="", metavar="PATH",
-                        help="Import from a JSON Resume file (resume.json)")
-    init_p.add_argument("--fetch", action="store_true",
-                        help="Fetch live data from PyPI, GitHub, GitLab, Mastodon")
+    init_p.add_argument(
+        "--from-json-resume",
+        default="",
+        metavar="PATH",
+        help="Import from a JSON Resume file (resume.json)",
+    )
+    init_p.add_argument(
+        "--fetch",
+        action="store_true",
+        help="Fetch live data from PyPI, GitHub, GitLab, Mastodon",
+    )
     init_p.set_defaults(func=cmd_init)
 
     inspect_p = subparsers.add_parser("inspect", help="Inspect a profile without executing code")

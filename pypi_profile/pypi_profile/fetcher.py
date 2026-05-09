@@ -3,24 +3,26 @@
 from __future__ import annotations
 
 import json
+import re
 import time
+import urllib.error
 from pathlib import Path
 from typing import Any
 
 from pypi_profile.importers import (
+    _fetch_pypi_user_packages,
     fetch_github_funding,
     fetch_github_profile,
     fetch_github_repos,
     fetch_gitlab_profile,
     fetch_mastodon_profile,
     fetch_pypi_package_info,
-    _fetch_pypi_user_packages,
 )
 from pypi_profile.models import ProfileData
 
-
 CACHE_DIR = Path(".pypi_profile_cache")
 CACHE_TTL = 3600  # seconds
+FETCH_ERRORS = (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError)
 
 
 def _cache_path(key: str) -> Path:
@@ -38,7 +40,7 @@ def _cache_read(key: str) -> Any | None:
         if time.time() - data.get("_ts", 0) > CACHE_TTL:
             return None
         return data.get("payload")
-    except Exception:
+    except FETCH_ERRORS:
         return None
 
 
@@ -182,24 +184,24 @@ def compare_packages(profile: ProfileData, live_results: dict[str, Any]) -> list
         elif pypi_username:
             status = "not_found"
             note = f"{pypi_username!r} not in PyPI maintainer list: {maintainers}"
-        report.append({
-            "name": pkg.name,
-            "asserted_role": pkg.role,
-            "status": status,
-            "note": note,
-            "pypi_summary": meta.get("summary", ""),
-            "pypi_version": meta.get("version", ""),
-        })
+        report.append(
+            {
+                "name": pkg.name,
+                "asserted_role": pkg.role,
+                "status": status,
+                "note": note,
+                "pypi_summary": meta.get("summary", ""),
+                "pypi_version": meta.get("version", ""),
+            }
+        )
     return report
 
 
 def _extract_github_username(url: str) -> str:
-    import re
     m = re.match(r"https?://github\.com/([^/]+)/?$", url)
     return m.group(1) if m else ""
 
 
 def _extract_gitlab_username(url: str) -> str:
-    import re
     m = re.match(r"https?://gitlab\.com/([^/]+)/?$", url)
     return m.group(1) if m else ""

@@ -1,9 +1,10 @@
 ---
 site_name: john_doe
 site_url: https://john_doe.readthedocs.io/
-site_author: {{ cookiecutter.author_name }} <{{ cookiecutter.author_email }}>
+site_author: '{{ cookiecutter.author_name }} <{{ cookiecutter.author_email }}>'
 site_description: john_doe
-repo_url: https://github.com/{{ cookiecutter.github_username }}/{{ cookiecutter.github_repo }}
+repo_url: https://github.com/{{ cookiecutter.github_username }}/{{ cookiecutter.github_repo
+  }}
 theme:
   name: readthedocs
   features: [navigation.footer]
