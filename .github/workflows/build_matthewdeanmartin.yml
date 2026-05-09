@@ -1,0 +1,53 @@
+---
+name: Build matthewdeanmartin
+
+on:
+  push:
+    paths:
+      - ".github/workflows/build_matthewdeanmartin.yml"
+      - ".github/workflows/publish_matthewdeanmartin.yml"
+      - "matthewdeanmartin/**"
+      - "pypi_profile/**"
+      - "pypi_ds/**"
+      - "pyproject.toml"
+      - "uv.lock"
+  pull_request:
+    paths:
+      - ".github/workflows/build_matthewdeanmartin.yml"
+      - ".github/workflows/publish_matthewdeanmartin.yml"
+      - "matthewdeanmartin/**"
+      - "pypi_profile/**"
+      - "pypi_ds/**"
+      - "pyproject.toml"
+      - "uv.lock"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: matthewdeanmartin
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        run: uv sync
+      - name: Run quality gates
+        run: uv run make check-ci
+      - name: Build distribution
+        run: uv build
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: matthewdeanmartin-dist
+          path: matthewdeanmartin/dist/
+          if-no-files-found: error
+          retention-days: 7

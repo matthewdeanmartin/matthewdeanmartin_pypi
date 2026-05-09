@@ -1,0 +1,58 @@
+{% extends "pypi_profile/base.html" %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% import "pypi_profile/components.html" as pc %}
+
+{% block profile_title %}Contact{% endblock %}
+
+{% block content %}
+  {{ pc.profile_header(profile) }}
+
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin") %}
+    <div class="package-summary">
+      <p class="package-summary__text">How to get in touch</p>
+    </div>
+  {% endcall %}
+
+  {% call layout.horizontal_section() %}
+    <div class="project-layout">
+      <aside class="project-layout__navigation">
+        {{ navigation.vertical_tabs([
+          {"id": "overview", "label": "Overview", "href": "/"},
+          {"id": "contact", "label": "Contact", "href": "/contact"},
+          {"id": "hiring", "label": "Hiring", "href": "/hiring"}
+        ], active_id="contact", aria_label="Profile navigation") }}
+      </aside>
+      <div class="project-layout__content">
+        {% call layout.card("Contact methods", "project-panel") %}
+          {% if profile.contact_methods %}
+            {{ feedback.notification("All contact information is self-asserted.", tone="info") }}
+            <div class="file-list">
+              {% for method in profile.contact_methods %}
+                {{ pc.contact_card(method) }}
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>No contact methods listed.</p>
+          {% endif %}
+        {% endcall %}
+
+        {% if profile.contact_preferences.do_not_contact_about %}
+          {% call layout.card("Contact preferences", "project-panel") %}
+            <p><strong>Please do not contact about:</strong> {{ profile.contact_preferences.do_not_contact_about | join(", ") }}</p>
+          {% endcall %}
+        {% endif %}
+      </div>
+      <aside class="project-layout__sidebar">
+        {% call layout.sidebar_section("External profiles") %}
+          <ul class="project-links">
+            {% for link in profile.profiles %}
+              {{ pc.profile_link_row(link) }}
+            {% endfor %}
+          </ul>
+        {% endcall %}
+      </aside>
+    </div>
+  {% endcall %}
+{% endblock %}

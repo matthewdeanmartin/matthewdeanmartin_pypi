@@ -1,0 +1,32 @@
+---
+site_name: pypi-profile
+site_url: https://pypi-profile.readthedocs.io/
+site_description: The missing PyPI profile page for Python package publishers.
+repo_url: https://github.com/matthewdeanmartin/matthewdeanmartin_pypi
+theme:
+  name: readthedocs
+  features: [navigation.footer]
+edit_uri: edit/main/docs/
+markdown_extensions:
+  - attr_list
+  - codehilite
+  - toc:
+      permalink: true
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quick Start: quickstart.md
+  - Basic Usage: basic-usage.md
+  - Advanced Usage: advanced-usage.md
+  - Troubleshooting: troubleshooting.md
+  - Roadmap: roadmap.md
+  - Contributing: contributing.md
+validation:
+  nav:
+    omitted_files: warn
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+plugins:
+  - search

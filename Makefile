@@ -1,56 +1,97 @@
-.PHONY: help init install dev run run-json run-markdown run-version run-module run-entry run-entry-json build check-wheel lint test check clean publish
+UV ?= uv
+MAKEFLAGS += --no-print-directory
+export PYTHONUTF8 := 1
+export PYTHONPATH := $(CURDIR)
 
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+.PHONY: sync check check-ci test format lint typecheck help \
+        serve-john-doe serve-matthewdeanmartin \
+        validate-john-doe validate-matthewdeanmartin \
+        inspect-john-doe inspect-matthewdeanmartin \
+        init-example doctor dump-john-doe
 
-init: ## Create venv and install in editable mode
-	uv venv
-	uv pip install -e .
+help:
+	@echo "Workspace targets (run from repo root):"
+	@echo "  sync                    Install all workspace packages and dev deps"
+	@echo "  test                    Run tests for all packages"
+	@echo "  format                  Format all packages"
+	@echo "  lint                    Lint all packages"
+	@echo "  typecheck               Type-check all packages"
+	@echo "  check                   Full quality gate for all packages"
+	@echo "  check-ci                CI quality gate for all packages"
+	@echo ""
+	@echo "Try it out:"
+	@echo "  serve-john-doe          Serve John Doe's example profile  (http://127.0.0.1:8000)"
+	@echo "  serve-matthewdeanmartin Serve Matthew Martin's profile    (http://127.0.0.1:8000)"
+	@echo "  validate-john-doe       Validate John Doe's profile TOML"
+	@echo "  validate-matthewdeanmartin  Validate Matthew Martin's profile TOML"
+	@echo "  inspect-john-doe        Inspect John Doe's profile (no code executed)"
+	@echo "  inspect-matthewdeanmartin   Inspect Matthew Martin's profile"
+	@echo "  dump-john-doe           Dump John Doe's profile as JSON"
+	@echo "  init-example            Generate a starter pypi_profile.toml in /tmp"
+	@echo "  doctor                  Check that all runtime dependencies are installed"
+	@echo ""
+	@echo "Per-package: cd <package> && make <target>"
 
-install: ## Install the package into venv
-	uv pip install .
+sync:
+	@$(UV) sync --all-packages
 
-dev: ## Install in editable/dev mode
-	uv pip install -e .
+# ── Try it out ────────────────────────────────────────────────────────────────
 
-run: ## Run the CLI (formatted profile)
-	uv run python -m matthewdeanmartin
+serve-john-doe:
+	$(UV) run --package pypi-profile pypi-profile serve john_doe/john_doe/pypi_profile.toml
 
-run-json: ## Run the CLI (raw JSON output)
-	uv run python -m matthewdeanmartin --json
+serve-matthewdeanmartin:
+	$(UV) run --package pypi-profile pypi-profile serve matthewdeanmartin/matthewdeanmartin/pypi_profile.toml
 
-run-markdown: ## Run the CLI (markdown output)
-	uv run python -m matthewdeanmartin --markdown
+validate-john-doe:
+	$(UV) run --package pypi-profile pypi-profile validate john_doe/john_doe/pypi_profile.toml
 
-run-version: ## Show package version
-	uv run python -m matthewdeanmartin --version
+validate-matthewdeanmartin:
+	$(UV) run --package pypi-profile pypi-profile validate matthewdeanmartin/matthewdeanmartin/pypi_profile.toml
 
-run-module: ## Run via direct Python import
-	uv run python -c "from matthewdeanmartin.__main__ import main; main()"
+inspect-john-doe:
+	$(UV) run --package pypi-profile pypi-profile inspect john_doe/john_doe/pypi_profile.toml
 
-run-entry: dev ## Run via installed entry point script
-	uv run matthewdeanmartin
+inspect-matthewdeanmartin:
+	$(UV) run --package pypi-profile pypi-profile inspect matthewdeanmartin/matthewdeanmartin/pypi_profile.toml
 
-run-entry-json: dev ## Run installed entry point with --json
-	uv run matthewdeanmartin --json
+dump-john-doe:
+	$(UV) run --package pypi-profile pypi-profile dump john_doe/john_doe/pypi_profile.toml
 
-build: ## Build sdist and wheel
-	uv build
+init-example:
+	$(UV) run --package pypi-profile pypi-profile init --username your-username --output /tmp/pypi_profile.toml
+	@echo ""
+	$(UV) run --package pypi-profile pypi-profile validate /tmp/pypi_profile.toml
 
-publish: build ## Build package distributions for publication
+doctor:
+	$(UV) run --package pypi-profile pypi-profile doctor
 
-check-wheel: build ## Build and list wheel contents
-	uv run python -c "import zipfile, glob; z=zipfile.ZipFile(glob.glob('dist/*.whl')[-1]); [print(n) for n in z.namelist()]"
+test:
+	@$(MAKE) -C pypi_profile test
+	@$(MAKE) -C matthewdeanmartin test
+	@$(MAKE) -C john_doe test
 
-lint: ## Run ruff check and format check
-	uv run ruff check matthewdeanmartin/
-	uv run ruff format --check matthewdeanmartin/
+format:
+	@$(MAKE) -C pypi_profile format
+	@$(MAKE) -C matthewdeanmartin format
+	@$(MAKE) -C john_doe format
 
-test: ## Run tests
-	uv run pytest --cov=matthewdeanmartin
+lint:
+	@$(MAKE) -C pypi_profile lint
+	@$(MAKE) -C matthewdeanmartin lint
+	@$(MAKE) -C john_doe lint
 
-check: lint test ## Run all checks (lint + tests)
+typecheck:
+	@$(MAKE) -C pypi_profile typecheck
+	@$(MAKE) -C matthewdeanmartin typecheck
+	@$(MAKE) -C john_doe typecheck
 
-clean: ## Remove build artifacts
-	rm -rf dist/ build/ *.egg-info matthewdeanmartin/*.egg-info
+check:
+	@$(MAKE) -C pypi_profile check
+	@$(MAKE) -C matthewdeanmartin check
+	@$(MAKE) -C john_doe check
+
+check-ci:
+	@$(MAKE) -C pypi_profile check-ci
+	@$(MAKE) -C matthewdeanmartin check-ci
+	@$(MAKE) -C john_doe check-ci

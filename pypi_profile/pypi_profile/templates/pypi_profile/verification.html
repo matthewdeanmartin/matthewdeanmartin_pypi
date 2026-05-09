@@ -1,0 +1,92 @@
+{% extends "pypi_profile/base.html" %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% import "pypi_profile/components.html" as pc %}
+
+{% block profile_title %}Verification{% endblock %}
+
+{% block content %}
+  {{ pc.profile_header(profile) }}
+
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin") %}
+    <div class="package-summary">
+      <p class="package-summary__text">Verification and proof-of-control details</p>
+    </div>
+  {% endcall %}
+
+  {% call layout.horizontal_section() %}
+    <div class="project-layout">
+      <aside class="project-layout__navigation">
+        {{ navigation.vertical_tabs([
+          {"id": "overview", "label": "Overview", "href": "/"},
+          {"id": "verification", "label": "Verification", "href": "/verification"},
+          {"id": "succession", "label": "Succession", "href": "/succession"}
+        ], active_id="verification", aria_label="Profile navigation") }}
+      </aside>
+      <div class="project-layout__content">
+        {% call layout.card("Publication proof", "project-panel") %}
+          {{ feedback.notification(
+            "This profile was published to PyPI by the account holder. Publication is the root proof of control.",
+            tone="success", title="PyPI-published"
+          ) }}
+          {% if profile.identity.pypi_username %}
+            <p>PyPI account: <strong>{{ profile.identity.pypi_username }}</strong></p>
+          {% endif %}
+        {% endcall %}
+
+        {% call layout.card("Public key", "project-panel") %}
+          {% if profile.verification.public_key %}
+            {{ feedback.status_badge("Public key present", tone="good") }}
+            <p>Signature backend: {{ profile.verification.preferred_signature_backend }}</p>
+            <details>
+              <summary>View public key</summary>
+              <pre><code>{{ profile.verification.public_key }}</code></pre>
+            </details>
+          {% else %}
+            {{ feedback.badge("No public key provided") }}
+            <p class="sidebar-copy">Add a public key to enable signed proof-of-control claims.</p>
+          {% endif %}
+        {% endcall %}
+
+        {% call layout.card("External profile claims", "project-panel") %}
+          {% if profile.profiles %}
+            <table class="table table--light">
+              <thead>
+                <tr>
+                  <th>Profile</th>
+                  <th>URL</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for link in profile.profiles %}
+                  <tr>
+                    <td>{{ link.label }}</td>
+                    <td><a href="{{ link.url }}">{{ link.url }}</a></td>
+                    <td>{{ pc.claim_badge(link.verification) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p>No external profiles listed.</p>
+          {% endif %}
+        {% endcall %}
+      </div>
+      <aside class="project-layout__sidebar">
+        {% call layout.sidebar_section("What verification means") %}
+          <p class="sidebar-copy">
+            <strong>PyPI-published:</strong> The account holder published this package.
+          </p>
+          <p class="sidebar-copy">
+            <strong>Self-asserted:</strong> Claimed by the profile package but not independently verified.
+          </p>
+          <p class="sidebar-copy">
+            <strong>Verified:</strong> Signature confirmed on the external site.
+          </p>
+        {% endcall %}
+      </aside>
+    </div>
+  {% endcall %}
+{% endblock %}

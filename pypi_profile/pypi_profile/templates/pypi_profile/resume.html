@@ -1,0 +1,56 @@
+{% extends "pypi_profile/base.html" %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% import "pypi_profile/components.html" as pc %}
+
+{% block profile_title %}Resume{% endblock %}
+
+{% block content %}
+  {{ pc.profile_header(profile) }}
+
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin") %}
+    <div class="package-summary">
+      <p class="package-summary__text">Career history for {{ profile.profile.display_name or profile.identity.display_name }}</p>
+    </div>
+  {% endcall %}
+
+  {% call layout.horizontal_section() %}
+    <div class="project-layout">
+      <aside class="project-layout__navigation">
+        {{ navigation.vertical_tabs([
+          {"id": "overview", "label": "Overview", "href": "/"},
+          {"id": "resume", "label": "Resume", "href": "/resume"},
+          {"id": "packages", "label": "Packages", "href": "/packages"}
+        ], active_id="resume", aria_label="Profile navigation") }}
+      </aside>
+      <div class="project-layout__content">
+        {% call layout.card("Work experience", "project-panel") %}
+          {% if profile.work_experience %}
+            <div class="release-timeline">
+              {% for entry in profile.work_experience %}
+                {{ pc.work_entry(entry) }}
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>No work experience listed.</p>
+          {% endif %}
+        {% endcall %}
+
+        {% if profile.packages %}
+          {% call layout.card("Package portfolio", "project-panel") %}
+            <div class="file-list">
+              {% for pkg in profile.packages %}
+                {{ pc.package_card(pkg) }}
+              {% endfor %}
+            </div>
+          {% endcall %}
+        {% endif %}
+      </div>
+      <aside class="project-layout__sidebar">
+        {% call layout.sidebar_section("Availability") %}
+          {{ pc.hiring_panel(profile.hiring) }}
+        {% endcall %}
+      </aside>
+    </div>
+  {% endcall %}
+{% endblock %}

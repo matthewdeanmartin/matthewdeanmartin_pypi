@@ -1,0 +1,70 @@
+{% import "pypi_ds/components/icons.html" as icons %}
+{% macro notification(message, tone="info", title=None, role=None, extra_classes="") -%}
+  {% set class_names = "notification-bar" %}
+  {% if tone in ["warning", "danger", "success", "banner"] %}
+    {% set class_names = class_names ~ " notification-bar--" ~ tone %}
+  {% endif %}
+  {% if extra_classes %}
+    {% set class_names = class_names ~ " " ~ extra_classes %}
+  {% endif %}
+  {% set effective_role = role %}
+  {% if not effective_role and tone == "danger" %}
+    {% set effective_role = "alert" %}
+  {% elif not effective_role and tone in ["warning", "success", "banner"] %}
+    {% set effective_role = "status" %}
+  {% endif %}
+  {% set symbol_name = "info" %}
+  {% if tone in ["warning", "danger", "banner"] %}
+    {% set symbol_name = "warning" %}
+  {% elif tone == "success" %}
+    {% set symbol_name = "success" %}
+  {% endif %}
+  <div class="{{ class_names }}" {% if effective_role %}role="{{ effective_role }}"{% endif %}>
+    <span class="notification-bar__icon">
+      {{ icons.symbol(symbol_name, class_name="pypi-ds-symbol") }}
+    </span>
+    <span class="notification-bar__message">
+      {% if title %}<strong>{{ title }}</strong> {% endif %}{{ message }}
+    </span>
+  </div>
+{%- endmacro %}
+{% macro badge(text, tone="neutral") -%}
+  <span class="badge{% if tone != 'neutral' %} badge--{{ tone }}{% endif %}">{{ text }}</span>
+{%- endmacro %}
+{% macro status_badge(text, tone="unknown", href=None, extra_classes="") -%}
+  {% set class_names = "status-badge" %}
+  {% if tone in ["good", "warn", "bad", "unknown"] %}
+    {% set class_names = class_names ~ " status-badge--" ~ tone %}
+  {% endif %}
+  {% if extra_classes %}
+    {% set class_names = class_names ~ " " ~ extra_classes %}
+  {% endif %}
+  {% set symbol_name = "info" %}
+  {% if tone == "warn" %}
+    {% set symbol_name = "warning" %}
+  {% elif tone == "good" %}
+    {% set symbol_name = "success" %}
+  {% elif tone == "bad" %}
+    {% set symbol_name = "warning" %}
+  {% endif %}
+  {% if href %}
+    <a class="{{ class_names }}" href="{{ href }}">
+      <span class="status-badge__icon">{{ icons.symbol(symbol_name, class_name="pypi-ds-symbol") }}</span>
+      <span>{{ text }}</span>
+    </a>
+  {% else %}
+    <span class="{{ class_names }}">
+      <span class="status-badge__icon">{{ icons.symbol(symbol_name, class_name="pypi-ds-symbol") }}</span>
+      <span>{{ text }}</span>
+    </span>
+  {% endif %}
+{%- endmacro %}
+{% macro statistic_bar(stats) -%}
+  <div class="statistics-bar">
+    {% for stat in stats %}
+      <p class="statistics-bar__statistic">
+        <strong>{{ stat.value }}</strong> {{ stat.label }}
+      </p>
+    {% endfor %}
+  </div>
+{%- endmacro %}

@@ -1,0 +1,121 @@
+{% extends "pypi_profile/base.html" %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% import "pypi_profile/components.html" as pc %}
+
+{% block profile_title %}{{ profile.profile.display_name or profile.identity.display_name }}{% endblock %}
+
+{% block content %}
+  {{ pc.profile_header(profile) }}
+
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin") %}
+    <div class="package-summary">
+      <p class="package-summary__text">{{ profile.profile.summary }}</p>
+    </div>
+  {% endcall %}
+
+  {% call layout.horizontal_section() %}
+    <div class="project-layout">
+
+      <aside class="project-layout__navigation">
+        {{ navigation.vertical_tabs([
+          {"id": "overview", "label": "Overview", "href": "#overview"},
+          {"id": "packages", "label": "Packages", "href": "/packages"},
+          {"id": "projects", "label": "Projects", "href": "/projects"},
+          {"id": "resume", "label": "Resume", "href": "/resume"},
+          {"id": "hiring", "label": "Hiring", "href": "/hiring"},
+          {"id": "contact", "label": "Contact", "href": "/contact"},
+          {"id": "verification", "label": "Verification", "href": "/verification"},
+          {"id": "succession", "label": "Succession", "href": "/succession"}
+        ], active_id="overview", aria_label="Profile navigation") }}
+      </aside>
+
+      <div class="project-layout__content">
+        {% call layout.card("About", "project-panel") %}
+          <div id="overview">
+            <p class="lede-paragraph">{{ profile.profile.summary }}</p>
+            {% if profile.identity.pypi_username %}
+              <p>PyPI username: <strong>{{ profile.identity.pypi_username }}</strong></p>
+            {% endif %}
+            {% if profile.identity.timezone %}
+              <p>Timezone: {{ profile.identity.timezone }}</p>
+            {% endif %}
+            {% if profile.identity.pronouns %}
+              <p>Pronouns: {{ profile.identity.pronouns }}</p>
+            {% endif %}
+          </div>
+        {% endcall %}
+
+        {% if profile.packages %}
+          {% call layout.card("Packages", "project-panel") %}
+            <div class="file-list">
+              {% for pkg in profile.packages[:6] %}
+                {{ pc.package_card(pkg) }}
+              {% endfor %}
+            </div>
+            {% if profile.packages | length > 6 %}
+              <p><a href="/packages">View all {{ profile.packages | length }} packages →</a></p>
+            {% endif %}
+          {% endcall %}
+        {% endif %}
+
+        {% if profile.work_experience %}
+          {% call layout.card("Work history", "project-panel") %}
+            <div class="release-timeline">
+              {% for entry in profile.work_experience %}
+                {{ pc.work_entry(entry) }}
+              {% endfor %}
+            </div>
+          {% endcall %}
+        {% endif %}
+      </div>
+
+      <aside class="project-layout__sidebar">
+        {% call layout.sidebar_section("External profiles") %}
+          <ul class="project-links">
+            {% for link in profile.profiles %}
+              {{ pc.profile_link_row(link) }}
+            {% endfor %}
+          </ul>
+        {% endcall %}
+
+        {% call layout.sidebar_section("Availability") %}
+          {{ pc.hiring_panel(profile.hiring) }}
+        {% endcall %}
+
+        {% call layout.sidebar_section("Contact") %}
+          <ul class="project-links">
+            {% for method in profile.contact_methods %}
+              <li>
+                <strong>{{ method.kind }}</strong>: {{ method.label }}
+                {% if method.visibility == "public" %} — {{ method.value }}{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+          <p><a href="/contact">All contact options →</a></p>
+        {% endcall %}
+
+        {% call layout.sidebar_section("Verification") %}
+          {% if profile.verification.public_key %}
+            {{ feedback.status_badge("Public key present", tone="good") }}
+          {% else %}
+            {{ feedback.badge("No verification key") }}
+          {% endif %}
+          <p><a href="/verification">Verification details →</a></p>
+        {% endcall %}
+
+        {% if profile.humans | length > 1 %}
+          {% call layout.sidebar_section("Team members") %}
+            <ul class="maintainer-list">
+              {% for human in profile.humans %}
+                <li>{{ human.display_name }} — {{ human.role }}</li>
+              {% endfor %}
+            </ul>
+          {% endcall %}
+        {% endif %}
+      </aside>
+
+    </div>
+  {% endcall %}
+{% endblock %}

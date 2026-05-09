@@ -1,0 +1,106 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "John Doe",
+    "label": "Python Developer & Open Source Maintainer",
+    "image": "",
+    "email": "john@example.com",
+    "phone": "",
+    "url": "https://johndoe.example.com",
+    "summary": "Python developer, open-source maintainer, and consultant. Passionate about packaging tooling and developer experience.",
+    "location": {
+      "city": "Chicago",
+      "region": "IL",
+      "countryCode": "US"
+    },
+    "profiles": [
+      {
+        "network": "GitHub",
+        "username": "john_doe",
+        "url": "https://github.com/john_doe"
+      },
+      {
+        "network": "Mastodon",
+        "username": "john_doe@fosstodon.org",
+        "url": "https://fosstodon.org/@john_doe"
+      },
+      {
+        "network": "LinkedIn",
+        "username": "johndoe",
+        "url": "https://www.linkedin.com/in/johndoe"
+      }
+    ]
+  },
+  "work": [
+    {
+      "name": "Example Corp",
+      "position": "Senior Python Engineer",
+      "url": "https://example.com",
+      "startDate": "2021-03",
+      "endDate": "present",
+      "summary": "Backend systems, packaging infrastructure, and CLI tooling.",
+      "highlights": [
+        "Reduced CI build times by 40%",
+        "Led migration from setup.py to pyproject.toml"
+      ]
+    },
+    {
+      "name": "Widgets LLC",
+      "position": "Software Engineer",
+      "url": "https://widgets.example.com",
+      "startDate": "2018-06",
+      "endDate": "2021-02",
+      "summary": "Python microservices and internal tooling."
+    }
+  ],
+  "volunteer": [],
+  "education": [
+    {
+      "institution": "University of Illinois",
+      "url": "https://illinois.edu",
+      "area": "Computer Science",
+      "studyType": "Bachelor",
+      "startDate": "2014",
+      "endDate": "2018",
+      "score": "",
+      "courses": []
+    }
+  ],
+  "awards": [],
+  "certificates": [],
+  "publications": [],
+  "skills": [
+    {
+      "name": "Python",
+      "level": "Expert",
+      "keywords": ["packaging", "CLI", "async", "FastAPI"]
+    },
+    {
+      "name": "DevOps",
+      "level": "Intermediate",
+      "keywords": ["Docker", "GitHub Actions", "CI/CD"]
+    }
+  ],
+  "languages": [
+    {
+      "language": "English",
+      "fluency": "Native"
+    }
+  ],
+  "interests": [],
+  "references": [],
+  "projects": [
+    {
+      "name": "Chicago Python Users Group",
+      "description": "Local Python community group in Chicago.",
+      "highlights": [],
+      "keywords": ["community", "python"],
+      "startDate": "2019",
+      "endDate": "",
+      "url": "https://chipug.org",
+      "roles": ["contributor"],
+      "entity": "ChiPUG",
+      "type": "community"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{% extends "pypi_profile/base.html" %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% import "pypi_profile/components.html" as pc %}
+
+{% block profile_title %}Hiring{% endblock %}
+
+{% block content %}
+  {{ pc.profile_header(profile) }}
+
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin") %}
+    <div class="package-summary">
+      <p class="package-summary__text">Availability and contracting information</p>
+    </div>
+  {% endcall %}
+
+  {% call layout.horizontal_section() %}
+    <div class="project-layout">
+      <aside class="project-layout__navigation">
+        {{ navigation.vertical_tabs([
+          {"id": "overview", "label": "Overview", "href": "/"},
+          {"id": "hiring", "label": "Hiring", "href": "/hiring"},
+          {"id": "contact", "label": "Contact", "href": "/contact"}
+        ], active_id="hiring", aria_label="Profile navigation") }}
+      </aside>
+      <div class="project-layout__content">
+        {% call layout.card("Availability", "project-panel") %}
+          {{ pc.hiring_panel(profile.hiring) }}
+        {% endcall %}
+
+        {% if profile.contracting.legal_entity or profile.contracting.engagement_types %}
+          {% call layout.card("Contracting", "project-panel") %}
+            {% if profile.contracting.legal_entity %}
+              <p><strong>Legal entity:</strong> {{ profile.contracting.legal_entity }}</p>
+            {% endif %}
+            {% if profile.contracting.engagement_types %}
+              <p><strong>Engagement types:</strong></p>
+              <ul>
+                {% for et in profile.contracting.engagement_types %}
+                  <li>{{ et }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          {% endcall %}
+        {% endif %}
+
+        {% if profile.contact_preferences.do_contact_about or profile.contact_preferences.do_not_contact_about %}
+          {% call layout.card("Contact preferences", "project-panel") %}
+            {% if profile.contact_preferences.do_contact_about %}
+              <p><strong>Contact me about:</strong> {{ profile.contact_preferences.do_contact_about | join(", ") }}</p>
+            {% endif %}
+            {% if profile.contact_preferences.do_not_contact_about %}
+              <p><strong>Please do not contact about:</strong> {{ profile.contact_preferences.do_not_contact_about | join(", ") }}</p>
+            {% endif %}
+          {% endcall %}
+        {% endif %}
+      </div>
+      <aside class="project-layout__sidebar">
+        {% call layout.sidebar_section("Quick summary") %}
+          {{ pc.hiring_panel(profile.hiring) }}
+        {% endcall %}
+      </aside>
+    </div>
+  {% endcall %}
+{% endblock %}

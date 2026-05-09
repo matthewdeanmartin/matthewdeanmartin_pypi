@@ -1,0 +1,32 @@
+{% extends "pypi_ds/layouts/marketing.html" %}
+{% import "pypi_ds/components/forms.html" as forms %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% import "pypi_ds/components/package.html" as package %}
+
+{% block title %}{{ page_title }} · PyPI Template Demo{% endblock %}
+
+{% block content %}
+  {% call layout.horizontal_section() %}
+    <div class="left-layout">
+      <aside class="left-layout__sidebar">
+        {% call layout.card("Try a few searches") %}
+          {{ forms.field("query", "Current query", value=search_term, wide=True, help_text="Change the search term in the header or the URL query string.") }}
+          {{ forms.field("examples", "Examples", value="template, search, index", wide=True, disabled=True) }}
+        {% endcall %}
+      </aside>
+      <div class="left-layout__main">
+        <h1 class="page-title">Search results</h1>
+        <p class="lede-paragraph">
+          Found {{ result_count }} project{% if result_count != 1 %}s{% endif %} for “{{ search_term }}”.
+        </p>
+        <div class="result-list">
+          {% for project in results %}
+            {{ package.package_snippet(project, href=project.href) }}
+          {% endfor %}
+        </div>
+        {{ navigation.pagination(1, 1, "/search?q=" ~ search_term ~ "&page={page}") }}
+      </div>
+    </div>
+  {% endcall %}
+{% endblock %}

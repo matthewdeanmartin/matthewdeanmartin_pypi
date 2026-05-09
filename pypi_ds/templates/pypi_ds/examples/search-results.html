@@ -1,0 +1,42 @@
+{% extends "pypi_ds/layouts/marketing.html" %}
+{% import "pypi_ds/components/data.html" as data %}
+{% import "pypi_ds/components/forms.html" as forms %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% import "pypi_ds/components/package.html" as package %}
+{% set search_query = search_query|default("warehouse") %}
+{% set results = results|default([
+  {"name": "warehouse", "version": "1.0.0", "description": "A sample package card rendered with the extracted PyPI design system.", "meta": "Released 2 days ago", "href": "/project/warehouse"},
+  {"name": "pypi-ds", "version": "0.1.0", "description": "Reusable templates, components, and examples for PyPI-inspired product surfaces.", "meta": "Released 1 week ago", "href": "/project/pypi-ds"},
+  {"name": "simple-index", "version": "3.4.2", "description": "A clean, Warehouse-flavored index page experience for internal package distribution.", "meta": "Released 3 weeks ago", "href": "/project/simple-index"}
+]) %}
+{% set classifier_options = classifier_options|default([
+  {"value": "", "label": "Any framework"},
+  {"value": "django", "label": "Django"},
+  {"value": "flask", "label": "Flask"},
+  {"value": "pyramid", "label": "Pyramid"}
+]) %}
+{% block title %}Search · PyPI Design System{% endblock %}
+{% block content %}
+  {% call layout.horizontal_section() %}
+    <div class="left-layout">
+      <aside class="left-layout__sidebar">
+        {% call layout.card("Filter results") %}
+          {{ forms.select_field("framework", "Framework", classifier_options, selected="pyramid", wide=True) }}
+          {{ forms.field("maintainer", "Maintainer", placeholder="Search maintainers", wide=True) }}
+          {{ forms.field("requires-python", "Requires Python", placeholder=">=3.12", wide=True) }}
+        {% endcall %}
+      </aside>
+      <div class="left-layout__main">
+        <h1 class="page-title">Search results</h1>
+        <p class="lede-paragraph">Showing Warehouse-style package cards for “{{ search_query }}”.</p>
+        <div class="result-list">
+          {% for project in results %}
+            {{ package.package_snippet(project) }}
+          {% endfor %}
+        </div>
+        {{ navigation.pagination(2, 5, "/search?q=" ~ search_query ~ "&page={page}") }}
+      </div>
+    </div>
+  {% endcall %}
+{% endblock %}

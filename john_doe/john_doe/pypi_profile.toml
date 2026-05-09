@@ -1,0 +1,114 @@
+[profile]
+kind = "individual"
+display_name = "John Doe"
+summary = "Python developer, open-source maintainer, and consultant. Passionate about packaging tooling and developer experience."
+
+[identity]
+legal_name = "John Doe"
+display_name = "John Doe"
+pypi_username = "john_doe"
+pronouns = "he/him"
+timezone = "America/Chicago"
+location = "Chicago, IL, United States"
+
+[[humans]]
+id = "john_doe"
+display_name = "John Doe"
+role = "Owner"
+bio = "Python developer with a focus on packaging and CLI tooling."
+
+[[profiles]]
+kind = "github"
+label = "GitHub"
+url = "https://github.com/john_doe"
+verification = "self_asserted"
+
+[[profiles]]
+kind = "mastodon"
+label = "Mastodon"
+url = "https://fosstodon.org/@john_doe"
+verification = "self_asserted"
+
+[[contact_methods]]
+kind = "email"
+label = "Professional email"
+value = "john@example.com"
+audience = ["hiring", "consulting", "security"]
+visibility = "public"
+
+[[contact_methods]]
+kind = "email"
+label = "Security contact"
+value = "security@example.com"
+audience = ["security"]
+visibility = "public"
+
+[[packages]]
+name = "john-doe"
+role = "owner"
+state = "active"
+summary = "Example pypi-profile plugin — proves two plugins can coexist."
+
+[[packages]]
+name = "example-cli"
+role = "maintainer"
+state = "active"
+summary = "A command-line tool for example workflows."
+
+[[packages]]
+name = "old-thing"
+role = "original-creator"
+state = "archived"
+summary = "An older utility, now archived."
+
+[[projects]]
+name = "Chicago Python Users Group"
+url = "https://chipug.org"
+role = "contributor"
+state = "active"
+summary = "Local Python community group."
+
+[[work_experience]]
+organization = "Example Corp"
+title = "Senior Python Engineer"
+start_date = "2021-03"
+end_date = "present"
+summary = "Backend systems, packaging infrastructure, and CLI tooling."
+
+[[work_experience]]
+organization = "Widgets LLC"
+title = "Software Engineer"
+start_date = "2018-06"
+end_date = "2021-02"
+summary = "Python microservices and internal tooling."
+
+[hiring]
+open_to_work = true
+employment = false
+contracting = true
+consulting = true
+speaking = true
+sponsorship = false
+
+[contracting]
+legal_entity = "John Doe Consulting LLC"
+engagement_types = ["hourly", "retainer"]
+
+[contact_preferences]
+do_contact_about = ["consulting", "package-maintenance", "security", "speaking"]
+do_not_contact_about = ["cryptocurrency", "unpaid-custom-work"]
+
+[succession]
+policy = "If I am unreachable for 60 days, contact the named successor."
+last_reviewed = "2026-05-09"
+
+[[succession.contacts]]
+name = "Jane Smith"
+contact = "jane@example.com"
+scope = ["john-doe", "example-cli"]
+relationship = "co-maintainer"
+verification = "self_asserted"
+
+[verification]
+public_key = ""
+preferred_signature_backend = "minisign"

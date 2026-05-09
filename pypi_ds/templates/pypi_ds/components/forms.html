@@ -1,0 +1,172 @@
+{% import "pypi_ds/components/icons.html" as icons %}
+{% macro search_form(
+  field_id="search",
+  action="#",
+  query="",
+  placeholder="Search projects",
+  name="q",
+  label="Search projects",
+  variant="primary",
+  large=False,
+  full_width=False,
+  extra_classes=""
+) -%}
+  {% set class_names = "search-form" %}
+  {% if variant == "primary" %}
+    {% set class_names = class_names ~ " search-form--primary" %}
+  {% endif %}
+  {% if large %}
+    {% set class_names = class_names ~ " search-form--large" %}
+  {% endif %}
+  {% if full_width %}
+    {% set class_names = class_names ~ " search-form--fullwidth" %}
+  {% endif %}
+  {% if extra_classes %}
+    {% set class_names = class_names ~ " " ~ extra_classes %}
+  {% endif %}
+  <form class="{{ class_names }}" action="{{ action }}" role="search">
+    <label for="{{ field_id }}" class="sr-only">{{ label }}</label>
+    <input id="{{ field_id }}"
+           class="search-form__search"
+           type="text"
+           name="{{ name }}"
+           value="{{ query }}"
+           placeholder="{{ placeholder }}"
+           autocomplete="off"
+           autocapitalize="off"
+           spellcheck="false">
+    <button type="submit" class="search-form__button">
+      {{ icons.symbol("search", title="Search", class_name="pypi-ds-symbol") }}
+      <span class="sr-only">{{ label }}</span>
+    </button>
+  </form>
+{%- endmacro %}
+{% macro field(
+  name,
+  label,
+  value="",
+  field_type="text",
+  help_text=None,
+  required=False,
+  error=None,
+  placeholder=None,
+  wide=False,
+  disabled=False,
+  extra_classes=""
+) -%}
+  {% set wrapper_classes = "form-group" %}
+  {% if wide %}
+    {% set wrapper_classes = wrapper_classes ~ " form-group--wide" %}
+  {% endif %}
+  {% if error %}
+    {% set wrapper_classes = wrapper_classes ~ " form-group--error" %}
+  {% endif %}
+  {% if extra_classes %}
+    {% set wrapper_classes = wrapper_classes ~ " " ~ extra_classes %}
+  {% endif %}
+  {% set input_id = name ~ "-field" %}
+  <div class="{{ wrapper_classes }}">
+    <label class="form-group__label" for="{{ input_id }}">
+      {{ label }}
+      {% if required %}<span class="form-group__required">(required)</span>{% endif %}
+    </label>
+    <input id="{{ input_id }}"
+           class="form-group__field{% if wide %} form-group__field--full-width{% endif %}"
+           type="{{ field_type }}"
+           name="{{ name }}"
+           value="{{ value }}"
+           {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+           {% if required %}required{% endif %}
+           {% if disabled %}disabled{% endif %}
+           {% if error or help_text %}aria-describedby="{{ input_id }}-details"{% endif %}
+           {% if error %}aria-invalid="true"{% endif %}>
+    {% if help_text %}
+      <p id="{{ input_id }}-details" class="form-group__help-text">{{ help_text }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="form-group__error">{{ error }}</p>
+    {% endif %}
+  </div>
+{%- endmacro %}
+{% macro textarea_field(
+  name,
+  label,
+  value="",
+  help_text=None,
+  required=False,
+  error=None,
+  placeholder=None,
+  wide=False,
+  rows=6
+) -%}
+  {% set wrapper_classes = "form-group" %}
+  {% if wide %}
+    {% set wrapper_classes = wrapper_classes ~ " form-group--wide" %}
+  {% endif %}
+  {% if error %}
+    {% set wrapper_classes = wrapper_classes ~ " form-group--error" %}
+  {% endif %}
+  {% set input_id = name ~ "-field" %}
+  <div class="{{ wrapper_classes }}">
+    <label class="form-group__label" for="{{ input_id }}">
+      {{ label }}
+      {% if required %}<span class="form-group__required">(required)</span>{% endif %}
+    </label>
+    <textarea id="{{ input_id }}"
+              class="form-group__field{% if wide %} form-group__field--full-width{% endif %}"
+              name="{{ name }}"
+              rows="{{ rows }}"
+              {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+              {% if required %}required{% endif %}
+              {% if error or help_text %}aria-describedby="{{ input_id }}-details"{% endif %}
+              {% if error %}aria-invalid="true"{% endif %}>{{ value }}</textarea>
+    {% if help_text %}
+      <p id="{{ input_id }}-details" class="form-group__help-text">{{ help_text }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="form-group__error">{{ error }}</p>
+    {% endif %}
+  </div>
+{%- endmacro %}
+{% macro select_field(
+  name,
+  label,
+  options,
+  selected=None,
+  help_text=None,
+  required=False,
+  error=None,
+  wide=False
+) -%}
+  {% set wrapper_classes = "form-group" %}
+  {% if wide %}
+    {% set wrapper_classes = wrapper_classes ~ " form-group--wide" %}
+  {% endif %}
+  {% if error %}
+    {% set wrapper_classes = wrapper_classes ~ " form-group--error" %}
+  {% endif %}
+  {% set input_id = name ~ "-field" %}
+  <div class="{{ wrapper_classes }}">
+    <label class="form-group__label" for="{{ input_id }}">
+      {{ label }}
+      {% if required %}<span class="form-group__required">(required)</span>{% endif %}
+    </label>
+    <select id="{{ input_id }}"
+            class="form-group__field{% if wide %} form-group__field--full-width{% endif %}"
+            name="{{ name }}"
+            {% if required %}required{% endif %}
+            {% if error or help_text %}aria-describedby="{{ input_id }}-details"{% endif %}
+            {% if error %}aria-invalid="true"{% endif %}>
+      {% for option in options %}
+        <option value="{{ option.value }}"
+                {% if selected == option.value %}selected{% endif %}>{{ option.label }}</option>
+      {% endfor %}
+    </select>
+    {% if help_text %}
+      <p id="{{ input_id }}-details" class="form-group__help-text">{{ help_text }}</p>
+    {% endif %}
+    {% if error %}
+      <p class="form-group__error">{{ error }}</p>
+    {% endif %}
+  </div>
+{%- endmacro %}

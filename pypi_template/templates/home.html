@@ -1,0 +1,51 @@
+{% extends "pypi_ds/layouts/marketing.html" %}
+{% import "pypi_ds/components/buttons.html" as buttons %}
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% import "pypi_ds/components/forms.html" as forms %}
+{% import "pypi_ds/components/layout.html" as layout %}
+
+{% block title %}{{ page_title }} · PyPI Template Demo{% endblock %}
+
+{% block content %}
+  {% call layout.hero(
+    "Exercise the extracted PyPI design system in a live app",
+    "This demo project uses FastAPI, uv, and the pypi_ds templates to preview a Warehouse-style site shell.",
+    "/search",
+    "browse the search demo"
+  ) %}
+    {{ forms.search_form(
+      field_id="landing-search",
+      action="/search",
+      query=search_query,
+      placeholder="Search the demo catalog",
+      label="Search the demo catalog",
+      large=True,
+      full_width=True
+    ) }}
+  {% endcall %}
+
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin horizontal-section--statistics") %}
+    {{ feedback.statistic_bar(stats) }}
+  {% endcall %}
+
+  {% call layout.horizontal_section() %}
+    <div class="about-pypi">
+      <div class="about-pypi__logo">
+        <img alt="PyPI design system logo"
+             src="{{ asset_base }}/images/logo-large.svg">
+      </div>
+      <div class="about-pypi__text">
+        <p class="lede-paragraph">
+          The local app is intentionally small: it exists to show how to mount the shared static assets, import the shared templates, and render pages with real route handlers.
+        </p>
+        <p>
+          Use the search page to inspect the package cards and list layout, then open the project page to see the package header, status badge, sidebar sections, and release history table in action.
+        </p>
+        <div class="button-row">
+          {{ buttons.button("Open search demo", href="/search?q=template", variant="primary") }}
+          {{ buttons.button("Open project demo", href="/projects/pypi-ds", variant="tertiary") }}
+        </div>
+      </div>
+    </div>
+  {% endcall %}
+{% endblock %}

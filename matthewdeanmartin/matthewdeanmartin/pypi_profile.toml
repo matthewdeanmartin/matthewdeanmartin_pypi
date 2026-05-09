@@ -1,0 +1,84 @@
+[profile]
+kind = "individual"
+display_name = "Matthew Martin"
+summary = "Python developer and open-source maintainer. I publish dozens of packages related to AI tooling, packaging, code quality, and developer utilities."
+
+[identity]
+legal_name = "Matthew Martin"
+display_name = "Matthew Martin"
+pypi_username = "matthewdeanmartin"
+pronouns = ""
+timezone = "America/New_York"
+location = "United States"
+
+[[humans]]
+id = "matthewdeanmartin"
+display_name = "Matthew Martin"
+role = "Owner"
+
+[[profiles]]
+kind = "github"
+label = "GitHub"
+url = "https://github.com/matthewdeanmartin"
+verification = "self_asserted"
+
+[[contact_methods]]
+kind = "email"
+label = "Professional email"
+value = "matthewdeanmartin@gmail.com"
+audience = ["hiring", "consulting", "security"]
+visibility = "public"
+
+[[packages]]
+name = "pypi-profile"
+role = "owner"
+state = "active"
+summary = "The missing PyPI profile page — pipx-installable, plugin-extensible."
+
+[[packages]]
+name = "matthewdeanmartin"
+role = "owner"
+state = "active"
+summary = "Profile package for matthewdeanmartin on PyPI."
+
+[[packages]]
+name = "ai-shell"
+role = "owner"
+state = "active"
+summary = "AI-powered shell command assistant."
+
+[[packages]]
+name = "metametameta"
+role = "owner"
+state = "active"
+summary = "Automated pyproject.toml metadata fixer."
+
+[[packages]]
+name = "git2md"
+role = "owner"
+state = "active"
+summary = "Convert a git repo to a markdown document for LLM consumption."
+
+[hiring]
+open_to_work = false
+employment = false
+contracting = true
+consulting = true
+speaking = false
+sponsorship = true
+
+[contracting]
+legal_entity = ""
+engagement_types = ["hourly", "retainer"]
+
+[contact_preferences]
+do_contact_about = ["consulting", "package-maintenance", "security"]
+do_not_contact_about = ["cryptocurrency", "unpaid-custom-work"]
+
+[succession]
+policy = "If unreachable for 90 days, open a GitHub issue on any affected repository."
+last_reviewed = "2026-05-09"
+
+[verification]
+public_key = ""
+preferred_signature_backend = "minisign"

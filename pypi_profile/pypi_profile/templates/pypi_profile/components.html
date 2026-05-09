@@ -1,0 +1,205 @@
+{% import "pypi_ds/components/feedback.html" as feedback %}
+
+{# Profile header banner — maps to PyPI package_header #}
+{% macro profile_header(profile) -%}
+  <div class="banner">
+    <div class="package-header">
+      <div class="package-header__left">
+        <h1 class="package-header__name">{{ profile.profile.display_name or profile.identity.display_name }}</h1>
+        <p class="package-header__pip-instructions">
+          <span>pip install {{ profile.identity.pypi_username or "pypi-profile-&lt;username&gt;" }}</span>
+        </p>
+      </div>
+      <div class="package-header__right">
+        {{ principal_kind_badge(profile.profile.kind) }}
+        {% if profile.identity.location %}
+          <p class="package-header__date">{{ profile.identity.location }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{%- endmacro %}
+
+{# Map principal kind to a status tone #}
+{% macro principal_kind_badge(kind) -%}
+  {% set tone_map = {
+    "individual": "good",
+    "team": "good",
+    "company": "unknown",
+    "llc": "unknown",
+    "foundation": "unknown",
+    "collective": "unknown",
+    "project": "unknown",
+    "other": "unknown"
+  } %}
+  {{ feedback.status_badge(kind | title, tone=tone_map.get(kind, "unknown")) }}
+{%- endmacro %}
+
+{# Claim status badge — clearly distinguishes verified vs self-asserted #}
+{% macro claim_badge(status) -%}
+  {% if status == "verified" %}
+    {{ feedback.status_badge("Verified", tone="good") }}
+  {% elif status == "self_asserted" %}
+    {{ feedback.badge("Self-asserted", tone="neutral") }}
+  {% elif status == "unverified" %}
+    {{ feedback.badge("Unverified", tone="neutral") }}
+  {% elif status == "invalid" %}
+    {{ feedback.status_badge("Verification failed", tone="bad") }}
+  {% elif status == "expired" %}
+    {{ feedback.status_badge("Expired", tone="warn") }}
+  {% else %}
+    {{ feedback.badge("Unknown", tone="neutral") }}
+  {% endif %}
+{%- endmacro %}
+
+{# Package state badge #}
+{% macro state_badge(state) -%}
+  {% set tone_map = {
+    "active": "good",
+    "maintained": "good",
+    "stable": "good",
+    "experimental": "warn",
+    "planning": "warn",
+    "paused": "warn",
+    "archived": "unknown",
+    "deprecated": "bad",
+    "abandoned": "bad",
+    "seeking-maintainer": "warn",
+    "security-only": "warn",
+    "unmaintained-but-usable": "warn",
+    "superseded": "bad",
+    "transferred": "unknown",
+    "private": "unknown",
+    "unknown": "unknown"
+  } %}
+  {{ feedback.status_badge(state | replace("-", " ") | title, tone=tone_map.get(state, "unknown")) }}
+{%- endmacro %}
+
+{# Single package card #}
+{% macro package_card(pkg) -%}
+  <article class="file-card">
+    <div class="file-card__body">
+      <h3 class="file-card__title">
+        <a href="https://pypi.org/project/{{ pkg.name }}/">{{ pkg.name }}</a>
+      </h3>
+      <p class="file-card__meta">
+        Role: <strong>{{ pkg.role }}</strong>
+        &nbsp;·&nbsp;
+        {{ state_badge(pkg.state) }}
+      </p>
+      {% if pkg.summary %}
+        <p>{{ pkg.summary }}</p>
+      {% endif %}
+    </div>
+  </article>
+{%- endmacro %}
+
+{# Single project card #}
+{% macro project_card(proj) -%}
+  <article class="file-card">
+    <div class="file-card__body">
+      <h3 class="file-card__title">
+        {% if proj.url %}<a href="{{ proj.url }}">{{ proj.name }}</a>{% else %}{{ proj.name }}{% endif %}
+      </h3>
+      <p class="file-card__meta">
+        Role: <strong>{{ proj.role }}</strong>
+        &nbsp;·&nbsp;
+        {{ state_badge(proj.state) }}
+      </p>
+      {% if proj.summary %}
+        <p>{{ proj.summary }}</p>
+      {% endif %}
+    </div>
+  </article>
+{%- endmacro %}
+
+{# Contact method card #}
+{% macro contact_card(method) -%}
+  <article class="file-card">
+    <div class="file-card__body">
+      <h3 class="file-card__title">{{ method.label }}</h3>
+      <p class="file-card__meta">
+        <strong>{{ method.kind }}</strong>
+        {% if method.audience %}· for: {{ method.audience | join(", ") }}{% endif %}
+      </p>
+      {% if method.visibility == "public" %}
+        <p>{{ method.value }}</p>
+      {% elif method.visibility == "link" %}
+        <p><a href="{{ method.value }}">Contact form</a></p>
+      {% else %}
+        <p><em>Contact details obfuscated</em></p>
+      {% endif %}
+    </div>
+  </article>
+{%- endmacro %}
+
+{# Human/maintainer card #}
+{% macro human_card(human) -%}
+  <article class="file-card">
+    <div class="file-card__body">
+      <h3 class="file-card__title">{{ human.display_name }}</h3>
+      {% if human.role %}
+        <p class="file-card__meta">{{ human.role }}</p>
+      {% endif %}
+      {% if human.bio %}
+        <p>{{ human.bio }}</p>
+      {% endif %}
+    </div>
+  </article>
+{%- endmacro %}
+
+{# External profile link with claim status #}
+{% macro profile_link_row(link) -%}
+  <li>
+    <a href="{{ link.url }}">{{ link.label }}</a>
+    &nbsp;{{ claim_badge(link.verification) }}
+  </li>
+{%- endmacro %}
+
+{# Hiring availability panel — maps to package classifiers #}
+{% macro hiring_panel(hiring) -%}
+  <ul class="vertical-tabs__list">
+    {% if hiring.open_to_work %}
+      <li>{{ feedback.status_badge("Open to work", tone="good") }}</li>
+    {% endif %}
+    {% if hiring.employment %}
+      <li>{{ feedback.badge("Employment") }}</li>
+    {% endif %}
+    {% if hiring.contracting %}
+      <li>{{ feedback.badge("Contracting") }}</li>
+    {% endif %}
+    {% if hiring.consulting %}
+      <li>{{ feedback.badge("Consulting") }}</li>
+    {% endif %}
+    {% if hiring.speaking %}
+      <li>{{ feedback.badge("Speaking") }}</li>
+    {% endif %}
+    {% if hiring.sponsorship %}
+      <li>{{ feedback.badge("Sponsorship") }}</li>
+    {% endif %}
+    {% if not (hiring.open_to_work or hiring.employment or hiring.contracting or hiring.consulting or hiring.speaking or hiring.sponsorship) %}
+      <li>{{ feedback.badge("Not currently available") }}</li>
+    {% endif %}
+  </ul>
+{%- endmacro %}
+
+{# Work timeline entry #}
+{% macro work_entry(entry) -%}
+  <div class="release-timeline__date">
+    <p><strong>{{ entry.start_date }}{% if entry.end_date %} – {{ entry.end_date }}{% endif %}</strong></p>
+  </div>
+  <div class="release-timeline__package">
+    <p><strong>{{ entry.title }}</strong> at {{ entry.organization }}</p>
+    {% if entry.summary %}<p>{{ entry.summary }}</p>{% endif %}
+  </div>
+{%- endmacro %}
+
+{# Succession notice #}
+{% macro succession_notice(succession) -%}
+  {% if succession.policy %}
+    {{ feedback.notification(succession.policy, tone="info", title="Succession policy") }}
+  {% endif %}
+  {% if succession.last_reviewed %}
+    <p class="sidebar-copy">Last reviewed: {{ succession.last_reviewed }}</p>
+  {% endif %}
+{%- endmacro %}

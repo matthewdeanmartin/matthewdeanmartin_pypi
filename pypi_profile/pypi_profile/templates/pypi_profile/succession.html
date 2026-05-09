@@ -1,0 +1,69 @@
+{% extends "pypi_profile/base.html" %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% import "pypi_profile/components.html" as pc %}
+
+{% block profile_title %}Succession{% endblock %}
+
+{% block content %}
+  {{ pc.profile_header(profile) }}
+
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin") %}
+    <div class="package-summary">
+      <p class="package-summary__text">Maintainer continuity and succession guidance</p>
+    </div>
+  {% endcall %}
+
+  {% call layout.horizontal_section() %}
+    <div class="project-layout">
+      <aside class="project-layout__navigation">
+        {{ navigation.vertical_tabs([
+          {"id": "overview", "label": "Overview", "href": "/"},
+          {"id": "verification", "label": "Verification", "href": "/verification"},
+          {"id": "succession", "label": "Succession", "href": "/succession"}
+        ], active_id="succession", aria_label="Profile navigation") }}
+      </aside>
+      <div class="project-layout__content">
+        {% call layout.card("Succession policy", "project-panel") %}
+          {{ feedback.notification(
+            "Succession information is self-asserted. It is not legally binding.",
+            tone="info"
+          ) }}
+          {{ pc.succession_notice(profile.succession) }}
+        {% endcall %}
+
+        {% if profile.succession.contacts %}
+          {% call layout.card("Succession contacts", "project-panel") %}
+            <div class="file-list">
+              {% for contact in profile.succession.contacts %}
+                <article class="file-card">
+                  <div class="file-card__body">
+                    <h3 class="file-card__title">{{ contact.name }}</h3>
+                    <p class="file-card__meta">
+                      {% if contact.relationship %}Relationship: {{ contact.relationship }}{% endif %}
+                    </p>
+                    {% if contact.contact %}
+                      <p>Contact: {{ contact.contact }}</p>
+                    {% endif %}
+                    {% if contact.scope %}
+                      <p>Scope: {{ contact.scope | join(", ") }}</p>
+                    {% endif %}
+                    <p>{{ pc.claim_badge(contact.verification) }}</p>
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+          {% endcall %}
+        {% endif %}
+      </div>
+      <aside class="project-layout__sidebar">
+        {% call layout.sidebar_section("About succession") %}
+          <p class="sidebar-copy">
+            This page provides static, self-asserted succession guidance to help users and co-maintainers understand what happens if the maintainer becomes unavailable.
+          </p>
+        {% endcall %}
+      </aside>
+    </div>
+  {% endcall %}
+{% endblock %}

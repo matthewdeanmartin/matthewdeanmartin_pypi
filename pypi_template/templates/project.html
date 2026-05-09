@@ -1,0 +1,78 @@
+{% extends "pypi_ds/layouts/marketing.html" %}
+{% import "pypi_ds/components/data.html" as data %}
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% import "pypi_ds/components/package.html" as package %}
+
+{% block title %}{{ page_title }} · PyPI Template Demo{% endblock %}
+
+{% block content %}
+  {{ package.package_header(project) }}
+
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin") %}
+    <div class="package-summary">
+      <p class="package-summary__text">
+        {{ project.summary }}
+      </p>
+    </div>
+  {% endcall %}
+
+  {% call layout.horizontal_section() %}
+    <div class="project-layout">
+      <aside class="project-layout__navigation">
+        {{ navigation.vertical_tabs([
+          {"id": "description", "label": "Project description", "href": "#description"},
+          {"id": "history", "label": "Release history", "href": "#history"},
+          {"id": "files", "label": "Download files", "href": "#files"}
+        ], active_id="description", aria_label="Project navigation") }}
+      </aside>
+
+      <div class="project-layout__content">
+        {% call layout.card("Project description", "project-panel") %}
+          <div id="description">
+            <p class="lede-paragraph">
+              {{ project.description }}
+            </p>
+            <p>
+              This page is rendered from a local template that composes the extracted shared macros. It is meant to show the integration shape for another application, not just mirror Warehouse file-for-file.
+            </p>
+          </div>
+        {% endcall %}
+
+        {% call layout.card("Release history", "project-panel") %}
+          <div id="history">
+            {{ data.data_table("Release history", release_history_columns, release_history_rows, variant="releases") }}
+          </div>
+        {% endcall %}
+
+        {% call layout.card("Download files", "project-panel") %}
+          <div id="files">
+            {{ package.file_cards(files) }}
+          </div>
+        {% endcall %}
+      </div>
+
+      <aside class="project-layout__sidebar">
+        {% call layout.sidebar_section("Project links") %}
+          {{ package.project_links(project_links) }}
+        {% endcall %}
+
+        {% call layout.sidebar_section("Maintainers") %}
+          <ul class="maintainer-list">
+            {% for maintainer in maintainers %}
+              <li>{{ maintainer }}</li>
+            {% endfor %}
+          </ul>
+        {% endcall %}
+
+        {% call layout.sidebar_section("Status") %}
+          {{ feedback.status_badge(project.status_text, tone=project.status_tone) }}
+          <p class="sidebar-copy">
+            This sidebar content is local to the demo app, while the status badge and layout shell come from pypi_ds.
+          </p>
+        {% endcall %}
+      </aside>
+    </div>
+  {% endcall %}
+{% endblock %}

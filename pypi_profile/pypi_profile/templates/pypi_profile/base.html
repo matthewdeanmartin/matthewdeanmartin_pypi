@@ -1,0 +1,25 @@
+{% extends "pypi_ds/base.html" %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% block title %}{% block profile_title %}{% endblock %} · PyPI Profile{% endblock %}
+{% block body %}
+  {{ layout.site_header(
+    brand_name="PyPI Profile",
+    brand_href="/",
+    search_action=None,
+    nav_items=[
+      {"label": "Packages", "href": "/packages"},
+      {"label": "Projects", "href": "/projects"},
+      {"label": "Resume", "href": "/resume"},
+      {"label": "Hiring", "href": "/hiring"},
+      {"label": "Contact", "href": "/contact"},
+      {"label": "Verification", "href": "/verification"},
+      {"label": "Succession", "href": "/succession"}
+    ],
+    secondary_items=[]
+  ) }}
+  {% block content %}{% endblock %}
+  {{ layout.site_footer(
+    footer_note="Powered by pypi-profile — the missing PyPI profile page.",
+    supporting_note="Profile data is self-asserted unless explicitly verified."
+  ) }}
+{% endblock %}

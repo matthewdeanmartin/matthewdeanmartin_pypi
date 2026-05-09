@@ -1,0 +1,46 @@
+{% extends "pypi_profile/base.html" %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% import "pypi_profile/components.html" as pc %}
+
+{% block profile_title %}Packages{% endblock %}
+
+{% block content %}
+  {{ pc.profile_header(profile) }}
+
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin") %}
+    <div class="package-summary">
+      <p class="package-summary__text">Packages maintained by {{ profile.profile.display_name or profile.identity.display_name }}</p>
+    </div>
+  {% endcall %}
+
+  {% call layout.horizontal_section() %}
+    <div class="project-layout">
+      <aside class="project-layout__navigation">
+        {{ navigation.vertical_tabs([
+          {"id": "overview", "label": "Overview", "href": "/"},
+          {"id": "packages", "label": "Packages", "href": "/packages"},
+          {"id": "projects", "label": "Projects", "href": "/projects"}
+        ], active_id="packages", aria_label="Profile navigation") }}
+      </aside>
+      <div class="project-layout__content">
+        {% call layout.card("All packages", "project-panel") %}
+          {% if profile.packages %}
+            <div class="file-list">
+              {% for pkg in profile.packages %}
+                {{ pc.package_card(pkg) }}
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>No packages listed.</p>
+          {% endif %}
+        {% endcall %}
+      </div>
+      <aside class="project-layout__sidebar">
+        {% call layout.sidebar_section("Summary") %}
+          <p class="sidebar-copy">{{ profile.packages | length }} package(s) listed.</p>
+        {% endcall %}
+      </aside>
+    </div>
+  {% endcall %}
+{% endblock %}

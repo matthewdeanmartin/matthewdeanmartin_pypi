@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="{{ lang|default('en') }}">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}PyPI Design System{% endblock %}</title>
+    <meta name="description"
+          content="{% block description %}A Jinja2 design system extracted from Warehouse with PyPI-inspired layouts and components.{% endblock %}">
+    <link rel="stylesheet"
+          href="{{ asset_base|default('/static/pypi_ds') }}/css/pypi_ds.css">
+    <link rel="icon"
+          href="{{ asset_base|default('/static/pypi_ds') }}/images/favicon.ico"
+          type="image/x-icon">
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body class="{% block body_class %}{% endblock %}">
+    {% block body %}{% endblock %}
+  </body>
+</html>

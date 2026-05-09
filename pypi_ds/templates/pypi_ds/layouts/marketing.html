@@ -1,0 +1,36 @@
+{% extends "pypi_ds/base.html" %}
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% set design_system_asset_base = asset_base|default('/static/pypi_ds') %}
+{% block body %}
+  <a href="#content" class="skip-to-content">Skip to main content</a>
+  {% for notice in top_notifications|default([]) %}
+    {{ feedback.notification(
+      notice.message,
+      tone=notice.tone|default("info"),
+      title=notice.title,
+      role=notice.role
+    ) }}
+  {% endfor %}
+  {{ layout.site_header(
+    brand_name=brand_name|default("PyPI"),
+    brand_href=brand_href|default("/"),
+    search_action=search_action|default("/search"),
+    search_query=search_query|default(""),
+    search_placeholder=search_placeholder|default("Type '/' to search projects"),
+    nav_items=header_nav_items,
+    secondary_items=header_secondary_items,
+    site_state=site_state|default("production"),
+    asset_base=design_system_asset_base
+  ) }}
+  {% block after_header %}{% endblock %}
+  <main id="content">
+    {% block content %}{% endblock %}
+  </main>
+  {{ layout.site_footer(
+    footer_menus=footer_menus,
+    footer_note=footer_note,
+    supporting_note=supporting_note,
+    asset_base=design_system_asset_base
+  ) }}
+{% endblock %}
