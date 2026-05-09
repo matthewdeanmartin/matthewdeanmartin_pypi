@@ -1,4 +1,4 @@
-UV ?= uv
+override UV := uv
 MAKEFLAGS += --no-print-directory
 export PYTHONUTF8 := 1
 
@@ -8,7 +8,6 @@ PYLINT_MAIN_TARGETS := matthewdeanmartin
 PYLINT_TEST_TARGETS := tests
 MARKDOWN_TARGETS := $(wildcard README.md CHANGELOG.md AGENTS.md docs)
 YAML_TARGETS := $(wildcard mkdocs.yml .readthedocs.yaml .github/dependabot.yml)
-GHA_WORKFLOWS := .github/workflows
 ABOUT_FILE := matthewdeanmartin/__about__.py
 AUDIT_IGNORE := PYSEC-2022-42969
 
@@ -35,7 +34,7 @@ help:
 	@echo "Targets: sync format format-check lint lint-check spell test test-ci tox"
 	@echo "         typecheck security docs-check build-docs dead-code explore"
 	@echo "         metadata metadata-check version-check dev-status"
-	@echo "         gha-validate gha-pin gha-upgrade publish-gha"
+	@echo "         gha-validate gha-pin gha-upgrade publish-gha (delegates to repo root)"
 	@echo "         check check-ci prerelease publish-check publish"
 
 sync:
@@ -191,13 +190,10 @@ dev-status:
 	@$(UV) run troml-dev-status validate .
 
 gha-validate:
-	@$(UV) run python -c "import pathlib, yaml; [yaml.safe_load(p.read_text(encoding='utf-8')) for p in pathlib.Path('$(GHA_WORKFLOWS)').glob('*.yml')]; print('YAML parse OK')"
+	@$(MAKE) -C .. gha-validate
 
 gha-pin:
-	@$(UV) run python -c "import os, subprocess; \
-token=os.environ.get('GITHUB_TOKEN') or subprocess.run(['gh', 'auth', 'token'], capture_output=True, text=True).stdout.strip(); \
-assert token, 'Set GITHUB_TOKEN or run: gh auth login'; \
-raise SystemExit(subprocess.run(['gha-update'], env=dict(os.environ, GITHUB_TOKEN=token)).returncode)"
+	@$(MAKE) -C .. gha-pin
 
 gha-upgrade: gha-pin gha-validate
 

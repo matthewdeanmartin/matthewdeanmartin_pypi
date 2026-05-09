@@ -1,4 +1,4 @@
-UV ?= uv
+override UV := uv
 MAKEFLAGS += --no-print-directory
 export PYTHONUTF8 := 1
 export PYTHONPATH := $(CURDIR)
@@ -7,7 +7,10 @@ export PYTHONPATH := $(CURDIR)
         serve-john-doe serve-matthewdeanmartin \
         validate-john-doe validate-matthewdeanmartin \
         inspect-john-doe inspect-matthewdeanmartin \
-        init-example doctor dump-john-doe
+        init-example doctor dump-john-doe \
+        gha-validate gha-pin gha-upgrade zizmor
+
+GHA_WORKFLOWS := .github/workflows
 
 help:
 	@echo "Workspace targets (run from repo root):"
@@ -29,6 +32,10 @@ help:
 	@echo "  dump-john-doe           Dump John Doe's profile as JSON"
 	@echo "  init-example            Generate a starter pypi_profile.toml in /tmp"
 	@echo "  doctor                  Check that all runtime dependencies are installed"
+	@echo "  gha-validate            Validate repository GitHub Actions workflow YAML"
+	@echo "  gha-pin                 Update pinned GitHub Actions SHAs in root workflows"
+	@echo "  gha-upgrade             Refresh GitHub Actions pins and validate workflows"
+	@echo "  zizmor                  Audit repository GitHub Actions workflows"
 	@echo ""
 	@echo "Per-package: cd <package> && make <target>"
 
@@ -95,3 +102,17 @@ check-ci:
 	@$(MAKE) -C pypi_profile check-ci
 	@$(MAKE) -C matthewdeanmartin check-ci
 	@$(MAKE) -C john_doe check-ci
+
+gha-validate:
+	@$(UV) run python -c "import pathlib, yaml; [yaml.safe_load(p.read_text(encoding='utf-8')) for p in pathlib.Path('$(GHA_WORKFLOWS)').glob('*.yml')]; print('YAML parse OK')"
+
+gha-pin:
+	@$(UV) run python -c "import os, subprocess; \
+token=os.environ.get('GITHUB_TOKEN') or subprocess.run(['gh', 'auth', 'token'], capture_output=True, text=True).stdout.strip(); \
+assert token, 'Set GITHUB_TOKEN or run: gh auth login'; \
+raise SystemExit(subprocess.run(['gha-update'], env=dict(os.environ, GITHUB_TOKEN=token)).returncode)"
+
+gha-upgrade: gha-pin gha-validate
+
+zizmor:
+	@$(UV) run zizmor $(GHA_WORKFLOWS)
