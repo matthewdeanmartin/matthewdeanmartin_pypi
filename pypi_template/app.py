@@ -8,10 +8,9 @@ from jinja2 import ChoiceLoader, FileSystemLoader
 from starlette.templating import Jinja2Templates
 
 project_root = Path(__file__).resolve().parent
-repo_root = project_root.parent
 
-if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from pypi_ds.paths import static_root_path, template_root_path
 

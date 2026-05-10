@@ -1,0 +1,60 @@
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% macro package_snippet(project, href=None, extra_classes="") -%}
+  {% set target_href = href or project.href or "#" %}
+  <a class="package-snippet{% if extra_classes %} {{ extra_classes }}{% endif %}"
+     href="{{ target_href }}">
+    <h3 class="package-snippet__title">
+      <span class="package-snippet__name">{{ project.name }}</span>
+      {% if project.version %}<span class="package-snippet__version">{{ project.version }}</span>{% endif %}
+      {% if project.release_date %}<span class="package-snippet__created">{{ project.release_date }}</span>{% endif %}
+    </h3>
+    {% if project.meta %}
+      <p class="package-snippet__meta">{{ project.meta }}</p>
+    {% endif %}
+    <p class="package-snippet__description">{{ project.description }}</p>
+  </a>
+{%- endmacro %}
+{% macro package_header(project) -%}
+  <div class="banner">
+    <div class="package-header">
+      <div class="package-header__left">
+        <h1 class="package-header__name">{{ project.name }} {{ project.version }}</h1>
+        {% if project.pip_command %}
+          <p class="package-header__pip-instructions">
+            <span>{{ project.pip_command }}</span>
+          </p>
+        {% endif %}
+      </div>
+      <div class="package-header__right">
+        {% if project.status_text %}
+          {{ feedback.status_badge(project.status_text, tone=project.status_tone|default("unknown")) }}
+        {% endif %}
+        {% if project.released %}
+          <p class="package-header__date">Released: {{ project.released }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{%- endmacro %}
+{% macro project_links(links) -%}
+  <ul class="project-links">
+    {% for link in links %}
+      <li><a href="{{ link.href }}">{{ link.label }}</a></li>
+    {% endfor %}
+  </ul>
+{%- endmacro %}
+{% macro file_cards(files) -%}
+  <div class="file-list">
+    {% for file in files %}
+      <article class="file-card">
+        <div class="file-card__body">
+          <h3 class="file-card__title">{{ file.filename }}</h3>
+          <p class="file-card__meta">{{ file.meta }}</p>
+        </div>
+        {% if file.href %}
+          <a class="button button--primary button--small" href="{{ file.href }}">Download</a>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+{%- endmacro %}

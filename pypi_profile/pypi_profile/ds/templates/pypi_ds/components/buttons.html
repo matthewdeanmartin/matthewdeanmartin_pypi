@@ -1,0 +1,45 @@
+{% import "pypi_ds/components/icons.html" as icons %}
+{% macro button(
+  label,
+  href=None,
+  variant="secondary",
+  size="md",
+  button_type="button",
+  full_width=False,
+  disabled=False,
+  symbol=None,
+  extra_classes=""
+) -%}
+  {% set class_names = "button" %}
+  {% if variant in ["primary", "danger", "warning", "tertiary"] %}
+    {% set class_names = class_names ~ " button--" ~ variant %}
+  {% endif %}
+  {% if size == "sm" %}
+    {% set class_names = class_names ~ " button--small" %}
+  {% endif %}
+  {% if full_width %}
+    {% set class_names = class_names ~ " button--full-width" %}
+  {% endif %}
+  {% if disabled %}
+    {% set class_names = class_names ~ " button--disabled" %}
+  {% endif %}
+  {% if extra_classes %}
+    {% set class_names = class_names ~ " " ~ extra_classes %}
+  {% endif %}
+  {% if href and not disabled %}
+    <a class="{{ class_names }}" href="{{ href }}">
+      {% if symbol %}{{ icons.symbol(symbol, class_name="pypi-ds-symbol button__symbol") }}{% endif %}
+      <span>{{ label }}</span>
+    </a>
+  {% elif href %}
+    <a class="{{ class_names }}" href="{{ href }}" aria-disabled="true">
+      {% if symbol %}{{ icons.symbol(symbol, class_name="pypi-ds-symbol button__symbol") }}{% endif %}
+      <span>{{ label }}</span>
+    </a>
+  {% else %}
+    <button type="{{ button_type }}" class="{{ class_names }}" {% if disabled %}disabled{% endif %}>
+      {% if symbol %}{{ icons.symbol(symbol, class_name="pypi-ds-symbol button__symbol") }}{% endif %}
+      <span>{{ label }}</span>
+    </button>
+  {% endif %}
+{%- endmacro %}

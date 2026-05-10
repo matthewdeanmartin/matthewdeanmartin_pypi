@@ -1,0 +1,53 @@
+{% extends "pypi_ds/layouts/marketing.html" %}
+{% import "pypi_ds/components/buttons.html" as buttons %}
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% import "pypi_ds/components/forms.html" as forms %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% set search_query = search_query|default("") %}
+{% set stats = stats|default([
+  {"value": "570,000+", "label": "projects"},
+  {"value": "6.5M+", "label": "releases"},
+  {"value": "11M+", "label": "files"},
+  {"value": "1.2M+", "label": "users"}
+]) %}
+{% block title %}Home · PyPI Design System{% endblock %}
+{% block content %}
+  {% call layout.hero(
+    "Find, install, and publish Python packages with a PyPI-like design system",
+    "Reusable Jinja2 components shaped by Warehouse's actual templates and visual tokens.",
+    "/search",
+    "browse the component examples"
+  ) %}
+    {{ forms.search_form(
+      field_id="landing-search",
+      action="/search",
+      query=search_query,
+      placeholder="Type '/' to search packages or docs",
+      label="Search packages",
+      large=True,
+      full_width=True
+    ) }}
+  {% endcall %}
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin horizontal-section--statistics") %}
+    {{ feedback.statistic_bar(stats) }}
+  {% endcall %}
+  {% call layout.horizontal_section() %}
+    <div class="about-pypi">
+      <div class="about-pypi__logo">
+        <img alt="PyPI blocks logo" src="{{ asset_base|default('/static/pypi_ds') }}/images/logo-large.svg">
+      </div>
+      <div class="about-pypi__text">
+        <p class="lede-paragraph">
+          This package turns Warehouse's recognizable interface patterns into a reusable Jinja2 design system.
+        </p>
+        <p>
+          Use the component macros to assemble landing pages, documentation hubs, search experiences, and package catalogs with the same spacing, hierarchy, and palette that define PyPI.
+        </p>
+        <div class="button-row">
+          {{ buttons.button("Browse search example", href="/examples/search", variant="primary") }}
+          {{ buttons.button("Open project detail example", href="/examples/project", variant="tertiary") }}
+        </div>
+      </div>
+    </div>
+  {% endcall %}
+{% endblock %}

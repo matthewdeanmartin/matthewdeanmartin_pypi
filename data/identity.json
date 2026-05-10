@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.1",
+  "subject": {
+    "kind": "person",
+    "display_name": "Matthew Dean Martin",
+    "summary": "Open-source Python developer. Author of 50+ packages on PyPI. Professional software engineer."
+  },
+  "keys": [
+    {
+      "kind": "openpgp",
+      "fingerprint": "TODO-add-your-pgp-fingerprint",
+      "urls": []
+    }
+  ],
+  "evidence": [
+    {
+      "url": "https://github.com/matthewdeanmartin",
+      "rel_me": true,
+      "kind": "github",
+      "description": "Primary GitHub account, active since 2015"
+    },
+    {
+      "url": "https://pypi.org/user/matthewdeanmartin/",
+      "rel_me": false,
+      "kind": "pypi",
+      "description": "PyPI profile — 50+ published packages"
+    },
+    {
+      "url": "https://www.linkedin.com/in/matthewdeanmartin/",
+      "rel_me": false,
+      "kind": "linkedin",
+      "description": "Professional profile"
+    },
+    {
+      "url": "https://stackoverflow.com/users/33264/matthewmartin",
+      "rel_me": false,
+      "kind": "stackoverflow",
+      "description": "StackOverflow profile"
+    }
+  ],
+  "funding": {
+    "github": ["matthewdeanmartin"],
+    "custom": []
+  },
+  "contact_policy": {
+    "matrix": {
+      "bug_reports": {
+        "allowed": true,
+        "channels": [
+          {
+            "kind": "webform",
+            "address": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues"
+          }
+        ]
+      },
+      "job_offers": {
+        "allowed": false
+      },
+      "maintainer_apply": {
+        "allowed": true,
+        "instructions": "Open an issue on the relevant repo"
+      }
+    },
+    "security": {
+      "channel": {
+        "kind": "email",
+        "address": "matthewdeanmartin@gmail.com"
+      },
+      "encryption_required": false
+    },
+    "transparency": {
+      "maintenance_status": "active",
+      "support_policy": "best-effort",
+      "telemetry": {
+        "collects_telemetry": false
+      }
+    }
+  },
+  "continuity": {
+    "inactivity_threshold_days": 365,
+    "handoff_policy": "consent-required",
+    "notes": "If I am inactive for over a year, packages may be transferred to willing maintainers on a per-repo basis."
+  },
+  "trust_signals": {
+    "pypi_account_created": "2019",
+    "github_account_created": "2015",
+    "packages_published": "50+",
+    "consistent_identity": "Same username across GitHub, PyPI, LinkedIn, StackOverflow",
+    "open_source_contributions": "Active contributor and maintainer since 2019"
+  }
+}

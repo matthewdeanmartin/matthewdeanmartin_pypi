@@ -1,0 +1,156 @@
+{% import "pypi_ds/components/forms.html" as forms %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+{% macro site_header(
+  brand_name="PyPI",
+  brand_href="/",
+  search_action="/search",
+  search_query="",
+  search_placeholder="Type '/' to search projects",
+  nav_items=None,
+  secondary_items=None,
+  site_state="production",
+  asset_base="/static/pypi_ds"
+) -%}
+  {% if not nav_items %}
+    {% set nav_items = [
+      {"label": "Help", "href": "/help"},
+      {"label": "Docs", "href": "/docs"},
+      {"label": "Sponsors", "href": "/sponsors"}
+    ] %}
+  {% endif %}
+  {% if not secondary_items %}
+    {% set secondary_items = [
+      {"label": "Log in", "href": "/login"},
+      {"label": "Register", "href": "/register"}
+    ] %}
+  {% endif %}
+  <header class="site-header{% if site_state == 'test' %} site-header--test-pypi{% elif site_state == 'dev' %} site-header--dev-pypi{% endif %}">
+    <div class="site-container">
+      <div class="split-layout split-layout--header">
+        <div class="split-layout split-layout--brand">
+          <div>
+            <a class="site-header__logo" href="{{ brand_href }}">
+              <img alt="{{ brand_name }}" src="{{ asset_base }}/images/logo-small.svg">
+            </a>
+          </div>
+          {{ forms.search_form(
+            field_id="site-search",
+            action=search_action,
+            query=search_query,
+            placeholder=search_placeholder,
+            label="Search packages",
+            variant="primary"
+          ) }}
+        </div>
+        <div class="header-navigation">
+          {{ navigation.horizontal_menu(nav_items, aria_label="Primary navigation", light=True, tall=True) }}
+          {{ navigation.horizontal_menu(secondary_items, aria_label="Account navigation", light=True, tall=True, extra_classes="header-navigation__secondary") }}
+        </div>
+      </div>
+    </div>
+  </header>
+{%- endmacro %}
+{% macro hero(title, summary=None, browse_href=None, browse_label="browse projects") -%}
+  <div class="banner">
+    <div class="homepage-banner">
+      <h1 class="homepage-banner__title">{{ title }}</h1>
+      {% if summary %}
+        <p class="homepage-banner__summary">{{ summary }}</p>
+      {% endif %}
+      {% if caller %}{{ caller() }}{% endif %}
+      {% if browse_href %}
+        <p class="homepage-banner__browse">Or <a href="{{ browse_href }}">{{ browse_label }}</a></p>
+      {% endif %}
+    </div>
+  </div>
+{%- endmacro %}
+{% macro horizontal_section(modifiers="", container_class="site-container") -%}
+  <section class="horizontal-section{% if modifiers %} {{ modifiers }}{% endif %}">
+    <div class="{{ container_class }}">
+      {{ caller() }}
+    </div>
+  </section>
+{%- endmacro %}
+{% macro sidebar_section(title, extra_classes="") -%}
+  <section class="sidebar-section{% if extra_classes %} {{ extra_classes }}{% endif %}">
+    <h3 class="sidebar-section__title">{{ title }}</h3>
+    {{ caller() }}
+  </section>
+{%- endmacro %}
+{% macro card(title=None, extra_classes="") -%}
+  <section class="card{% if extra_classes %} {{ extra_classes }}{% endif %}">
+    {% if title %}<h2 class="card__title">{{ title }}</h2>{% endif %}
+    {{ caller() }}
+  </section>
+{%- endmacro %}
+{% macro site_footer(
+  footer_menus=None,
+  footer_note=None,
+  supporting_note=None,
+  asset_base="/static/pypi_ds"
+) -%}
+  {% if not footer_menus %}
+    {% set footer_menus = [
+      {
+        "title": "Help",
+        "links": [
+          {"label": "Installing packages", "href": "https://packaging.python.org/tutorials/installing-packages/"},
+          {"label": "Publishing packages", "href": "https://packaging.python.org/tutorials/packaging-projects/"},
+          {"label": "User guide", "href": "https://packaging.python.org/"},
+          {"label": "FAQs", "href": "/help"}
+        ]
+      },
+      {
+        "title": "About",
+        "links": [
+          {"label": "Project blog", "href": "/blog"},
+          {"label": "Statistics", "href": "/stats"},
+          {"label": "Brand assets", "href": "/brand"},
+          {"label": "Sponsors", "href": "/sponsors"}
+        ]
+      },
+      {
+        "title": "Community",
+        "links": [
+          {"label": "Issues and feedback", "href": "https://github.com/pypi/warehouse"},
+          {"label": "Contribute", "href": "https://github.com/pypi/warehouse"},
+          {"label": "Translate", "href": "https://hosted.weblate.org/projects/pypa/warehouse/"},
+          {"label": "Support the service", "href": "/support"}
+        ]
+      },
+      {
+        "title": "Policies",
+        "links": [
+          {"label": "Terms of Service", "href": "/terms"},
+          {"label": "Privacy Notice", "href": "/privacy"},
+          {"label": "Code of conduct", "href": "/conduct"},
+          {"label": "Security", "href": "/security"}
+        ]
+      }
+    ] %}
+  {% endif %}
+  <footer class="footer">
+    <div class="footer__logo">
+      <img src="{{ asset_base }}/images/white-cube.svg" alt="">
+    </div>
+    <div class="footer__menus">
+      {% for menu in footer_menus %}
+        <div class="footer__menu">
+          <h2>{{ menu.title }}</h2>
+          <nav aria-label="{{ menu.title }}">
+            <ul>
+              {% for link in menu.links %}
+                <li><a href="{{ link.href }}">{{ link.label }}</a></li>
+              {% endfor %}
+            </ul>
+          </nav>
+        </div>
+      {% endfor %}
+    </div>
+    <hr class="footer__divider">
+    <div class="footer__text">
+      <p>{{ footer_note|default("Developed and maintained by the Python community, for the Python community.") }}</p>
+      <p>{{ supporting_note|default("Use these components as a PyPI-flavored foundation for your own Jinja2 applications.") }}</p>
+    </div>
+  </footer>
+{%- endmacro %}

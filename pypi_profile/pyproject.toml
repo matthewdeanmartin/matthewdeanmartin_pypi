@@ -34,9 +34,13 @@ fetch = [
 sign = [
     "py-minisign>=0.13.2",
 ]
+validate = [
+    "schema-resume-validator>=1.1.0",
+]
 all = [
     "httpx>=0.27.0",
     "py-minisign>=0.13.2",
+    "schema-resume-validator>=1.1.0",
 ]
 
 [project.urls]
@@ -56,6 +60,11 @@ packages = ["pypi_profile"]
 include = [
     "pypi_profile/**/*.py",
     "pypi_profile/**/*.html",
+    "pypi_profile/**/*.css",
+    "pypi_profile/**/*.ico",
+    "pypi_profile/**/*.svg",
+    "pypi_profile/**/*.png",
+    "pypi_profile/**/*.jpg",
     "pypi_profile/py.typed",
     "/README.md",
     "LICENSE",
@@ -154,7 +163,7 @@ disallow_untyped_defs = false
 disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
-module = ["tomllib", "pypi_ds", "pypi_ds.*"]
+module = ["tomllib"]
 ignore_missing_imports = true
 
 [tool.ruff]

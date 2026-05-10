@@ -1,0 +1,3 @@
+- Copy pypi_ds into pypi_profile, update references.
+- Copy pyi_ds into pypi_template, update references. Now pypi_profile and pypi_template should not depend on each other.
+- Convert README.rst into README.md (see pypi_template and pypi_profile)

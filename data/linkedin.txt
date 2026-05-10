@@ -1,0 +1,251 @@
+Experience
+Booz Allen Hamilton logo
+
+DevOps Engineer
+
+Booz Allen Hamilton · Full-time
+
+Feb 2025 - Present · 1 yr 4 mos
+
+McLean, Virginia, United States · Hybrid
+
+Wrote infrastructure as code for a federal financial institution using Typescript CDK, Gitlab, Bash, including unit, integration and snapshot tests.
+
+Python Serverless application development using Lambda, SQS, SNS, S3, Eventbridge, DynamdoDB.
+
+Creating and maintaining deployment pipelines. Pipelines integrated Angular, Java, Python applications with AWS services and deployed them to ECS. Established and implemented quality gates to "shift left" problem detection to earlier in the development lifecycle.
+
+Also participated in short project using AWS Glue.
+
+ Unix, Back-End Web Development and +9 skills
+Apex Systems logo
+
+AWS Cloud Developer
+
+Apex Systems · Full-time
+
+Nov 2024 - Dec 2024 · 2 mos
+
+McLean, Virginia, United States · Hybrid
+
+Worked for a Capital One in McLean, as part of a much larger team doing AWS Cybersecurity.
+
+Python development with Cloud Custodian, internal tools, boto3 and most of the AWS Services. Incidental development in bash.
+
+Laid off for budget reasons. Had just enough time to land several merge requests.
+
+ Docker, DevOps and +10 skills
+ARETUM logo
+
+Technical Lead and Python Developer 
+
+ARETUM · Full-time
+
+Sep 2019 - Sep 2024 · 5 yrs 1 mo
+
+Washington DC-Baltimore Area
+
+Technical lead for a python-based search engine for legal documents at Library of Congress, USCO. (Artemis Consulting, Inc. was renamed to Aretum in 2024)
+
+Responsibilities
+•	Application Development:   Wrote with python, refactored and upgrade three microservices, two ETL processes and several AWS lambdas to solve problems of search, emailing and bookmarking.
+•	Architecture and Infrastructure-as-Code:   Selected suitable AWS services and wrote Terraform to integrate them with application.
+•	Technical Leadership:   Worked with team of specialists on a cloud native application. I mainly wrote python and terraform scripts, but also many others, see below. I helped team members use developer tooling IDEs and build scripts. Set up Dev Containers to help with application and tooling installation. Also used AWS Cloud simulation tools such as LocalStack and python's moto library.
+•	Process:   Participated in SAFe-style Agile, including 3 month PI planning, 3 week sprint planning, ticket writing, and following up with each developer on ticket completion to ensure that the application stayed stable, working and demonstrating it each three weeks, all year round for 5 years, with no gaps between sprints. Gathered metrics and helped client interpret metrics to ensure that metrics were fair and helped guide continuous improvement. 
+•	Release Management:   Participated in full Federal government style process and SDLC, including A&A, ATO, responding to POAMs, and execution of Change Requests for production releases.
+•	Supervision:   Participated in technical interviewing, developer on-boarding, and dealing with personnel situations including mentoring and PIPs.
+
+ Gitlab, Angular and +28 skills
+ASRC Federal logo
+
+Systems Architect
+
+ASRC Federal · Full-time
+
+Mar 2019 - Sep 2019 · 7 mos
+
+Alexandria, VA
+
+Support contract for USPTO. Worked with Architecture Division to help introduce new technologies through-out the organization.
+
+Responsibilities
+•	Proof of concepts for using Docker, Kubernetes and Jenkins.
+•	Brief work with Azure, particularly the pre-LLM LUIS chatbot.
+•	Brief work with UIPath's RPA offering and creation of a proof of concept for application to Ops teams.
+•	Brief work deploying Xibo signage/kiosk application to EC2 using a lift-and-shift architecture.
+
+Technologies
+•	Kubernetes, UIPath, Xibo, AWS EC2
+
+ Full-Stack Development, Docker and +10 skills
+BCW Global logo
+
+Senior Development Engineer
+
+BCW Global · Full-time
+
+Jul 2016 - Mar 2019 · 2 yrs 9 mos
+
+Washington DC-Baltimore Area · On-site
+
+Supervised team, wrote code, build server and server administration for AWS infrastructure.
+
+Responsibilities
+•	Machine Learning. Maintained pre-existing machine learning models and wrote new machine learning models with scikit-learn, random forest models in particular. Used pandas for data processing. I also did new development including Scikit-learn modeling and social media reports.
+•	Architecture. Evaluated technology options, did proofs of concept and provided these proofs of concept to developers so they could implement the rest themselves. I used this pattern for our build scripts, dockerfile, ansible scripts, and python projects. Researched architectural options and migrated application components from bad choices to better choices, such as SQS to Redis, and Celery to AWS Step functions—all of those are types of message queues.
+•	Infrastructure as Code. Reworked our server build from manually reconstructing bash history to using Ansible scripts.
+•	Build. Wrote a comprehensive build script in bash, rewrote the script in python to work out bash’s limits.
+•	Maintenance Development. Split our monolith application into five components, two microservices using Swagger REST APIs running on Docker. Swagger is a YAML configuration file-based tool for exposing ordinary Python as a REST API.
+•	Cloud Administration. Did server administration for 30-60 servers on AWS. Mostly ubuntu, sometimes CentOS/RHEL. Tasks included taking inventory of assets, looking for cost saving opportunities, continually hardening the virtual network, migrating machines from less secure VPCs to more secure VPCs, managing users and API keys.
+•	Supervision. Managed between one and five developers, supported three code bases, shipped two major versions of our main application. My team cut AWS bills, responded to operational requests. 
+
+(Company used to be called Burson-Marsteller)
+
+ Full-Stack Development, Docker and +20 skills
+Fors Marsh logo
+
+Senior Software Engineer I
+
+Fors Marsh
+
+Jan 2015 - Jun 2016 · 1 yr 6 mos
+
+Arlington, VA
+
+Did Python application development for a NIST contract.
+
+Responsibilities
+•	Application Development. I did maintenance development releases of a Python 3 GUI application. The application was for a research study of how people create passwords. The first release needed a few known bugs fixed and demonstrate that no additional bugs were introduced. To achieve this, the legacy application was refactored and put under automated unit tests. Once the legacy application was stabilized, I created a new internal library over the TKInter library to simplify creating new screens. The application was instrumented for diagnostics and trace so that issues could be identified by examining logs.
+•	Release Management. The final application included a build script, machine generated API documentation and a packaged application that could run on a machine without a pre-existing Python runtime.
+
+Application development for Veterans Administration (VA).
+
+Responsibilities
+•	.NET Stack Backend Development. Created entity framework data tier for authentication store. 
+•	Application Development. Augment existing Windows Identity Framework (WIF) single sign on solution to support self-configuration. Create HTTP/REST based ASP.NET WebAPI interface and corresponding C#, JavaScript and PHP clients.
+•	Participated in maintenance of both WebForms, MS-Ajax and MVC 4 applications.
+•	Created WCF service layer, including features for reducing configuration and misconfiguration risks. Also did WCF performance tuning, which included improving serialization and switching to asynchronous techniques using .NET 4.0 Task library.
+•	Data Development. Create data import tool using ASP.NET, jQuery and jQuery-UI to deliver a solution faster and with more quality assurance checks than could have been implemented in WebForms.
+•	Release Management. I established an end-to-end automated TFS build, customized for nUnit tests. Wrote Powershell scripts to automate certain build tasks and deployment tasks.
+
+ Full-Stack Development, REST APIs and +12 skills
+Benten Technologies, Inc. logo
+
+Senior .NET Developer 
+
+Benten Technologies, Inc.
+
+Jul 2014 - Dec 2014 · 6 mos
+
+Arlington, Va
+
+Benten was the hiring agency that employed me to work at ForsMarsh until my contract converted to full time employment at ForsMarsh. The contract and location of employment stayed the same throughout.
+
+ Full-Stack Development, Microsoft SQL Server and +5 skills
+CACI International Inc logo
+
+JavaScript and C# Software Developer III
+
+CACI International Inc · Full-time
+
+Feb 2013 - Jul 2014 · 1 yr 6 mos
+
+Arlington, VA
+
+Application development and maintenance for budgeting application at Pentagon. Project required Secret Clearance.
+
+
+Responsibilities
+•	OracleForms to .NET Application Conversion. Worked on a large team of three to six developers in an application re-write. We migrated the user interface from Oracle Forms to a hybrid ASP.NET WebForms, MVC and JavaScript driven single page application, with some work to integrate with Oracle backend using PL-SQL. Significant time spent improving web application performance to get the web application which started out with 10-15 second response for most action down to instant response time.
+•	.NET Performance Tuning. I also did extensive performance for an application that generated Word documents, which at the beginning could run overnight and often failed anyhow. I solved the application’s multi-threading problems, races, deadlocks, implemented Parallel Task Library and WCF patterns to get the reports to generate in three to five minutes, despite having to do 50 times the workload.
+•	DevOps and Build. Refactored legacy code and implemented automated unit and integration tests to detect breaks before release to test. Participated in the release process using TFS as a process management tool and build server. Saw about six maintenance releases to production and dozens of iterative releases to test as a part of a broader continuous integration strategy.
+
+Technologies
+•	C#, .NET Framework 4.0
+•	ASP.NET, WebForms, MVC, WCF, Task Parallel Library
+•	JavaScript, jQuery, jQuery UI
+•	Interfacing with PL-SQL
+•	TFS
+
+ Full-Stack Development, REST APIs and +9 skills
+AboutWeb, LLC logo
+
+JavaScript and C# Software Developer III 
+
+AboutWeb, LLC
+
+Aug 2012 - Feb 2013 · 7 mos
+
+AboutWeb was the hiring agency that employed me to work at CACI until my contract converted to full time employment at CACI. The contract and location of employment stayed the same throughout.
+
+ Full-Stack Development, REST APIs and +5 skills
+Procentrix logo
+
+Senior Consultant
+
+Procentrix
+
+May 2008 - Aug 2012 · 4 yrs 4 mos
+
+Arlington, VA
+
+Application and maintenance development for TSA.
+
+Responsibilities
+•	Full Stack .NET Development. I did maintenance development on a line of business application using C#, TSQL, JavaScript, using Telerik components. I upgraded it from .NET 1.1 to 3.5. I created a comprehensive set of automated integration and automated unit tests that reduced the number of logged errors from hundreds a day to several per week.
+•	Release Management. I was lead developer on a three-person team that moved about 15 releases through TSA’s SDLC release process. Task included identifying opportunities for improving the application, architecting the application to allow for collaboration, dividing certain development tasks and code review of other developer’s code. I wrote SDLC documents to support release activities. I also did the maintenance development necessary to get the application to pass C&A (Certification and Authorization).
+•	DevOps. Set up a complete continuous integration system, initially using Visual Source Safe (VSS), Luntbuild, and Flyspray issue tracking and eventually upgrading to Subversion, Collabnet issue tracking and TeamCity. Responsible for managing the servers and workstations on the developer network, including installing operating systems, DBA tasks for MySQL and MSSQL, such as version upgrades, schema comparison and security hardening.
+•	.NET Application Modernization. Refactored a .NET/C#/LLBGen travel scheduler application to enable the use of a majority of the existing codebase for use by a new department. LLBGen is an ORM. I did another modernization upgrade to take an ASP.NET scheduling and travel application to 2.0 and identified the legacy application’s XSS and SQL Injection vulnerabilities.
+•	Data Warehouse. Extracted data from a schema lacking foreign keys to a star schema so that it could be loaded into a variety of SQL Server Analysis Services cubes.
+•	SharePoint. Created a proof-of-concept web part for a SharePoint management statistics dashboard.
+
+ Full-Stack Development, Microsoft SQL Server and +7 skills
+Engility formerly Dynamics Research Corporation logo
+
+Software Developer III
+
+Engility formerly Dynamics Research Corporation · Full-time
+
+May 2005 - May 2008 · 3 yrs 1 mo
+
+Arlington, VA
+
+DRC was renamed to Engility.
+
+DBA and Application Maintenance for USAF.
+
+Responsibilities
+•	ASP Classic to ASP.NET Migration. While working on MERLIN, an ASP classic application, completed both an upgrade to ASP.NET and a rewrite using ASP.NET, taking full advantage of all features of ASP.NET 2.0, including custom and user controls. Created innovative 508 accessibility interface to existing MERLIN using ASP.NET 2.0 profile features.
+•	ASP.NET and T-SQL Website. I wrote a web-based data interface tool for providing an interface between an Oracle scheduling and the Microsoft SQL Server database that feeds a simulation model. Interface application includes a significant number of tools and reports for dealing with common data interface scenarios and exceptions.
+•	ASP Classic Modernization. Upgraded ASP classic application to use CSS and web standards, dramatically reducing size and complexity of HTML files and increasing the ease of maintenance development. All improvement done using CMMI repeatable processes
+•	DTS Support and Migration to SSIS. While working on the MERLIN contract, I provide ongoing support for troubleshooting data interface issues that arise in the monthly update of the MERLIN data warehouse. I have upgraded all data import packages from DTS to SSIS, the successor technology to DTS.
+•	T-SQL Maintenance. I wrote T-SQL to implement new metrics and levels of detail into MERLIN. I refactored T-SQL queries to reduce lines of code by factor of five for Weapon System Availability task.
+•	Microsoft SQL Administration. I automated backup and other administrative scripts for database. Implemented notification and monitoring to ensure health of the data warehouse.
+•	SQL Server Analysis Service Project. I wrote prototype Microsoft Analysis Services cubes for enabling high performance business intelligence querying. Created proof of concept for use of MDX for data warehouse querying.
+
+ SQL Server Integration Services (SSIS), Full-Stack Development and +9 skills
+Prince William County logo
+
+Systems Developer I
+
+Prince William County · Full-time
+
+Oct 1998 - May 2005 · 6 yrs 8 mos
+
+Woodbridge, Virginia · On-site
+
+Application support and application development for county tax office.
+
+Responsibilities
+•	VB6 WinForms Development, T-SQL Development and MS-Access Reports. I did maintenance on a closed source client-server application for the tax office. Tasks included report writing for mailing tens of thousands of heterogeneous tax bills. I wrote code to interoperate with existing application via the SQL Server through triggers, scheduled tasks, and stored procedures.
+I also wrote a large integrated tax billing software application to supplement the county's COTS system using MS Access, XML, Microsoft SQL Server and custom unit tests. This project involved all stages of the software development cycle from soliciting requirements to design, to deployment and training.
+•	DTS and Custom Interfaces. I wrote numerous TSQL procedures, DTS, MS-Access and other custom import and export packages to support interfaces with external organizations, such as banks and other government agencies.
+•	Data Quality. I wrote a variety of MS-Access cross tabs to find data quality errors in a Visual FoxPro system.
+
+Technologies
+•	Microsoft Access, Microsoft SQL Server, Visual FoxPro
+•	T-SQL, DTS
+•	VBA, VB6
+•	Visual Studio
+
+ Microsoft Access, Visual Basic for Applications (VBA) and +6 skills

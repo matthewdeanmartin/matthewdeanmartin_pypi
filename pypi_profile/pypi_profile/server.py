@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -11,35 +10,15 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from pypi_profile.ds.paths import static_root_path, template_root_path
 from pypi_profile.models import ProfileData
-
-
-def resolve_ds_paths() -> tuple[Path, Path]:
-    """Return (template_root, static_root) for the pypi_ds design system."""
-    try:
-        import pypi_ds.paths as ds_paths
-
-        return ds_paths.template_root_path(), ds_paths.static_root_path()
-    except ImportError:
-        pass
-    for candidate in [
-        Path(__file__).parent.parent.parent.parent / "pypi_ds",
-        Path(__file__).parent.parent.parent / "pypi_ds",
-    ]:
-        if (candidate / "paths.py").exists():
-            if str(candidate.parent) not in sys.path:
-                sys.path.insert(0, str(candidate.parent))
-            import pypi_ds.paths as ds_paths
-
-            return ds_paths.template_root_path(), ds_paths.static_root_path()
-    raise ImportError("Cannot locate pypi_ds. Install it or ensure it is on PYTHONPATH.")
 
 
 def build_app(profile: ProfileData, allow_code: bool = False) -> FastAPI:
     """Construct the FastAPI application for a loaded profile."""
     app = FastAPI(title="pypi-profile", docs_url=None, redoc_url=None)
 
-    ds_template_root, ds_static_root = resolve_ds_paths()
+    ds_template_root, ds_static_root = template_root_path(), static_root_path()
     loader = jinja2.FileSystemLoader(
         [
             str(Path(__file__).parent / "templates"),

@@ -1,0 +1,25 @@
+{% macro data_table(caption, columns, rows, variant="information") -%}
+  <table class="table table--{{ variant }}">
+    <caption class="sr-only">{{ caption }}</caption>
+    <thead>
+      <tr>
+        {% for column in columns %}
+          <th scope="col"
+              class="{% if column.align %}table__align-{{ column.align }}{% endif %}">{{ column.label }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          {% for column in columns %}
+            <td class="{% if column.align %}table__align-{{ column.align }}{% endif %}">
+              <span class="table__mobile-label">{{ column.label }}</span>
+              {{ row[column.key] }}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{%- endmacro %}

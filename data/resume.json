@@ -1,0 +1,119 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Matthew Dean Martin",
+    "label": "Python Developer & Open Source Maintainer",
+    "image": "",
+    "email": "matthewdeanmartin@gmail.com",
+    "phone": "",
+    "url": "https://github.com/matthewdeanmartin",
+    "summary": "Python developer and open-source maintainer. Author of 50+ packages on PyPI covering AI tooling, packaging, code quality, and developer utilities. Available for consulting and contracting work.",
+    "location": {
+      "city": "",
+      "region": "",
+      "countryCode": "US"
+    },
+    "profiles": [
+      {
+        "network": "GitHub",
+        "username": "matthewdeanmartin",
+        "url": "https://github.com/matthewdeanmartin"
+      },
+      {
+        "network": "LinkedIn",
+        "username": "matthewdeanmartin",
+        "url": "https://www.linkedin.com/in/matthewdeanmartin/"
+      }
+    ]
+  },
+  "work": [
+    {
+      "name": "Self-Employed",
+      "position": "Independent Software Consultant",
+      "url": "https://github.com/matthewdeanmartin",
+      "startDate": "2019-01",
+      "summary": "Open-source development and consulting in Python packaging, AI tooling, and developer utilities. Published and maintain 50+ PyPI packages.",
+      "highlights": [
+        "Built pypi-profile: plugin-extensible PyPI profile page generator",
+        "Built ai-shell: AI-powered shell command assistant",
+        "Built metametameta: automated pyproject.toml metadata fixer",
+        "Consistent open-source contributor since 2015"
+      ]
+    }
+  ],
+  "volunteer": [],
+  "education": [],
+  "awards": [],
+  "certificates": [],
+  "publications": [],
+  "skills": [
+    {
+      "name": "Python",
+      "level": "Expert",
+      "keywords": ["packaging", "CLI", "async", "FastAPI", "Pydantic", "uv", "hatch"]
+    },
+    {
+      "name": "AI Tooling",
+      "level": "Expert",
+      "keywords": ["LLM", "prompt engineering", "Claude", "OpenAI", "shell automation"]
+    },
+    {
+      "name": "DevOps",
+      "level": "Intermediate",
+      "keywords": ["GitHub Actions", "Docker", "CI/CD", "tox", "pre-commit"]
+    },
+    {
+      "name": "Code Quality",
+      "level": "Expert",
+      "keywords": ["mypy", "ruff", "pylint", "bandit", "pytest", "hypothesis"]
+    }
+  ],
+  "languages": [
+    {
+      "language": "English",
+      "fluency": "Native speaker"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Open Source",
+      "keywords": ["PyPI", "packaging", "developer tools"]
+    }
+  ],
+  "references": [],
+  "projects": [
+    {
+      "name": "pypi-profile",
+      "description": "The missing PyPI profile page — pipx-installable, plugin-extensible profile site generator for PyPI publishers.",
+      "highlights": [],
+      "keywords": ["pypi", "profile", "FastAPI", "Jinja2"],
+      "startDate": "2026-01",
+      "url": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi",
+      "roles": ["creator"],
+      "entity": "matthewdeanmartin",
+      "type": "application"
+    },
+    {
+      "name": "ai-shell",
+      "description": "AI-powered shell command assistant. Suggests and runs shell commands using LLMs.",
+      "highlights": [],
+      "keywords": ["AI", "shell", "CLI", "LLM"],
+      "startDate": "2023-01",
+      "url": "https://github.com/matthewdeanmartin/ai_shell",
+      "roles": ["creator"],
+      "entity": "matthewdeanmartin",
+      "type": "application"
+    },
+    {
+      "name": "metametameta",
+      "description": "Automated pyproject.toml metadata fixer and validator.",
+      "highlights": [],
+      "keywords": ["packaging", "pyproject", "metadata"],
+      "startDate": "2022-01",
+      "url": "https://github.com/matthewdeanmartin/metametameta",
+      "roles": ["creator"],
+      "entity": "matthewdeanmartin",
+      "type": "library"
+    }
+  ]
+}

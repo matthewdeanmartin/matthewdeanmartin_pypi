@@ -36,14 +36,33 @@ def _get_text(url: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _validate_json_resume(raw: dict[str, Any]) -> None:
+    """Warn if raw dict does not conform to the JSON Resume schema."""
+    try:
+        from schema_resume import validate_resume  # type: ignore[import-untyped]
+    except ModuleNotFoundError:
+        return
+    result = validate_resume(raw)
+    if not result["valid"]:
+        import warnings
+
+        messages = "; ".join(e.get("message", str(e)) for e in result["errors"][:5])
+        warnings.warn(
+            f"JSON Resume validation failed ({len(result['errors'])} error(s)): {messages}",
+            stacklevel=3,
+        )
+
+
 def from_json_resume(path: Path) -> dict[str, Any]:
     """Convert a JSON Resume file into a pypi_profile data dict."""
     raw = json.loads(path.read_text(encoding="utf-8"))
+    _validate_json_resume(raw)
     return _map_json_resume(raw)
 
 
 def from_json_resume_dict(raw: dict[str, Any]) -> dict[str, Any]:
     """Convert a JSON Resume dict into a pypi_profile data dict."""
+    _validate_json_resume(raw)
     return _map_json_resume(raw)
 
 
