@@ -50,7 +50,26 @@
         {% endcall %}
 
         {% call layout.card("External profile claims", "project-panel") %}
-          {% if profile.profiles %}
+          {% if claim_results %}
+            <table class="table table--light">
+              <thead>
+                <tr>
+                  <th>Profile</th>
+                  <th>URL</th>
+                  <th>Live status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in claim_results %}
+                  <tr>
+                    <td>{{ item.label }}</td>
+                    <td><a href="{{ item.url }}">{{ item.url }}</a></td>
+                    <td>{{ pc.claim_badge(item.status) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% elif profile.profiles %}
             <table class="table table--light">
               <thead>
                 <tr>
@@ -72,6 +91,17 @@
           {% else %}
             <p>No external profiles listed.</p>
           {% endif %}
+        {% endcall %}
+
+        {% call layout.card("How to add a proof", "project-panel") %}
+          <p class="sidebar-copy">
+            Run <code>pypi-profile sign controls-url &lt;source&gt; --url &lt;your-profile-url&gt;</code>
+            and paste the output into your external profile page (GitHub README, Mastodon bio, etc.).
+          </p>
+          <p class="sidebar-copy">
+            The proof string looks like:
+            <code>pypi-profile-proof: &lt;token&gt;</code>
+          </p>
         {% endcall %}
       </div>
       <aside class="project-layout__sidebar">

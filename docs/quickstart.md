@@ -39,6 +39,37 @@ pypi-profile inspect pypi_profile.toml
 pypi-profile dump pypi_profile.toml
 ```
 
+## Optional: add signed proof-of-control
+
+This requires `py-minisign`:
+
+```bash
+pipx install "pypi-profile[sign]"
+```
+
+Generate a keypair once:
+
+```bash
+pypi-profile keygen
+```
+
+Paste the printed public key into `[verification]` in your TOML, then sign a
+claim for each external URL you want to link:
+
+```bash
+pypi-profile sign controls-url pypi_profile.toml \
+    --url https://github.com/your-name
+```
+
+Paste the output token onto that external page, then verify:
+
+```bash
+pypi-profile verify pypi_profile.toml
+```
+
+See [Signing and verification](signing.md) for the full explanation of what
+this proves and what it does not.
+
 ## Optional: bootstrap from existing data
 
 If you already have a JSON Resume file:

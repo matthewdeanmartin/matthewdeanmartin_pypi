@@ -6,7 +6,7 @@
 
 The current implementation ships:
 
-- a `pypi-profile` CLI with `init`, `validate`, `inspect`, `serve`, `doctor`, `fetch`, and `dump`
+- a `pypi-profile` CLI with `init`, `validate`, `inspect`, `serve`, `doctor`, `fetch`, `dump`, `keygen`, `sign`, and `verify`
 - a TOML-first schema for identity, packages, projects, hiring, contact, succession, and verification data
 - a FastAPI + Jinja2 site renderer with summary, packages, projects, resume, hiring, contact, verification, and succession pages
 - JSON endpoints at `/api/profile.json`, `/api/packages.json`, `/api/projects.json`, `/api/people.json`, and `/api/verification.json`
@@ -25,10 +25,10 @@ The current implementation ships:
 
 Right now, the project is best described as an **early reference implementation** of the spec:
 
-- **works now:** authoring `pypi_profile.toml`, validating it, rendering a local site, importing JSON Resume data, and fetching live data from PyPI, GitHub, GitLab, and Mastodon
+- **works now:** authoring `pypi_profile.toml`, validating it, rendering a local site, importing JSON Resume data, fetching live data from PyPI, GitHub, GitLab, and Mastodon, and the full minisign signing and verification flow (`keygen`, `sign`, `verify`)
 - **works as examples:** the repo includes `john_doe` and `matthewdeanmartin` profile packages that show the format in practice
 - **partly wired:** plugins are discoverable through pluggy, but the hook surface is still minimal and the `--allow-code` path is not yet the full extensibility model described in the spec
-- **not shipped yet:** signed verification flows, static site export, richer schema validation, and broader profile/package metadata verification
+- **not shipped yet:** static site export, richer schema validation, and broader profile/package metadata verification
 
 The docs in this site intentionally separate the current shipped behavior from the roadmap in `spec/spec.md` and `spec/remaining.md`.
 
@@ -37,4 +37,5 @@ The docs in this site intentionally separate the current shipped behavior from t
 1. Read [Quick start](quickstart.md) to generate and serve a profile.
 2. Use [Basic usage](basic-usage.md) for the everyday CLI flow.
 3. Use [Advanced usage](advanced-usage.md) for JSON Resume import, fetch, and plugin-oriented setups.
-4. Read [Roadmap](roadmap.md) for the planned features that are specified but not finished yet.
+4. Read [Signing and verification](signing.md) for how minisign proof-of-control works, what it proves, and what it does not.
+5. Read [Roadmap](roadmap.md) for the planned features that are specified but not finished yet.

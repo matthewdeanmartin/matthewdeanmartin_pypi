@@ -6,34 +6,32 @@ This page summarizes the roadmap **as inferred from `spec/spec.md` and `spec/rem
 
 The largest gaps between the current implementation and the spec are:
 
-1. signed claims and verification flows
-2. richer CLI coverage, especially `sign`, `verify`, and `build`
-3. a stable distribution layout for `pypi_profile.toml` inside published wheels
-4. a fuller plugin system with explicit `allow_code` behavior
-5. static site export
+1. a stable distribution layout for `pypi_profile.toml` inside published wheels
+2. a fuller plugin system with explicit `allow_code` behavior
+3. static site export (`build` command)
+4. richer CLI coverage, especially `build` and stronger validation diagnostics
 
 ## Planned work areas
 
 ### Signing and verification
 
-The spec and remaining-work notes point toward:
+The core signing flow is shipped. The following remain:
 
-- minisign-based signing
-- public-key material embedded in the profile data
-- proof tokens for external profile claims
-- a verifier that checks declared external URLs
-- verification status surfaced on the website and API
+- key rotation support: marking claims signed by an old key as `expired` rather
+  than `invalid`
+- an `[[old_keys]]` table in `[verification]` for tracking rotated keys
+- caching verification results so the server does not re-fetch on every page load
+- surfacing a verification summary on the main `/` page, not just `/verification`
 
 ### CLI expansion
 
-The current CLI already covers `init`, `validate`, `inspect`, `serve`, `doctor`, `fetch`, and `dump`, but the spec calls for:
+The current CLI covers `init`, `validate`, `inspect`, `serve`, `doctor`,
+`fetch`, `dump`, `keygen`, `sign`, and `verify`. The spec additionally calls for:
 
 - `build` for static export
-- `sign`
-- `verify`
-- richer `fetch`
-- stronger validation diagnostics
-- a more capable `inspect`
+- richer `fetch` with more complete ownership comparisons
+- stronger validation diagnostics (URL format, missing keys)
+- a more capable `inspect` for wheel inspection
 
 ### Packaging conventions
 
@@ -86,6 +84,6 @@ Phase 2 in the spec adds static output so a rendered profile can be published to
 
 If you are evaluating the project today:
 
-- treat the existing server and CLI as the **usable core**
-- treat signed verification, static export, and full plugin extensibility as **planned but not finished**
+- treat the existing server, CLI, and signing flow as the **usable core**
+- treat static export and full plugin extensibility as **planned but not finished**
 - use the spec to understand the intended direction, not the exact shipped feature set

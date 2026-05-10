@@ -29,6 +29,38 @@ uv run pypi-profile --help
 
 ## Optional capabilities
 
-The base package is enough for authoring, validating, inspecting, and serving profiles.
+The base package is enough for authoring, validating, inspecting, and serving
+profiles.
 
-Optional network and signing behavior is still evolving. If `doctor` reports optional dependencies missing, that is not necessarily an installation failure; it may just mean those feature areas are not installed or not fully shipped yet.
+### Signing and verification
+
+The `keygen`, `sign`, and `verify` commands require `py-minisign`:
+
+```bash
+pipx install "pypi-profile[sign]"
+```
+
+If you already have `pypi-profile` installed via `pipx`, inject the extra
+dependency without reinstalling:
+
+```bash
+pipx inject pypi-profile py-minisign
+```
+
+### Live fetch
+
+`fetch`, and the `--fetch` flag on `init`, use `httpx` for faster HTTP
+requests. Install the `fetch` extra to pull it in:
+
+```bash
+pipx install "pypi-profile[fetch]"
+```
+
+### Everything at once
+
+```bash
+pipx install "pypi-profile[all]"
+```
+
+Run `pypi-profile doctor` after installation to confirm which optional
+dependencies are available.

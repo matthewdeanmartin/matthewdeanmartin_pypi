@@ -2,12 +2,20 @@
 
 ## Core workflow
 
-The current day-to-day flow is:
+The day-to-day flow is:
 
 1. create or edit `pypi_profile.toml`
 2. run `pypi-profile validate`
 3. run `pypi-profile serve`
 4. optionally use `inspect`, `dump`, or `fetch`
+
+For signed proof-of-control:
+
+1. run `pypi-profile keygen` once to create a keypair
+2. paste the printed public key into `[verification]` in your TOML
+3. run `pypi-profile sign controls-url` for each external profile URL
+4. paste the proof token onto the external page
+5. run `pypi-profile verify` to confirm the round-trip
 
 ## Accepted profile sources
 
@@ -52,9 +60,47 @@ Starts the FastAPI app and renders:
 
 Prints the full validated profile model as JSON.
 
+### `keygen`
+
+Generates a minisign keypair and writes it to `~/.pypi_profile/`. Prints the
+public key to paste into `[verification]` in your TOML. Run this once; protect
+the secret key file.
+
+```bash
+pypi-profile keygen
+pypi-profile keygen --password "passphrase"   # encrypt the secret key
+```
+
+Requires `py-minisign`. Install with `pipx install "pypi-profile[sign]"`.
+
+### `sign`
+
+Signs a proof-of-control claim for an external URL and prints the
+`pypi-profile-proof:` token to paste onto that page.
+
+```bash
+pypi-profile sign controls-url pypi_profile.toml \
+    --url https://github.com/yourname
+```
+
+Requires `py-minisign`.
+
+### `verify`
+
+Fetches each declared `[[profiles]]` URL and checks for a valid proof token.
+
+```bash
+pypi-profile verify pypi_profile.toml
+```
+
+Reports each claim as `verified`, `unverified`, `invalid`, or `expired`.
+Requires `py-minisign`.
+
 ### `doctor`
 
-Checks required and optional runtime dependencies such as `fastapi`, `uvicorn`, `pydantic`, `httpx`, `pyyaml`, and `py-minisign`.
+Checks required and optional runtime dependencies such as `fastapi`, `uvicorn`,
+`pydantic`, `httpx`, `pyyaml`, and `py-minisign`. Also reports whether a secret
+key file is present in `~/.pypi_profile/`.
 
 ### `fetch`
 

@@ -390,6 +390,15 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     check_optional("py-minisign (signing)", "minisign")
     check_optional("pyyaml (FUNDING.yml)", "yaml")
     print()
+    print("Signing setup:")
+    from pypi_profile.signing import DEFAULT_KEY_DIR, DEFAULT_SK_NAME
+
+    sk_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
+    if sk_path.exists():
+        print(f"  OK  Secret key found at {sk_path}")
+    else:
+        print(f"  --  No secret key at {sk_path} (run: pypi-profile keygen)")
+    print()
     if ok:
         print("All required checks passed.")
     else:
@@ -463,6 +472,120 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         print()
         print("=== Raw JSON ===")
         print(json.dumps(live, indent=2, default=str))
+
+
+def cmd_keygen(args: argparse.Namespace) -> None:
+    """Generate a minisign keypair for signing profile claims."""
+    from pathlib import Path
+
+    from pypi_profile.signing import generate_keypair
+
+    key_dir = Path(args.key_dir).expanduser() if args.key_dir else None
+    try:
+        sk_path, pk_path, pub_b64 = generate_keypair(
+            key_dir=key_dir,
+            password=args.password,
+            force=args.force,
+        )
+    except FileExistsError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except ImportError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Secret key: {sk_path}")
+    print(f"Public key: {pk_path}")
+    print()
+    print("Add this public key to pypi_profile.toml [verification] section:")
+    print(f'public_key = "{pub_b64}"')
+    print()
+    print("Keep your secret key private. Never commit it to version control.")
+
+
+def cmd_sign(args: argparse.Namespace) -> None:
+    """Sign a controls-url claim and print the proof string."""
+    from pathlib import Path
+
+    from pypi_profile.loader import find_profile, load_profile
+    from pypi_profile.signing import sign_controls_url
+
+    try:
+        toml_path = find_profile(args.source)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    profile = load_profile(toml_path)
+    profile_package = profile.identity.pypi_username or "unknown"
+    pypi_username = profile.identity.pypi_username
+
+    sk_path = Path(args.key).expanduser() if args.key else None
+
+    try:
+        proof = sign_controls_url(
+            profile_package=args.profile_package or f"pypi-profile-{profile_package}",
+            pypi_username=pypi_username,
+            subject_url=args.url,
+            sk_path=sk_path,
+            password=args.password,
+        )
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except ImportError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print("Copy and paste the following proof string into your external profile page:")
+    print()
+    print(proof)
+    print()
+    print(f"Place it at: {args.url}")
+
+
+def cmd_verify(args: argparse.Namespace) -> None:
+    """Verify proof-of-control claims for all listed [[profiles]] entries."""
+    from pypi_profile.loader import find_profile, load_profile
+    from pypi_profile.verifier import verify_all_profiles
+
+    try:
+        toml_path = find_profile(args.source)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    profile = load_profile(toml_path)
+
+    if not profile.verification.public_key:
+        print("WARNING: No public key in [verification]. Verification requires a public key.", file=sys.stderr)
+
+    profile_package = args.profile_package or f"pypi-profile-{profile.identity.pypi_username}"
+
+    try:
+        results = verify_all_profiles(profile, profile_package=profile_package)
+    except ImportError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    status_icons = {
+        "verified": "✓",
+        "unverified": "?",
+        "invalid": "✗",
+        "expired": "!",
+        "self_asserted": "-",
+        "unknown": "?",
+    }
+
+    print(f"Verifying claims for: {profile.profile.display_name!r}")
+    print()
+    for item in results:
+        icon = status_icons.get(item["status"], "?")
+        print(f"  [{icon}] {item['label']} ({item['url']}) — {item['status']}")
+
+    verified = sum(1 for r in results if r["status"] == "verified")
+    print()
+    print(f"{verified}/{len(results)} claims verified.")
 
 
 def cmd_api_dump(args: argparse.Namespace) -> None:
@@ -540,6 +663,26 @@ def main() -> None:
     dump_p = subparsers.add_parser("dump", help="Dump profile data as JSON")
     dump_p.add_argument("source", help="Profile package name, directory, or .toml path")
     dump_p.set_defaults(func=cmd_api_dump)
+
+    keygen_p = subparsers.add_parser("keygen", help="Generate a minisign keypair for signing claims")
+    keygen_p.add_argument("--key-dir", default="", help="Directory to write key files (default: ~/.pypi_profile/)")
+    keygen_p.add_argument("--password", default="", help="Password to encrypt the secret key (default: none)")
+    keygen_p.add_argument("--force", action="store_true", help="Overwrite existing key files")
+    keygen_p.set_defaults(func=cmd_keygen)
+
+    sign_p = subparsers.add_parser("sign", help="Sign a proof-of-control claim for an external URL")
+    sign_p.add_argument("claim_type", choices=["controls-url"], help="Claim type to sign")
+    sign_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    sign_p.add_argument("--url", required=True, help="URL to assert control over")
+    sign_p.add_argument("--key", default="", help="Path to secret key file (default: ~/.pypi_profile/minisign.key)")
+    sign_p.add_argument("--password", default="", help="Password for the secret key")
+    sign_p.add_argument("--profile-package", default="", help="Profile package name override")
+    sign_p.set_defaults(func=cmd_sign)
+
+    verify_p = subparsers.add_parser("verify", help="Verify proof-of-control claims for declared profile URLs")
+    verify_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    verify_p.add_argument("--profile-package", default="", help="Profile package name override")
+    verify_p.set_defaults(func=cmd_verify)
 
     args = parser.parse_args()
     if not args.command:
