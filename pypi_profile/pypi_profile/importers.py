@@ -20,7 +20,9 @@ def _open_http_url(request: urllib.request.Request) -> Any:
 
 
 def _get_json(url: str, accept: str = "application/json") -> Any:
-    req = urllib.request.Request(url, headers={"Accept": accept, "User-Agent": "pypi-profile/0.1"})
+    req = urllib.request.Request(
+        url, headers={"Accept": accept, "User-Agent": "pypi-profile/0.1"}
+    )
     with _open_http_url(req) as resp:
         return json.loads(cast(bytes, resp.read()).decode())
 
@@ -93,7 +95,9 @@ def _map_json_resume(r: dict[str, Any]) -> dict[str, Any]:
         network = p.get("network", "").lower()
         url = p.get("url", "")
         username = p.get("username", "")
-        if network == "github":
+        if network == "pypi":
+            pypi_username = username or url.rstrip("/").rsplit("/", 1)[-1]
+        elif network == "github":
             github_url = url or f"https://github.com/{username}"
             profiles.append(
                 {
@@ -272,48 +276,47 @@ def fetch_pypi_packages(username: str) -> list[dict[str, Any]]:
 
 
 def _fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
-    """Fetch packages owned/maintained by a PyPI user via the PyPI JSON API."""
+    """Fetch packages owned/maintained by a PyPI user via the PyPI XML-RPC API."""
+    import xmlrpc.client
+
     results: list[dict[str, Any]] = []
     try:
-        # PyPI doesn't expose a user→packages API, but we can scrape the user page
-        text = _get_text(f"https://pypi.org/user/{username}/")
-        # Extract package names from the user profile page
-        pkg_names = re.findall(r'href="/project/([^/"]+)/"', text)
-        pkg_names = list(dict.fromkeys(pkg_names))  # deduplicate, preserve order
-        for name in pkg_names[:50]:  # cap at 50 to avoid too many requests
-            try:
-                meta = _get_json(f"https://pypi.org/pypi/{name}/json")
-                info = meta.get("info", {})
-                maintainers = [m.get("username", "") for m in (info.get("maintainers") or [])]
-                role = "owner" if username in maintainers else "maintainer"
-                results.append(
-                    {
-                        "name": name,
-                        "role": role,
-                        "state": "active",
-                        "summary": (info.get("summary") or "")[:200],
-                        "url": info.get("project_url") or f"https://pypi.org/project/{name}/",
-                    }
-                )
-            except (
-                json.JSONDecodeError,
-                OSError,
-                TimeoutError,
-                urllib.error.HTTPError,
-                urllib.error.URLError,
-                ValueError,
-            ):
-                results.append(
-                    {
-                        "name": name,
-                        "role": "maintainer",
-                        "state": "active",
-                        "summary": "",
-                        "url": f"https://pypi.org/project/{name}/",
-                    }
-                )
-    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
+        client = xmlrpc.client.ServerProxy("https://pypi.org/pypi")
+        role_pkg_pairs: list[list[str]] = client.user_packages(username)  # type: ignore[attr-defined]
+    except Exception:
         return []
+
+    for role, name in role_pkg_pairs:
+        try:
+            meta = _get_json(f"https://pypi.org/pypi/{name}/json")
+            info = meta.get("info", {})
+            results.append(
+                {
+                    "name": name,
+                    "role": role.lower(),
+                    "state": "active",
+                    "summary": (info.get("summary") or "")[:200],
+                    "url": info.get("project_url")
+                    or f"https://pypi.org/project/{name}/",
+                }
+            )
+        except (
+            json.JSONDecodeError,
+            OSError,
+            TimeoutError,
+            urllib.error.HTTPError,
+            urllib.error.URLError,
+            ValueError,
+        ):
+            results.append(
+                {
+                    "name": name,
+                    "role": role.lower(),
+                    "state": "active",
+                    "summary": "",
+                    "url": f"https://pypi.org/project/{name}/",
+                }
+            )
     return results
 
 
@@ -330,11 +333,20 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
             "author_email": info.get("author_email", ""),
             "home_page": info.get("home_page", ""),
             "project_url": info.get("project_url", ""),
-            "maintainers": [m.get("username", "") for m in (info.get("maintainers") or [])],
+            "maintainers": [
+                m.get("username", "") for m in (info.get("maintainers") or [])
+            ],
             "classifiers": info.get("classifiers", []),
             "requires_python": info.get("requires_python", ""),
         }
-    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
+    except (
+        json.JSONDecodeError,
+        OSError,
+        TimeoutError,
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        ValueError,
+    ):
         return {}
 
 
@@ -368,54 +380,92 @@ def fetch_github_profile(username: str, token: str | None = None) -> dict[str, A
             "html_url": data.get("html_url", f"https://github.com/{username}"),
             "twitter_username": data.get("twitter_username", ""),
         }
-    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
+    except (
+        json.JSONDecodeError,
+        OSError,
+        TimeoutError,
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        ValueError,
+    ):
         return {}
 
 
 def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str, Any]]:
-    """Fetch public repos for a GitHub user (top 30 by stars)."""
+    """Fetch all public non-fork repos for a GitHub user, paginating through all results."""
+    results: list[dict[str, Any]] = []
+    page = 1
     try:
-        url = f"https://api.github.com/users/{username}/repos?sort=stars&per_page=30&type=owner"
-        req = urllib.request.Request(url)
-        req.add_header("Accept", "application/vnd.github+json")
-        req.add_header("User-Agent", "pypi-profile/0.1")
-        if token:
-            req.add_header("Authorization", f"Bearer {token}")
-        with _open_http_url(req) as resp:
-            repos = json.loads(resp.read().decode())
-        return [
-            {
-                "name": r.get("name", ""),
-                "full_name": r.get("full_name", ""),
-                "description": r.get("description", ""),
-                "html_url": r.get("html_url", ""),
-                "homepage": r.get("homepage", ""),
-                "stars": r.get("stargazers_count", 0),
-                "language": r.get("language", ""),
-                "archived": r.get("archived", False),
-                "fork": r.get("fork", False),
-            }
-            for r in repos
-            if not r.get("fork", False)
-        ]
-    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
-        return []
+        while True:
+            url = f"https://api.github.com/users/{username}/repos?sort=stars&per_page=100&type=owner&page={page}"
+            req = urllib.request.Request(url)
+            req.add_header("Accept", "application/vnd.github+json")
+            req.add_header("User-Agent", "pypi-profile/0.1")
+            if token:
+                req.add_header("Authorization", f"Bearer {token}")
+            with _open_http_url(req) as resp:
+                repos = json.loads(resp.read().decode())
+                link_header = resp.headers.get("Link", "")
+            for r in repos:
+                if not r.get("fork", False):
+                    results.append(
+                        {
+                            "name": r.get("name", ""),
+                            "full_name": r.get("full_name", ""),
+                            "description": r.get("description", ""),
+                            "html_url": r.get("html_url", ""),
+                            "homepage": r.get("homepage", ""),
+                            "stars": r.get("stargazers_count", 0),
+                            "language": r.get("language", ""),
+                            "archived": r.get("archived", False),
+                            "fork": False,
+                        }
+                    )
+            if not repos or 'rel="next"' not in link_header:
+                break
+            page += 1
+    except (
+        json.JSONDecodeError,
+        OSError,
+        TimeoutError,
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        ValueError,
+    ):
+        pass
+    return results
 
 
-def fetch_github_funding(username: str, repo: str = "", _token: str | None = None) -> dict[str, Any]:
+def fetch_github_funding(
+    username: str, repo: str = "", _token: str | None = None
+) -> dict[str, Any]:
     """Fetch FUNDING.yml from a GitHub user's .github or specified repo."""
     targets = []
     if repo:
-        targets.append(f"https://raw.githubusercontent.com/{username}/{repo}/main/.github/FUNDING.yml")
-        targets.append(f"https://raw.githubusercontent.com/{username}/{repo}/master/.github/FUNDING.yml")
-    targets.append(f"https://raw.githubusercontent.com/{username}/.github/main/FUNDING.yml")
-    targets.append(f"https://raw.githubusercontent.com/{username}/.github/master/FUNDING.yml")
+        targets.append(
+            f"https://raw.githubusercontent.com/{username}/{repo}/main/.github/FUNDING.yml"
+        )
+        targets.append(
+            f"https://raw.githubusercontent.com/{username}/{repo}/master/.github/FUNDING.yml"
+        )
+    targets.append(
+        f"https://raw.githubusercontent.com/{username}/.github/main/FUNDING.yml"
+    )
+    targets.append(
+        f"https://raw.githubusercontent.com/{username}/.github/master/FUNDING.yml"
+    )
 
     for url in targets:
         try:
             text = _get_text(url)
             return _parse_funding_yml(text)
-        except (OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
+        except (
+            OSError,
+            TimeoutError,
+            urllib.error.HTTPError,
+            urllib.error.URLError,
+            ValueError,
+        ):
             continue
     return {}
 
@@ -475,7 +525,14 @@ def fetch_gitlab_profile(username: str, token: str | None = None) -> dict[str, A
             "avatar_url": user.get("avatar_url", ""),
             "web_url": user.get("web_url", f"https://gitlab.com/{username}"),
         }
-    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
+    except (
+        json.JSONDecodeError,
+        OSError,
+        TimeoutError,
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        ValueError,
+    ):
         return {}
 
 
@@ -514,7 +571,14 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
             "followers_count": data.get("followers_count", 0),
             "fields": fields,
         }
-    except (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
+    except (
+        json.JSONDecodeError,
+        OSError,
+        TimeoutError,
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        ValueError,
+    ):
         return {}
 
 
@@ -523,7 +587,9 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, Any]) -> dict[str, Any]:
+def merge_live_data_into_profile(
+    profile_data: dict[str, Any], live: dict[str, Any]
+) -> dict[str, Any]:
     """Merge fetched live data into a profile dict, preferring existing non-empty values."""
 
     def fill(section: str, field: str, value: Any) -> None:
@@ -536,7 +602,9 @@ def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, A
     pypi_packages = live.get("pypi_packages", [])
 
     # Fill identity from GitHub
-    fill("identity", "location", github.get("location", "") or gitlab.get("location", ""))
+    fill(
+        "identity", "location", github.get("location", "") or gitlab.get("location", "")
+    )
     fill(
         "profile",
         "summary",
@@ -548,7 +616,11 @@ def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, A
 
     # Email from GitHub
     if github.get("email"):
-        existing_emails = [c["value"] for c in profile_data.get("contact_methods", []) if c.get("kind") == "email"]
+        existing_emails = [
+            c["value"]
+            for c in profile_data.get("contact_methods", [])
+            if c.get("kind") == "email"
+        ]
         if github["email"] not in existing_emails:
             profile_data.setdefault("contact_methods", []).append(
                 {

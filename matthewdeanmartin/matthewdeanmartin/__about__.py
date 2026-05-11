@@ -15,7 +15,9 @@ __all__ = [
 
 __title__ = "matthewdeanmartin"
 __version__ = "0.1.0"
-__description__ = "PyPI profile data and plugin for pypi-profile — Matthew Martin's packages."
+__description__ = (
+    "PyPI profile data and plugin for pypi-profile — Matthew Martin's packages."
+)
 __readme__ = "README.md"
 __credits__ = [{"name": "Matthew Martin", "email": "matthewdeanmartin@gmail.com"}]
 __keywords__ = ["pypi", "profile", "plugin"]

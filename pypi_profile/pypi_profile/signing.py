@@ -43,7 +43,9 @@ def generate_keypair(
     pk_path = key_dir / DEFAULT_PK_NAME
 
     if sk_path.exists() and not force:
-        raise FileExistsError(f"Secret key already exists at {sk_path}. Use force=True to overwrite.")
+        raise FileExistsError(
+            f"Secret key already exists at {sk_path}. Use force=True to overwrite."
+        )
 
     kp = ms.KeyPair.generate()
 
@@ -59,12 +61,24 @@ def generate_keypair(
 
 def load_secret_key(sk_path: Path | None = None, password: str = "") -> Any:
     """Load a minisign SecretKey from disk, decrypting if a password is provided."""
+    import os
+
     ms = _import_minisign()
 
     if sk_path is None:
-        sk_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
+        env_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
+        sk_path = (
+            Path(env_path).expanduser()
+            if env_path
+            else DEFAULT_KEY_DIR / DEFAULT_SK_NAME
+        )
     if not sk_path.exists():
-        raise FileNotFoundError(f"Secret key not found at {sk_path}. Run: pypi-profile keygen")
+        raise FileNotFoundError(
+            f"Secret key not found at {sk_path}. Run: pypi-profile keygen"
+        )
+
+    if not password:
+        password = os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "")
 
     sk = ms.SecretKey.from_file(sk_path)
     if password:

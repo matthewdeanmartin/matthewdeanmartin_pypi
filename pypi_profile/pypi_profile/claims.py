@@ -57,7 +57,7 @@ def decode_claim(token: str) -> dict[str, Any]:
     """Decode a pypi-profile-proof token back to a dict."""
     token = token.strip()
     if token.startswith(PROOF_PREFIX):
-        token = token[len(PROOF_PREFIX):].strip()
+        token = token[len(PROOF_PREFIX) :].strip()
     # Re-add padding
     padding = (4 - len(token) % 4) % 4
     raw = base64.urlsafe_b64decode(token + "=" * padding)
@@ -70,7 +70,9 @@ def is_expired(claim: dict[str, Any]) -> bool:
     if not expires_str:
         return False
     try:
-        expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc
+        )
         return datetime.now(tz=timezone.utc) > expires
     except ValueError:
         return False

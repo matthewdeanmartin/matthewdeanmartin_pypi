@@ -93,16 +93,31 @@
           {% endif %}
         {% endcall %}
 
-        {% call layout.card("How to add a proof", "project-panel") %}
-          <p class="sidebar-copy">
-            Run <code>pypi-profile sign controls-url &lt;source&gt; --url &lt;your-profile-url&gt;</code>
-            and paste the output into your external profile page (GitHub README, Mastodon bio, etc.).
-          </p>
-          <p class="sidebar-copy">
-            The proof string looks like:
-            <code>pypi-profile-proof: &lt;token&gt;</code>
-          </p>
-        {% endcall %}
+        {% if proofs %}
+          {% call layout.card("Add proof-of-control", "project-panel") %}
+            {% for item in proofs %}
+              <div style="margin-bottom: 1.5rem;">
+                <p style="margin-bottom: 0.25rem;">
+                  <strong>{{ item.label }}</strong>
+                  — <a href="{{ item.url }}">{{ item.url }}</a>
+                </p>
+                {% if item.proof %}
+                  <p class="sidebar-copy" style="margin-bottom: 0.25rem;">
+                    Paste this into your {{ item.label }} profile (README, bio, or any public page at that URL):
+                  </p>
+                  <pre style="white-space: pre-wrap; word-break: break-all; background: #f5f5f5; padding: 0.75rem; border-radius: 4px; font-size: 0.8rem;"><code>{{ item.proof }}</code></pre>
+                {% elif item.error == "no-key" %}
+                  {{ feedback.notification(
+                    "No secret key found. Run <code>pypi-profile keygen</code> to generate one, then reload this page.",
+                    tone="warning", title="Key required"
+                  ) }}
+                {% else %}
+                  {{ feedback.notification(item.error, tone="bad", title="Could not generate proof") }}
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% endcall %}
+        {% endif %}
       </div>
       <aside class="project-layout__sidebar">
         {% call layout.sidebar_section("What verification means") %}

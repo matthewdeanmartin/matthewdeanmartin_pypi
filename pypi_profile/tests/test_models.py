@@ -4,8 +4,15 @@ from pathlib import Path
 
 import pytest
 
-JOHN_DOE_TOML = Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
-MATT_TOML = Path(__file__).parent.parent.parent / "matthewdeanmartin" / "matthewdeanmartin" / "pypi_profile.toml"
+JOHN_DOE_TOML = (
+    Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
+)
+MATT_TOML = (
+    Path(__file__).parent.parent.parent
+    / "matthewdeanmartin"
+    / "matthewdeanmartin"
+    / "pypi_profile.toml"
+)
 
 
 def test_empty_profile_has_defaults() -> None:

@@ -23,6 +23,7 @@
           {"id": "packages", "label": "Packages", "href": "/packages"}
         ], active_id="resume", aria_label="Profile navigation") }}
       </aside>
+
       <div class="project-layout__content">
         {% call layout.card("Work experience", "project-panel") %}
           {% if profile.work_experience %}
@@ -39,17 +40,48 @@
         {% if profile.packages %}
           {% call layout.card("Package portfolio", "project-panel") %}
             <div class="file-list">
-              {% for pkg in profile.packages %}
+              {% for pkg in profile.packages[:5] %}
                 {{ pc.package_card(pkg) }}
               {% endfor %}
             </div>
+            {% if profile.packages | length > 5 %}
+              <p style="margin-top: 0.75rem;">
+                <a href="/packages">View all {{ profile.packages | length }} packages →</a>
+              </p>
+            {% endif %}
+          {% endcall %}
+        {% endif %}
+
+        {% if profile.projects %}
+          {% call layout.card("Projects", "project-panel") %}
+            <div class="file-list">
+              {% for proj in profile.projects[:5] %}
+                {{ pc.project_card(proj) }}
+              {% endfor %}
+            </div>
+            {% if profile.projects | length > 5 %}
+              <p style="margin-top: 0.75rem;">
+                <a href="/projects">View all {{ profile.projects | length }} projects →</a>
+              </p>
+            {% endif %}
           {% endcall %}
         {% endif %}
       </div>
+
       <aside class="project-layout__sidebar">
         {% call layout.sidebar_section("Availability") %}
           {{ pc.hiring_panel(profile.hiring) }}
         {% endcall %}
+
+        {% if profile.packages %}
+          {% call layout.sidebar_section("Portfolio") %}
+            <p class="sidebar-copy">{{ profile.packages | length }} package(s) on PyPI</p>
+            {% if profile.projects %}
+              <p class="sidebar-copy">{{ profile.projects | length }} project(s) listed</p>
+            {% endif %}
+            <p class="sidebar-copy"><a href="/packages">Browse all packages →</a></p>
+          {% endcall %}
+        {% endif %}
       </aside>
     </div>
   {% endcall %}

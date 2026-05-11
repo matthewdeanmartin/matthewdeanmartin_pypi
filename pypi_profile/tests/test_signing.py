@@ -16,7 +16,6 @@ from pypi_profile.claims import (
     is_expired,
 )
 
-
 # --- claims.py tests --------------------------------------------------------
 
 
@@ -61,7 +60,7 @@ def test_decode_claim_strips_prefix():
         key_id="00",
     )
     token = encode_claim(claim)
-    bare_token = token[len(PROOF_PREFIX):].strip()
+    bare_token = token[len(PROOF_PREFIX) :].strip()
     recovered = decode_claim(bare_token)
     assert recovered["subject"] == "https://x.com"
 
@@ -89,7 +88,9 @@ def test_generate_keypair_and_sign_verify(tmp_path):
     from pypi_profile.signing import generate_keypair, sign_controls_url
     from pypi_profile.verifier import verify_claim_signature
 
-    sk_path, pk_path, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+    sk_path, pk_path, pub_b64 = generate_keypair(
+        key_dir=tmp_path, password="", force=True
+    )
     assert sk_path.exists()
     assert pk_path.exists()
     assert pub_b64
@@ -115,8 +116,12 @@ def test_verify_claim_signature_wrong_key(tmp_path):
     from pypi_profile.signing import generate_keypair, sign_controls_url
     from pypi_profile.verifier import verify_claim_signature
 
-    sk_path, _pk_path, _pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
-    _sk2, _pk2, pub_b64_other = generate_keypair(key_dir=tmp_path / "other", password="", force=True)
+    sk_path, _pk_path, _pub_b64 = generate_keypair(
+        key_dir=tmp_path, password="", force=True
+    )
+    _sk2, _pk2, pub_b64_other = generate_keypair(
+        key_dir=tmp_path / "other", password="", force=True
+    )
 
     proof = sign_controls_url(
         profile_package="pypi-profile-test",

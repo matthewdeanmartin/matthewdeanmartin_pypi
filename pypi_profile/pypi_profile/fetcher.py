@@ -22,7 +22,14 @@ from pypi_profile.models import ProfileData
 
 CACHE_DIR = Path(".pypi_profile_cache")
 CACHE_TTL = 3600  # seconds
-FETCH_ERRORS = (json.JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError)
+FETCH_ERRORS = (
+    json.JSONDecodeError,
+    OSError,
+    TimeoutError,
+    urllib.error.HTTPError,
+    urllib.error.URLError,
+    ValueError,
+)
 
 
 def _cache_path(key: str) -> Path:
@@ -165,7 +172,9 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
     return results
 
 
-def compare_packages(profile: ProfileData, live_results: dict[str, Any]) -> list[dict[str, Any]]:
+def compare_packages(
+    profile: ProfileData, live_results: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Compare self-asserted package roles against PyPI live data."""
     pypi_username = profile.identity.pypi_username
     package_meta = live_results.get("package_meta", {})

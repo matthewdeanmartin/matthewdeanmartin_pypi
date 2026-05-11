@@ -310,10 +310,14 @@ def main(argv: Sequence[str]) -> int:
         args = parse_args(argv)
         env = build_gh_env(args.env_file)
         repo = resolve_repo(args.repo)
-        conclusions = {value.lower() for value in (args.conclusions or FAILED_CONCLUSIONS)}
+        conclusions = {
+            value.lower() for value in (args.conclusions or FAILED_CONCLUSIONS)
+        }
 
         runs = filter_runs(
-            iter_workflow_runs(repo=repo, env=env, branch=args.branch, event=args.event),
+            iter_workflow_runs(
+                repo=repo, env=env, branch=args.branch, event=args.event
+            ),
             conclusions=conclusions,
             max_delete=args.max_delete,
         )
@@ -328,7 +332,9 @@ def main(argv: Sequence[str]) -> int:
 
         if not args.execute:
             action = "delete logs for" if args.mode == "logs" else "delete"
-            print(f"\nDry run only. Re-run with --execute to {action} these workflow runs.")
+            print(
+                f"\nDry run only. Re-run with --execute to {action} these workflow runs."
+            )
             return 0
 
         failures: list[tuple[int, str]] = []
