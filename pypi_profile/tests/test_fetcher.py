@@ -1,0 +1,194 @@
+"""Tests for the live metadata fetcher."""
+
+from __future__ import annotations
+
+import json
+import time
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from pypi_profile.fetcher import _extract_github_username, _extract_gitlab_username, compare_packages, fetch_all
+from pypi_profile.models import IdentitySection, ProfileSection, ProfileData, ProfileLink, PackageEntry
+
+
+@pytest.fixture
+def mock_cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    cache_dir = tmp_path / ".pypi_profile_cache"
+    monkeypatch.setattr("pypi_profile.fetcher.CACHE_DIR", cache_dir)
+    return cache_dir
+
+
+@pytest.fixture
+def sample_profile() -> ProfileData:
+    return ProfileData(
+        profile=ProfileSection(display_name="Alice"),
+        identity=IdentitySection(pypi_username="alice_pypi"),
+        profiles=[
+            ProfileLink(kind="github", label="GitHub", url="https://github.com/alice"),
+            ProfileLink(kind="gitlab", label="GitLab", url="https://gitlab.com/alice_gl"),
+            ProfileLink(kind="mastodon", label="Mastodon", url="https://fosstodon.org/@alice_masto"),
+        ],
+        packages=[
+            PackageEntry(name="my-cool-pkg", role="owner")
+        ]
+    )
+
+
+def test_fetch_all_calls_importers(mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData) -> None:
+    # Mock all importer functions
+    mock_pypi_user = mocker.patch("pypi_profile.fetcher._fetch_pypi_user_packages", return_value=[{"name": "pkg1"}])
+    mock_pypi_pkg = mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={"summary": "desc"})
+    mock_gh_profile = mocker.patch("pypi_profile.fetcher.fetch_github_profile", return_value={"name": "Alice GH"})
+    mock_gh_repos = mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[{"name": "repo1"}])
+    mock_gh_funding = mocker.patch("pypi_profile.fetcher.fetch_github_funding", return_value={"github": "alice"})
+    mock_gl_profile = mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile", return_value={"name": "Alice GL"})
+    mock_masto_profile = mocker.patch("pypi_profile.fetcher.fetch_mastodon_profile", return_value={"display_name": "Alice M"})
+
+    results = fetch_all(sample_profile, verbose=True)
+
+    assert results["pypi_packages"] == [{"name": "pkg1"}]
+    assert results["package_meta"]["my-cool-pkg"] == {"summary": "desc"}
+    assert results["github"] == {"name": "Alice GH"}
+    assert results["github_repos"] == [{"name": "repo1"}]
+    assert results["github_funding"] == {"github": "alice"}
+    assert results["gitlab"] == {"name": "Alice GL"}
+    assert results["mastodon"] == {"display_name": "Alice M"}
+
+    # Verify calls
+    mock_pypi_user.assert_called_once_with("alice_pypi")
+    mock_pypi_pkg.assert_called_once_with("my-cool-pkg")
+    mock_gh_profile.assert_called_once_with("alice")
+    mock_gl_profile.assert_called_once_with("alice_gl")
+
+
+def test_fetch_all_uses_cache(mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData) -> None:
+    # Pre-populate cache
+    mock_cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    # GitHub profile
+    cache_file = mock_cache_dir / "github_profile_alice.json"
+    cache_data = {"_ts": time.time(), "payload": {"name": "Cached Alice"}}
+    cache_file.write_text(json.dumps(cache_data))
+
+    # PyPI packages
+    cache_file_pypi = mock_cache_dir / "pypi_packages_alice_pypi.json"
+    cache_data_pypi = {"_ts": time.time(), "payload": [{"name": "cached-pkg"}]}
+    cache_file_pypi.write_text(json.dumps(cache_data_pypi))
+
+    # GitHub funding
+    cache_file_funding = mock_cache_dir / "github_funding_alice.json"
+    cache_data_funding = {"_ts": time.time(), "payload": {"github": "alice"}}
+    cache_file_funding.write_text(json.dumps(cache_data_funding))
+
+    # GitLab profile
+    cache_file_gl = mock_cache_dir / "gitlab_profile_alice_gl.json"
+    cache_data_gl = {"_ts": time.time(), "payload": {"name": "Cached GL"}}
+    cache_file_gl.write_text(json.dumps(cache_data_gl))
+
+    # Mastodon profile
+    cache_file_masto = mock_cache_dir / "mastodon_https___fosstodon.org__at_alice_masto.json"
+    cache_data_masto = {"_ts": time.time(), "payload": {"display_name": "Cached M"}}
+    cache_file_masto.write_text(json.dumps(cache_data_masto))
+
+    # Mock importer functions - they should NOT be called
+    mock_gh_profile = mocker.patch("pypi_profile.fetcher.fetch_github_profile")
+    mocker.patch("pypi_profile.fetcher._fetch_pypi_user_packages")
+    mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[])
+    mocker.patch("pypi_profile.fetcher.fetch_github_funding")
+    mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile")
+    mocker.patch("pypi_profile.fetcher.fetch_mastodon_profile")
+
+    results = fetch_all(sample_profile, verbose=True)
+
+    assert results["github"] == {"name": "Cached Alice"}
+    assert results["pypi_packages"] == [{"name": "cached-pkg"}]
+    assert results["github_funding"] == {"github": "alice"}
+    assert results["gitlab"] == {"name": "Cached GL"}
+    assert results["mastodon"] == {"display_name": "Cached M"}
+    mock_gh_profile.assert_not_called()
+
+
+def test_fetch_all_cache_expiry(mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData) -> None:
+    # Pre-populate cache with expired data
+    cache_file = mock_cache_dir / "github_profile_alice.json"
+    mock_cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_data = {"_ts": time.time() - 4000, "payload": {"name": "Old Alice"}}
+    cache_file.write_text(json.dumps(cache_data))
+
+    # Mock importer functions - GH profile SHOULD be called
+    mock_gh_profile = mocker.patch("pypi_profile.fetcher.fetch_github_profile", return_value={"name": "New Alice"})
+    mocker.patch("pypi_profile.fetcher._fetch_pypi_user_packages", return_value=[])
+    mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[])
+    mocker.patch("pypi_profile.fetcher.fetch_github_funding", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_mastodon_profile", return_value={})
+
+    results = fetch_all(sample_profile)
+
+    assert results["github"] == {"name": "New Alice"}
+    mock_gh_profile.assert_called_once_with("alice")
+
+
+def test_compare_packages() -> None:
+    profile = ProfileData(
+        identity=IdentitySection(pypi_username="alice"),
+        packages=[
+            PackageEntry(name="pkg-ok", role="owner"),
+            PackageEntry(name="pkg-wrong", role="maintainer"),
+            PackageEntry(name="pkg-missing", role="owner"),
+        ]
+    )
+
+    live_results = {
+        "package_meta": {
+            "pkg-ok": {"maintainers": ["alice", "bob"], "summary": "OK", "version": "1.0"},
+            "pkg-wrong": {"maintainers": ["charlie"], "summary": "Wrong", "version": "2.0"},
+            # pkg-missing is missing from live_results
+        }
+    }
+
+    report = compare_packages(profile, live_results)
+
+    assert len(report) == 3
+    
+    ok = next(r for r in report if r["name"] == "pkg-ok")
+    assert ok["status"] == "confirmed"
+    assert ok["pypi_version"] == "1.0"
+
+    wrong = next(r for r in report if r["name"] == "pkg-wrong")
+    assert wrong["status"] == "not_found"
+    assert "alice" in wrong["note"]
+
+    missing = next(r for r in report if r["name"] == "pkg-missing")
+    assert missing["status"] == "no_data"
+
+
+def test_compare_packages_no_username() -> None:
+    profile = ProfileData(
+        identity=IdentitySection(pypi_username=""),
+        packages=[
+            PackageEntry(name="pkg-any", role="owner"),
+        ]
+    )
+    live_results = {
+        "package_meta": {
+            "pkg-any": {"maintainers": ["bob"], "summary": "OK", "version": "1.0"},
+        }
+    }
+    report = compare_packages(profile, live_results)
+    assert report[0]["status"] == "unverified"
+
+
+def test_extract_usernames() -> None:
+    assert _extract_github_username("https://github.com/alice") == "alice"
+    assert _extract_github_username("https://github.com/alice/") == "alice"
+    assert _extract_github_username("http://github.com/bob") == "bob"
+    assert _extract_github_username("https://notgithub.com/alice") == ""
+
+    assert _extract_gitlab_username("https://gitlab.com/alice") == "alice"
+    assert _extract_gitlab_username("https://gitlab.com/alice/") == "alice"
+    assert _extract_gitlab_username("https://notgitlab.com/alice") == ""

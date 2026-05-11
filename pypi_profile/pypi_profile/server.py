@@ -13,18 +13,20 @@ from fastapi.staticfiles import StaticFiles
 from pypi_profile.ds.paths import static_root_path, template_root_path
 from pypi_profile.models import ProfileData
 
+ClaimResult = dict[str, Any]
+ProofResult = dict[str, Any]
+
 
 def _generate_proofs(
     profile: ProfileData,
     profile_package: str,
-    claim_results: list[dict],
-) -> list[dict]:
+    claim_results: list[ClaimResult],
+) -> list[ProofResult]:
     """For each unverified profile URL, attempt to generate a ready-to-paste proof string.
 
     Returns a list of dicts with keys: label, url, proof (str or None), error (str or None).
     Only includes profiles that are not already verified.
     """
-    from pypi_profile.models import ProfileLink
 
     verified_urls = {r["url"] for r in claim_results if r.get("status") == "verified"}
     needing_proof = [link for link in profile.profiles if link.url not in verified_urls]
@@ -51,10 +53,7 @@ def _generate_proofs(
     sk_path = default_sk if default_sk.exists() else None
 
     if sk_path is None:
-        return [
-            {"label": link.label, "url": link.url, "proof": None, "error": "no-key"}
-            for link in needing_proof
-        ]
+        return [{"label": link.label, "url": link.url, "proof": None, "error": "no-key"} for link in needing_proof]
 
     results = []
     for link in needing_proof:
@@ -65,13 +64,9 @@ def _generate_proofs(
                 subject_url=link.url,
                 sk_path=sk_path,
             )
-            results.append(
-                {"label": link.label, "url": link.url, "proof": proof, "error": None}
-            )
-        except Exception as exc:
-            results.append(
-                {"label": link.label, "url": link.url, "proof": None, "error": str(exc)}
-            )
+            results.append({"label": link.label, "url": link.url, "proof": proof, "error": None})
+        except (ImportError, OSError, ValueError) as exc:
+            results.append({"label": link.label, "url": link.url, "proof": None, "error": str(exc)})
     return results
 
 
@@ -92,19 +87,15 @@ def build_app(
         from pypi_profile.signing import DEFAULT_KEY_DIR, DEFAULT_PK_NAME
 
         env_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
-        pk_path = (
-            Path(env_path).expanduser().with_suffix(".pub")
-            if env_path
-            else DEFAULT_KEY_DIR / DEFAULT_PK_NAME
-        )
+        pk_path = Path(env_path).expanduser().with_suffix(".pub") if env_path else DEFAULT_KEY_DIR / DEFAULT_PK_NAME
         if pk_path.exists():
             try:
-                import minisign
+                import minisign  # type: ignore[import-untyped]
 
                 pk = minisign.PublicKey.from_file(pk_path)
                 profile.verification.public_key = pk.to_base64().decode()
-            except Exception:
-                pass
+            except (ImportError, OSError, ValueError):
+                profile.verification.public_key = ""
 
     ds_template_root, ds_static_root = template_root_path(), static_root_path()
     loader = jinja2.FileSystemLoader(
@@ -113,9 +104,7 @@ def build_app(
             str(ds_template_root),
         ]
     )
-    env = jinja2.Environment(
-        loader=loader, autoescape=jinja2.select_autoescape(["html"])
-    )
+    env = jinja2.Environment(loader=loader, autoescape=jinja2.select_autoescape(["html"]))
 
     def render(template_name: str, context: dict[str, Any]) -> HTMLResponse:
         tmpl = env.get_template(template_name)
@@ -137,43 +126,31 @@ def build_app(
 
     @app.get("/packages", response_class=HTMLResponse)
     async def packages(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/packages.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/packages.html", {"request": request, "profile": profile})
 
     @app.get("/projects", response_class=HTMLResponse)
     async def projects(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/projects.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/projects.html", {"request": request, "profile": profile})
 
     @app.get("/resume", response_class=HTMLResponse)
     async def resume(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/resume.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/resume.html", {"request": request, "profile": profile})
 
     @app.get("/hiring", response_class=HTMLResponse)
     async def hiring(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/hiring.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/hiring.html", {"request": request, "profile": profile})
 
     @app.get("/contact", response_class=HTMLResponse)
     async def contact(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/contact.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/contact.html", {"request": request, "profile": profile})
 
     @app.get("/verification", response_class=HTMLResponse)
     async def verification(request: Request) -> HTMLResponse:
         from pypi_profile.verifier import verify_all_profiles
 
         try:
-            claim_results = verify_all_profiles(
-                profile, profile_package=profile_package
-            )
-        except Exception:
+            claim_results = verify_all_profiles(profile, profile_package=profile_package)
+        except (ImportError, OSError, ValueError):
             claim_results = []
 
         proofs = _generate_proofs(profile, profile_package, claim_results)
@@ -190,9 +167,7 @@ def build_app(
 
     @app.get("/succession", response_class=HTMLResponse)
     async def succession(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/succession.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/succession.html", {"request": request, "profile": profile})
 
     @app.get("/api/profile.json")
     async def api_profile() -> JSONResponse:
@@ -215,10 +190,8 @@ def build_app(
         from pypi_profile.verifier import verify_all_profiles
 
         try:
-            claim_results = verify_all_profiles(
-                profile, profile_package=profile_package
-            )
-        except Exception:
+            claim_results = verify_all_profiles(profile, profile_package=profile_package)
+        except (ImportError, OSError, ValueError):
             claim_results = []
         return JSONResponse(
             {

@@ -7,7 +7,7 @@ import json
 import secrets
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 PROOF_PREFIX = "pypi-profile-proof:"
 
@@ -61,7 +61,7 @@ def decode_claim(token: str) -> dict[str, Any]:
     # Re-add padding
     padding = (4 - len(token) % 4) % 4
     raw = base64.urlsafe_b64decode(token + "=" * padding)
-    return json.loads(raw)
+    return cast(dict[str, Any], json.loads(raw))
 
 
 def is_expired(claim: dict[str, Any]) -> bool:
@@ -70,9 +70,7 @@ def is_expired(claim: dict[str, Any]) -> bool:
     if not expires_str:
         return False
     try:
-        expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%SZ").replace(
-            tzinfo=timezone.utc
-        )
+        expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
         return datetime.now(tz=timezone.utc) > expires
     except ValueError:
         return False

@@ -29,4 +29,5 @@ __dependencies__ = [
     "jinja2>=3.1.0",
     "pydantic>=2.0.0",
     "tomli>=2.0.0; python_version < '3.11'",
+    "prompt-toolkit>=3.0.0",
 ]

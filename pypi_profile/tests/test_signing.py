@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from pypi_profile.claims import (
@@ -88,9 +84,7 @@ def test_generate_keypair_and_sign_verify(tmp_path):
     from pypi_profile.signing import generate_keypair, sign_controls_url
     from pypi_profile.verifier import verify_claim_signature
 
-    sk_path, pk_path, pub_b64 = generate_keypair(
-        key_dir=tmp_path, password="", force=True
-    )
+    sk_path, pk_path, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
     assert sk_path.exists()
     assert pk_path.exists()
     assert pub_b64
@@ -116,12 +110,8 @@ def test_verify_claim_signature_wrong_key(tmp_path):
     from pypi_profile.signing import generate_keypair, sign_controls_url
     from pypi_profile.verifier import verify_claim_signature
 
-    sk_path, _pk_path, _pub_b64 = generate_keypair(
-        key_dir=tmp_path, password="", force=True
-    )
-    _sk2, _pk2, pub_b64_other = generate_keypair(
-        key_dir=tmp_path / "other", password="", force=True
-    )
+    sk_path, _pk_path, _pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+    _sk2, _pk2, pub_b64_other = generate_keypair(key_dir=tmp_path / "other", password="", force=True)
 
     proof = sign_controls_url(
         profile_package="pypi-profile-test",
@@ -151,3 +141,10 @@ def test_find_proof_tokens_none():
     from pypi_profile.verifier import find_proof_tokens
 
     assert find_proof_tokens("no tokens here") == []
+
+
+def test_fetch_page_rejects_non_http_scheme():
+    from pypi_profile.verifier import fetch_page
+
+    with pytest.raises(ValueError, match="Unsupported URL scheme"):
+        fetch_page("file:///tmp/proof.txt")

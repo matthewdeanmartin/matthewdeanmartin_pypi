@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import re
-from typing import Any
+import urllib.error
+import urllib.parse
+import urllib.request
+from typing import Any, cast
 
-from pypi_profile.claims import PROOF_PREFIX, decode_claim, is_expired
+from pypi_profile.claims import decode_claim, is_expired
 from pypi_profile.models import ClaimStatus, ProfileData, ProfileLink
 
 PROOF_RE = re.compile(
@@ -17,28 +21,34 @@ PROOF_RE = re.compile(
 
 def _import_minisign() -> Any:
     try:
-        import minisign
+        import minisign  # type: ignore[import-untyped]
 
         return minisign
     except ImportError as exc:
-        raise ImportError(
-            "py-minisign is required for verification. Install it with: uv add py-minisign"
-        ) from exc
+        raise ImportError("py-minisign is required for verification. Install it with: uv add py-minisign") from exc
 
 
 def fetch_page(url: str) -> str:
     """Return the text content of a URL."""
+    parsed_url = urllib.parse.urlsplit(url)
+    if parsed_url.scheme not in {"http", "https"}:
+        raise ValueError(f"Unsupported URL scheme: {parsed_url.scheme}")
+
     try:
         import httpx
 
         resp = httpx.get(url, follow_redirects=True, timeout=15)
         resp.raise_for_status()
-        return resp.text
+        return str(resp.text)
     except ImportError:
-        import urllib.request
-
-        with urllib.request.urlopen(url, timeout=15) as r:  # noqa: S310
-            return r.read().decode(errors="replace")
+        try:
+            # Only HTTP(S) URLs are allowed above.
+            with urllib.request.urlopen(url, timeout=15) as r:  # nosec B310
+                return cast(bytes, r.read()).decode(errors="replace")
+        except urllib.error.URLError as exc:
+            raise OSError(str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise OSError(str(exc)) from exc
 
 
 def find_proof_tokens(text: str) -> list[str]:
@@ -60,7 +70,7 @@ def verify_claim_signature(claim: dict[str, Any], public_key_b64: str) -> bool:
     try:
         pk = ms.PublicKey.from_base64(public_key_b64)
         sig = ms.Signature.from_bytes(base64.standard_b64decode(sig_b64))
-    except Exception:
+    except (TypeError, ValueError, OSError, binascii.Error):
         return False
 
     from pypi_profile.signing import _claim_to_bytes
@@ -69,8 +79,38 @@ def verify_claim_signature(claim: dict[str, Any], public_key_b64: str) -> bool:
     try:
         pk.verify(claim_bytes, sig)
         return True
-    except Exception:
+    except (TypeError, ValueError, OSError):
         return False
+
+
+def _status_from_tokens(
+    tokens: list[str],
+    *,
+    subject_url: str,
+    pypi_username: str,
+    profile_package: str,
+    public_key_b64: str,
+) -> ClaimStatus:
+    """Return the best verification status from a page's proof tokens."""
+    for token_str in tokens:
+        try:
+            claim = decode_claim(token_str)
+        except (TypeError, ValueError):
+            continue
+
+        if claim.get("subject") != subject_url:
+            continue
+        if claim.get("pypi_username") != pypi_username:
+            continue
+        if claim.get("profile_package") != profile_package:
+            continue
+        if is_expired(claim):
+            return "expired"
+        if verify_claim_signature(claim, public_key_b64):
+            return "verified"
+        return "invalid"
+
+    return "unverified"
 
 
 def verify_profile_link(
@@ -88,34 +128,16 @@ def verify_profile_link(
 
     try:
         text = fetch_page(link.url)
-    except Exception:
+    except (OSError, ValueError):
         return "unverified"
 
-    tokens = find_proof_tokens(text)
-    if not tokens:
-        return "unverified"
-
-    for token_str in tokens:
-        try:
-            claim = decode_claim(token_str)
-        except Exception:
-            continue
-
-        if claim.get("subject") != link.url:
-            continue
-        if claim.get("pypi_username") != pypi_username:
-            continue
-        if claim.get("profile_package") != profile_package:
-            continue
-
-        if is_expired(claim):
-            return "expired"
-
-        if verify_claim_signature(claim, public_key_b64):
-            return "verified"
-        return "invalid"
-
-    return "unverified"
+    return _status_from_tokens(
+        find_proof_tokens(text),
+        subject_url=link.url,
+        pypi_username=pypi_username,
+        profile_package=profile_package,
+        public_key_b64=public_key_b64,
+    )
 
 
 def verify_all_profiles(

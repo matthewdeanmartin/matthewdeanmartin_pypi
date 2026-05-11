@@ -172,9 +172,7 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
     return results
 
 
-def compare_packages(
-    profile: ProfileData, live_results: dict[str, Any]
-) -> list[dict[str, Any]]:
+def compare_packages(profile: ProfileData, live_results: dict[str, Any]) -> list[dict[str, Any]]:
     """Compare self-asserted package roles against PyPI live data."""
     pypi_username = profile.identity.pypi_username
     package_meta = live_results.get("package_meta", {})

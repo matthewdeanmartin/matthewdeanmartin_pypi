@@ -2,14 +2,38 @@
 
 from __future__ import annotations
 
-import subprocess
+# The GUI launches the local pypi-profile CLI without shell=True.
+import subprocess  # nosec B404
 import sys
 import threading
 import tkinter as tk
+from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
 from tkinter import filedialog, font, scrolledtext, ttk
+from typing import Literal, TypedDict, cast
 
-COMMANDS: list[dict] = [
+ArgKind = Literal["file", "dir", "bool", "password", "choice", "str"]
+
+
+class CommandArg(TypedDict, total=False):
+    flag: str
+    label: str
+    default: str | bool
+    kind: ArgKind
+    choices: list[str]
+
+
+class GuiCommand(TypedDict, total=False):
+    name: str
+    label: str
+    help: str
+    args: list[CommandArg]
+    readonly: bool
+    extra_argv: list[str]
+
+
+COMMANDS: list[GuiCommand] = [
     {
         "name": "doctor",
         "label": "Doctor",
@@ -326,8 +350,8 @@ class PypiProfileGui(tk.Tk):
         self.title("pypi-profile GUI")
         self.geometry("1100x680")
         self.minsize(900, 500)
-        self._running_proc: subprocess.Popen | None = None
-        self._current_cmd: dict | None = None
+        self._running_proc: subprocess.Popen[str] | None = None
+        self._current_cmd: GuiCommand | None = None
         self._arg_widgets: dict[str, tk.Variable] = {}
 
         default_key = str(Path("~/.pypi_profile/minisign.key").expanduser())
@@ -373,7 +397,7 @@ class PypiProfileGui(tk.Tk):
                 fg="#cccccc",
                 activebackground="#444444",
                 activeforeground="white",
-                command=lambda c=cmd: self._select_command(c),
+                command=self._make_select_command(cmd),
             )
             btn.grid(row=i + 1, column=0, sticky="ew", padx=2, pady=1)
             left.columnconfigure(0, weight=1)
@@ -381,9 +405,7 @@ class PypiProfileGui(tk.Tk):
 
         # ── Key settings (bottom of left panel) ──────────────────────────
         sep_row = len(COMMANDS) + 1
-        tk.Frame(left, bg="#555555", height=1).grid(
-            row=sep_row, column=0, sticky="ew", padx=6, pady=(8, 4)
-        )
+        tk.Frame(left, bg="#555555", height=1).grid(row=sep_row, column=0, sticky="ew", padx=6, pady=(8, 4))
 
         key_frame = tk.Frame(left, bg="#2b2b2b")
         key_frame.grid(row=sep_row + 1, column=0, sticky="ew", padx=6, pady=(0, 6))
@@ -476,14 +498,10 @@ class PypiProfileGui(tk.Tk):
         self._args_frame = args_outer
 
         # Output
-        out_label = tk.Label(
-            center, text="Output", anchor="w", font=("Helvetica", 10, "bold")
-        )
+        out_label = tk.Label(center, text="Output", anchor="w", font=("Helvetica", 10, "bold"))
         out_label.grid(row=2, column=0, sticky="w")
 
-        self._output = scrolledtext.ScrolledText(
-            center, font=mono, bg="#1e1e1e", fg="#d4d4d4", wrap=tk.WORD
-        )
+        self._output = scrolledtext.ScrolledText(center, font=mono, bg="#1e1e1e", fg="#d4d4d4", wrap=tk.WORD)
         self._output.grid(row=3, column=0, sticky="nsew")
         center.rowconfigure(3, weight=1)
 
@@ -510,9 +528,8 @@ class PypiProfileGui(tk.Tk):
         )
         self._stop_btn.pack(side=tk.LEFT)
         self._status_var = tk.StringVar(value="")
-        tk.Label(btn_bar, textvariable=self._status_var, fg="#888888").pack(
-            side=tk.LEFT, padx=8
-        )
+        self._status_label = tk.Label(btn_bar, textvariable=self._status_var, fg="#888888")
+        self._status_label.pack(side=tk.LEFT, padx=8)
 
         # ── RIGHT panel ──────────────────────────────────────────────────
         right = tk.Frame(self, bd=1, relief=tk.SUNKEN)
@@ -520,9 +537,9 @@ class PypiProfileGui(tk.Tk):
         right.rowconfigure(1, weight=1)
         right.columnconfigure(0, weight=1)
 
-        tk.Label(
-            right, text="Help", font=("Helvetica", 11, "bold"), anchor="w", pady=4
-        ).grid(row=0, column=0, sticky="ew", padx=6)
+        tk.Label(right, text="Help", font=("Helvetica", 11, "bold"), anchor="w", pady=4).grid(
+            row=0, column=0, sticky="ew", padx=6
+        )
         self._help_text = scrolledtext.ScrolledText(
             right,
             font=("Helvetica", 10),
@@ -535,7 +552,13 @@ class PypiProfileGui(tk.Tk):
         self._help_text.insert(tk.END, HELP_INTRO)
         self._help_text.config(state=tk.DISABLED)
 
-    def _select_command(self, cmd: dict) -> None:
+    def _make_select_command(self, cmd: GuiCommand) -> Callable[[], None]:
+        def select_command() -> None:
+            self._select_command(cmd)
+
+        return select_command
+
+    def _select_command(self, cmd: GuiCommand) -> None:
         self._stop_command()
         self._current_cmd = cmd
 
@@ -558,15 +581,15 @@ class PypiProfileGui(tk.Tk):
         else:
             self._run_btn.config(state=tk.NORMAL)
 
-    def _build_args_form(self, cmd: dict) -> None:
+    def _build_args_form(self, cmd: GuiCommand) -> None:
         for w in self._args_frame.winfo_children():
             w.destroy()
         self._arg_widgets.clear()
 
         if not cmd["args"]:
-            tk.Label(
-                self._args_frame, text="No arguments needed.", fg="#888888", pady=4
-            ).grid(row=0, column=0, columnspan=3, padx=8)
+            tk.Label(self._args_frame, text="No arguments needed.", fg="#888888", pady=4).grid(
+                row=0, column=0, columnspan=3, padx=8
+            )
             return
 
         self._args_frame.columnconfigure(1, weight=1)
@@ -582,9 +605,7 @@ class PypiProfileGui(tk.Tk):
 
             if kind == "bool":
                 var: tk.Variable = tk.BooleanVar(value=bool(default))
-                tk.Checkbutton(self._args_frame, variable=var).grid(
-                    row=row_i, column=1, sticky="w", pady=3
-                )
+                tk.Checkbutton(self._args_frame, variable=var).grid(row=row_i, column=1, sticky="w", pady=3)
                 self._arg_widgets[flag] = var
 
             elif kind == "choice":
@@ -612,14 +633,18 @@ class PypiProfileGui(tk.Tk):
                 entry.grid(row=row_i, column=1, sticky="ew", pady=3)
 
                 if kind == "file":
-                    browse_cmd = lambda v=var: v.set(
-                        filedialog.askopenfilename() or v.get()
-                    )
+
+                    def browse_for_path(value_var: tk.StringVar = var) -> None:
+                        if selected_path := filedialog.askopenfilename():
+                            value_var.set(selected_path)
+
                 else:
-                    browse_cmd = lambda v=var: v.set(
-                        filedialog.askdirectory() or v.get()
-                    )
-                tk.Button(self._args_frame, text="Browse", command=browse_cmd).grid(
+
+                    def browse_for_path(value_var: tk.StringVar = var) -> None:
+                        if selected_path := filedialog.askdirectory():
+                            value_var.set(selected_path)
+
+                tk.Button(self._args_frame, text="Browse", command=browse_for_path).grid(
                     row=row_i, column=2, padx=(4, 8), pady=3
                 )
                 self._arg_widgets[flag] = var
@@ -637,7 +662,7 @@ class PypiProfileGui(tk.Tk):
         self._help_text.insert(tk.END, text)
         self._help_text.config(state=tk.DISABLED)
 
-    def _build_argv_and_env(self, cmd: dict) -> tuple[list[str], dict[str, str]]:
+    def _build_argv_and_env(self, cmd: GuiCommand) -> tuple[list[str], dict[str, str]]:
         """Return (argv, extra_env).  Passwords and key path are passed via env vars, not argv."""
         import os
 
@@ -655,7 +680,8 @@ class PypiProfileGui(tk.Tk):
             var = self._arg_widgets.get(flag)
             if var is None:
                 continue
-            value = var.get()
+            get_value = cast(Callable[[], object], var.get)
+            value = get_value()
 
             if kind == "bool":
                 if value:
@@ -693,12 +719,14 @@ class PypiProfileGui(tk.Tk):
         # Show the command without revealing env-var secrets
         self._append_output(f"$ {' '.join(argv)}\n\n")
         self._status_var.set("Running…")
+        self._status_label.config(fg="#888888")
         self._run_btn.config(state=tk.DISABLED)
         self._stop_btn.config(state=tk.NORMAL)
 
         def worker() -> None:
             try:
-                proc = subprocess.Popen(
+                # The GUI launches the local CLI with a fixed argv list and shell=False.
+                with subprocess.Popen(  # nosec B603
                     argv,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
@@ -707,43 +735,41 @@ class PypiProfileGui(tk.Tk):
                     errors="replace",
                     cwd=str(Path.cwd()),
                     env=env,
-                )
-                self._running_proc = proc
-                assert proc.stdout is not None
-                for line in proc.stdout:
-                    self._append_output(line)
-                proc.wait()
+                ) as proc:
+                    self._running_proc = proc
+                    assert proc.stdout is not None
+                    for line in proc.stdout:
+                        self._append_output(line)
+                    rc = proc.wait()
                 self._running_proc = None
-                rc = proc.returncode
                 self.after(0, lambda: self._on_done(rc, cmd))
-            except Exception as exc:
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
                 self._append_output(f"\nERROR: {exc}\n")
                 self._running_proc = None
                 self.after(0, lambda: self._on_done(1, cmd))
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_done(self, rc: int, cmd: dict) -> None:
+    def _on_done(self, rc: int, cmd: GuiCommand) -> None:
         self._stop_btn.config(state=tk.DISABLED)
         if not cmd["readonly"]:
             self._run_btn.config(state=tk.NORMAL)
-        color = "#0e7c0e" if rc == 0 else "#7c0e0e"
         msg = f"Exited {rc}"
         self._status_var.set(msg)
+        self._status_label.config(fg="#0e7c0e" if rc == 0 else "#7c0e0e")
         self._append_output(f"\n[{msg}]\n")
         self.after(5000, lambda: self._status_var.set(""))
 
     def _stop_command(self) -> None:
         if self._running_proc is not None:
-            try:
+            with suppress(OSError):
                 self._running_proc.terminate()
-            except OSError:
-                pass
             self._running_proc = None
         self._stop_btn.config(state=tk.DISABLED)
         if self._current_cmd and not self._current_cmd["readonly"]:
             self._run_btn.config(state=tk.NORMAL)
         self._status_var.set("")
+        self._status_label.config(fg="#888888")
 
     def _append_output(self, text: str) -> None:
         def _do() -> None:

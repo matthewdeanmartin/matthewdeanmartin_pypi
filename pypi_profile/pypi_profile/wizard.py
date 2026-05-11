@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,11 @@ from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.shortcuts import checkboxlist_dialog
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError, Validator
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 # ---------------------------------------------------------------------------
 # Styling
@@ -29,23 +35,17 @@ STYLE = Style.from_dict(
     }
 )
 
-_SESSION: PromptSession[str] | None = None
 
-
+@lru_cache(maxsize=1)
 def _session() -> PromptSession[str]:
-    global _SESSION
-    if _SESSION is None:
-        _SESSION = PromptSession()
-    return _SESSION
+    return PromptSession()
 
 
 def _print(msg: str) -> None:
     print_formatted_text(HTML(msg), style=STYLE)
 
 
-def _ask(
-    prompt: str, default: str = "", hint: str = "", validator: Validator | None = None
-) -> str:
+def _ask(prompt: str, default: str = "", hint: str = "", validator: Validator | None = None) -> str:
     """Prompt for a single line of text. Returns default if user presses enter."""
     display = prompt
     if default:
@@ -63,9 +63,7 @@ def _ask(
     return result.strip()
 
 
-def _ask_with_completer(
-    prompt: str, choices: list[str], default: str = "", hint: str = ""
-) -> str:
+def _ask_with_completer(prompt: str, choices: list[str], default: str = "", hint: str = "") -> str:
     completer = WordCompleter(choices, ignore_case=True)
     display = prompt
     if default:
@@ -73,9 +71,7 @@ def _ask_with_completer(
     if hint:
         display += f" <hint>({hint})</hint>"
     display += ": "
-    result = _session().prompt(
-        HTML(display), style=STYLE, default=default, completer=completer
-    )
+    result = _session().prompt(HTML(display), style=STYLE, default=default, completer=completer)
     return result.strip()
 
 
@@ -93,9 +89,7 @@ def _ask_bool(prompt: str, default: bool = False) -> bool:
         _print("<warn>Please enter y or n.</warn>")
 
 
-def _checkboxlist(
-    title: str, choices: list[tuple[str, str]], defaults: list[str] | None = None
-) -> list[str]:
+def _checkboxlist(title: str, choices: list[tuple[str, str]], defaults: list[str] | None = None) -> list[str]:
     """Show a checkbox list dialog."""
     if not sys.stdout.isatty():
         return defaults or []
@@ -146,13 +140,6 @@ def _load_existing_toml(dest: Path) -> dict[str, Any]:
     """Load an existing pypi_profile.toml if it exists, returning raw dict."""
     if not dest.exists():
         return {}
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
     with open(dest, "rb") as fh:
         return tomllib.load(fh)
 
@@ -172,12 +159,8 @@ def _fetch_pypi_data_silent(username: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def _section_identity(
-    existing: dict[str, Any], prefilled: dict[str, Any]
-) -> dict[str, Any]:
-    _print(
-        "\n<section>── Identity ──────────────────────────────────────────────────</section>"
-    )
+def _section_identity(existing: dict[str, Any], prefilled: dict[str, Any]) -> dict[str, Any]:
+    _print("\n<section>── Identity ──────────────────────────────────────────────────</section>")
 
     ex_id = existing.get("identity", {})
     pf_id = prefilled.get("identity", {})
@@ -229,9 +212,7 @@ def _section_identity(
 def _section_profile_summary(
     existing: dict[str, Any], prefilled: dict[str, Any], identity: dict[str, Any]
 ) -> dict[str, Any]:
-    _print(
-        "\n<section>── Profile ──────────────────────────────────────────────────</section>"
-    )
+    _print("\n<section>── Profile ──────────────────────────────────────────────────</section>")
 
     ex_prof = existing.get("profile", {})
     pf_prof = prefilled.get("profile", {})
@@ -270,9 +251,7 @@ def _section_profile_summary(
 def _section_social_profiles(
     existing: dict[str, Any], prefilled: dict[str, Any], pypi_username: str
 ) -> list[dict[str, Any]]:
-    _print(
-        "\n<section>── External Profiles / Links ──────────────────────────────────</section>"
-    )
+    _print("\n<section>── External Profiles / Links ──────────────────────────────────</section>")
 
     ex_profiles: list[dict[str, Any]] = existing.get("profiles", [])
     pf_profiles: list[dict[str, Any]] = prefilled.get("profiles", [])
@@ -283,9 +262,7 @@ def _section_social_profiles(
         merged[p["kind"]] = p
 
     # GitHub
-    gh_default = merged.get("github", {}).get(
-        "url", f"https://github.com/{pypi_username}" if pypi_username else ""
-    )
+    gh_default = merged.get("github", {}).get("url", f"https://github.com/{pypi_username}" if pypi_username else "")
     gh_url = _ask("GitHub URL", default=gh_default, hint="leave blank to skip")
     if gh_url:
         merged["github"] = {
@@ -346,12 +323,8 @@ def _section_social_profiles(
     return list(merged.values())
 
 
-def _section_contact(
-    existing: dict[str, Any], prefilled: dict[str, Any]
-) -> list[dict[str, Any]]:
-    _print(
-        "\n<section>── Contact Methods ──────────────────────────────────────────</section>"
-    )
+def _section_contact(existing: dict[str, Any], prefilled: dict[str, Any]) -> list[dict[str, Any]]:
+    _print("\n<section>── Contact Methods ──────────────────────────────────────────</section>")
 
     ex_cm: list[dict[str, Any]] = existing.get("contact_methods", [])
     pf_cm: list[dict[str, Any]] = prefilled.get("contact_methods", [])
@@ -386,9 +359,7 @@ def _section_packages(
     prefilled: dict[str, Any],
     pypi_username: str,
 ) -> list[dict[str, Any]]:
-    _print(
-        "\n<section>── PyPI Packages ──────────────────────────────────────────────</section>"
-    )
+    _print("\n<section>── PyPI Packages ──────────────────────────────────────────────</section>")
 
     ex_pkgs: list[dict[str, Any]] = existing.get("packages", [])
     pf_pkgs: list[dict[str, Any]] = prefilled.get("packages", [])
@@ -416,15 +387,11 @@ def _section_packages(
     if all_pkgs:
         _print(f"<ok>  {len(all_pkgs)} package(s) will be included.</ok>")
         for pkg in all_pkgs[:5]:
-            _print(
-                f"    • {pkg['name']}  <hint>({pkg.get('role', 'maintainer')}, {pkg.get('state', 'active')})</hint>"
-            )
+            _print(f"    • {pkg['name']}  <hint>({pkg.get('role', 'maintainer')}, {pkg.get('state', 'active')})</hint>")
         if len(all_pkgs) > 5:
             _print(f"    … and {len(all_pkgs) - 5} more")
     else:
-        _print(
-            "<hint>  No packages found. You can edit the TOML to add them later.</hint>"
-        )
+        _print("<hint>  No packages found. You can edit the TOML to add them later.</hint>")
         add_one = _ask_bool("Add a placeholder package entry?", default=False)
         if add_one:
             pkg_name = _ask("Package name", default="")
@@ -443,12 +410,8 @@ def _section_packages(
 
 
 def _section_hiring(existing: dict[str, Any]) -> dict[str, Any]:
-    _print(
-        "\n<section>── Availability / Hiring ─────────────────────────────────────</section>"
-    )
-    _print(
-        "<hint>  (These flags appear on your profile page and help employers/clients find you.)</hint>"
-    )
+    _print("\n<section>── Availability / Hiring ─────────────────────────────────────</section>")
+    _print("<hint>  (These flags appear on your profile page and help employers/clients find you.)</hint>")
 
     ex_h = existing.get("hiring", {})
 
@@ -482,15 +445,9 @@ def _section_hiring(existing: dict[str, Any]) -> dict[str, Any]:
 def run_wizard(dest: Path, from_json_resume: str = "") -> dict[str, Any]:
     """Run the interactive init wizard and return the merged data dict."""
     _print("")
-    _print(
-        "<header>╔══════════════════════════════════════════════════════════════╗</header>"
-    )
-    _print(
-        "<header>║         pypi-profile  —  interactive setup wizard           ║</header>"
-    )
-    _print(
-        "<header>╚══════════════════════════════════════════════════════════════╝</header>"
-    )
+    _print("<header>╔══════════════════════════════════════════════════════════════╗</header>")
+    _print("<header>║         pypi-profile  —  interactive setup wizard           ║</header>")
+    _print("<header>╚══════════════════════════════════════════════════════════════╝</header>")
     _print("")
 
     # ── Step 0: load existing data (safe to re-run) ──────────────────────────
@@ -528,17 +485,13 @@ def run_wizard(dest: Path, from_json_resume: str = "") -> dict[str, Any]:
     # ── Step 2: Ask questions (shortest path) ────────────────────────────────
     identity = _section_identity(existing, prefilled)
     profile_sec = _section_profile_summary(existing, prefilled, identity)
-    social_profiles = _section_social_profiles(
-        existing, prefilled, identity["pypi_username"]
-    )
+    social_profiles = _section_social_profiles(existing, prefilled, identity["pypi_username"])
     contact_methods = _section_contact(existing, prefilled)
     packages = _section_packages(existing, prefilled, identity["pypi_username"])
     hiring = _section_hiring(existing)
 
     # ── Step 3: Carry over sections we didn't ask about ──────────────────────
-    work_experience = (
-        existing.get("work_experience") or prefilled.get("work_experience") or []
-    )
+    work_experience = existing.get("work_experience") or prefilled.get("work_experience") or []
     projects = existing.get("projects") or prefilled.get("projects") or []
     contracting = existing.get("contracting") or prefilled.get("contracting") or {}
     succession = existing.get("succession") or {}

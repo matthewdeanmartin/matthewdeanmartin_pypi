@@ -15,18 +15,16 @@ DEFAULT_PK_NAME = "minisign.pub"
 
 def _import_minisign() -> Any:
     try:
-        import minisign
+        import minisign  # type: ignore[import-untyped]
 
         return minisign
     except ImportError as exc:
-        raise ImportError(
-            "py-minisign is required for signing. Install it with: uv add py-minisign"
-        ) from exc
+        raise ImportError("py-minisign is required for signing. Install it with: uv add py-minisign") from exc
 
 
 def generate_keypair(
     key_dir: Path | None = None,
-    password: str = "",
+    password: str | None = None,
     force: bool = False,
 ) -> tuple[Path, Path, str]:
     """Generate a minisign keypair.
@@ -43,9 +41,7 @@ def generate_keypair(
     pk_path = key_dir / DEFAULT_PK_NAME
 
     if sk_path.exists() and not force:
-        raise FileExistsError(
-            f"Secret key already exists at {sk_path}. Use force=True to overwrite."
-        )
+        raise FileExistsError(f"Secret key already exists at {sk_path}. Use force=True to overwrite.")
 
     kp = ms.KeyPair.generate()
 
@@ -59,7 +55,7 @@ def generate_keypair(
     return sk_path, pk_path, public_key_b64
 
 
-def load_secret_key(sk_path: Path | None = None, password: str = "") -> Any:
+def load_secret_key(sk_path: Path | None = None, password: str | None = None) -> Any:
     """Load a minisign SecretKey from disk, decrypting if a password is provided."""
     import os
 
@@ -67,15 +63,9 @@ def load_secret_key(sk_path: Path | None = None, password: str = "") -> Any:
 
     if sk_path is None:
         env_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
-        sk_path = (
-            Path(env_path).expanduser()
-            if env_path
-            else DEFAULT_KEY_DIR / DEFAULT_SK_NAME
-        )
+        sk_path = Path(env_path).expanduser() if env_path else DEFAULT_KEY_DIR / DEFAULT_SK_NAME
     if not sk_path.exists():
-        raise FileNotFoundError(
-            f"Secret key not found at {sk_path}. Run: pypi-profile keygen"
-        )
+        raise FileNotFoundError(f"Secret key not found at {sk_path}. Run: pypi-profile keygen")
 
     if not password:
         password = os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "")
@@ -92,7 +82,7 @@ def sign_controls_url(
     pypi_username: str,
     subject_url: str,
     sk_path: Path | None = None,
-    password: str = "",
+    password: str | None = None,
 ) -> str:
     """Sign a controls-url claim and return the encoded proof string."""
     sk = load_secret_key(sk_path, password)
