@@ -285,6 +285,8 @@ def patch_proofs_in_toml(
         logger.warning("Cannot read %s", toml_path, exc_info=True)
         return []
 
+    original_text = text
+
     with open(toml_path, "rb") as fh:
         raw = tomllib.load(fh)
 
@@ -326,7 +328,7 @@ def patch_proofs_in_toml(
                 )
             return block
 
-        pattern = rf'(\[\[profiles\]\][^[]*?url\s*=\s*"{escaped_url}"[^[]*?)(?=\[\[|\Z)'
+        pattern = rf'(\[\[profiles\]\][\s\S]*?url\s*=\s*"{escaped_url}"[\s\S]*?)(?=\[\[|\[(?!\[)|\Z)'
         new_text, n = re.subn(pattern, replace_or_insert, text, flags=re.DOTALL)
         if n:
             text = new_text
@@ -341,6 +343,28 @@ def patch_proofs_in_toml(
         except OSError:
             logger.warning("Cannot write patched proofs to %s", toml_path, exc_info=True)
             return []
+
+        # Validate the written file parses as valid TOML; roll back if not.
+        try:
+            with open(toml_path, "rb") as fh:
+                tomllib.load(fh)
+        except Exception as exc:
+            logger.error(
+                "Patched TOML is invalid (%s); rolling back to original content", exc
+            )
+            try:
+                toml_path.write_text(original_text, encoding="utf-8")
+            except OSError:
+                logger.error(
+                    "Rollback also failed for %s — file may be corrupt; "
+                    "original content: %r",
+                    toml_path,
+                    original_text,
+                )
+            raise ValueError(
+                f"patch_proofs_in_toml produced invalid TOML for {toml_path}; "
+                f"file rolled back to original. Parser error: {exc}"
+            ) from exc
 
     return updated
 
