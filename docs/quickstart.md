@@ -41,13 +41,7 @@ pypi-profile dump pypi_profile.toml
 
 ## Optional: add signed proof-of-control
 
-This requires `py-minisign`:
-
-```bash
-pipx install "pypi-profile[sign]"
-```
-
-Generate a keypair once:
+Generate a keypair once (`py-minisign` and `keyring` are included in a standard install):
 
 ```bash
 pypi-profile keygen
@@ -61,14 +55,21 @@ pypi-profile sign controls-url pypi_profile.toml \
     --url https://github.com/your-name
 ```
 
-Paste the output token onto that external page, then verify:
+Paste the output token onto that external page. Then store the proof in the
+TOML so static builds work without the private key:
+
+```bash
+pypi-profile update-proofs pypi_profile.toml
+```
+
+Then verify:
 
 ```bash
 pypi-profile verify pypi_profile.toml
 ```
 
 See [Signing and verification](signing.md) for the full explanation of what
-this proves and what it does not.
+this proves and what it does not, including the [Mastodon workflow](signing.md#mastodon-workflow).
 
 ## Optional: bootstrap from existing data
 

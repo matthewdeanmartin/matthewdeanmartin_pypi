@@ -26,14 +26,13 @@ dependencies = [
     "pydantic>=2.0.0",
     "tomli>=2.0.0; python_version < '3.11'",
     "prompt-toolkit>=3.0.0",
+    "keyring>=25.7.0",
+    "py-minisign>=0.13.2",
 ]
 
 [project.optional-dependencies]
 fetch = [
     "httpx>=0.27.0",
-]
-sign = [
-    "py-minisign>=0.13.2",
 ]
 validate = [
     "schema-resume-validator>=1.1.0",
@@ -43,9 +42,10 @@ build = [
 ]
 all = [
     "httpx>=0.27.0",
-    "py-minisign>=0.13.2",
     "schema-resume-validator>=1.1.0",
 ]
+# sign extra kept for backwards compatibility; keyring and py-minisign are now core deps
+sign = []
 
 [project.urls]
 Repository = "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi"

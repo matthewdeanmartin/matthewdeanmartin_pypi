@@ -35,15 +35,25 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
 
 def _key_status() -> str:
-    """Return a one-line summary of the signing key on disk."""
+    """Return a one-line summary of where the signing key was found."""
     import os
 
-    from pypi_profile.signing import DEFAULT_KEY_DIR, DEFAULT_SK_NAME
+    from pypi_profile.signing import (DEFAULT_KEY_DIR, DEFAULT_SK_NAME,
+                                      _keyring_is_usable,
+                                      _keyring_username,
+                                      _load_key_bytes_from_keyring)
 
     env_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
-    sk_path = (
-        Path(env_path).expanduser() if env_path else DEFAULT_KEY_DIR / DEFAULT_SK_NAME
-    )
+    if env_path:
+        sk_path = Path(env_path).expanduser()
+        return f"found ({sk_path})" if sk_path.exists() else f"not found ({sk_path})"
+
+    if _keyring_is_usable():
+        if _load_key_bytes_from_keyring() is not None:
+            return f"found in keyring (username={_keyring_username()!r})"
+        return f"not found in keyring (username={_keyring_username()!r})"
+
+    sk_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
     if sk_path.exists():
         return f"found ({sk_path})"
     return f"not found (expected {sk_path})"
@@ -471,20 +481,33 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     check("pydantic", "pydantic")
     check("pluggy", "pluggy")
     check("pypi_ds", "pypi_ds")
+    check("keyring", "keyring")
+    check("py-minisign", "minisign")
     print()
     print("Optional dependencies:")
     check_optional("httpx (faster HTTP)", "httpx")
-    check_optional("py-minisign (signing)", "minisign")
     check_optional("pyyaml (FUNDING.yml)", "yaml")
     print()
     print("Signing setup:")
-    from pypi_profile.signing import DEFAULT_KEY_DIR, DEFAULT_SK_NAME
+    from pypi_profile.signing import (DEFAULT_KEY_DIR, DEFAULT_SK_NAME,
+                                      _keyring_is_usable, _keyring_username,
+                                      _load_key_bytes_from_keyring)
 
-    sk_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
-    if sk_path.exists():
-        print(f"  OK  Secret key found at {sk_path}")
+    if _keyring_is_usable():
+        import keyring as _kr  # type: ignore[import-untyped]
+        backend_name = type(_kr.get_keyring()).__name__
+        print(f"  OK  Keyring backend: {backend_name} (username={_keyring_username()!r})")
+        if _load_key_bytes_from_keyring() is not None:
+            print("  OK  Secret key found in keyring")
+        else:
+            print("  --  No secret key in keyring (run: pypi-profile keygen)")
     else:
-        print(f"  --  No secret key at {sk_path} (run: pypi-profile keygen)")
+        print("  --  No usable keyring backend; falling back to disk")
+        sk_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
+        if sk_path.exists():
+            print(f"  OK  Secret key found at {sk_path}")
+        else:
+            print(f"  --  No secret key at {sk_path} (run: pypi-profile keygen)")
     print()
     if ok:
         print("All required checks passed.")
@@ -597,6 +620,13 @@ def cmd_keygen(args: argparse.Namespace) -> None:
 
     print(f"Secret key: {sk_path}")
     print(f"Public key: {pk_path}")
+    from pypi_profile.signing import _keyring_is_usable, _keyring_username
+    if _keyring_is_usable():
+        print(f"Key storage: system keyring (username={_keyring_username()!r})")
+        print(f"  Disk copy also kept at {sk_path} as a fallback.")
+    else:
+        print(f"Key storage: disk only ({sk_path})")
+        print("  Install the 'keyring' package to store the secret key in your system keyring.")
     print()
 
     # Auto-patch public_key into any pypi_profile.toml found in the cwd.
@@ -683,25 +713,14 @@ def cmd_verify(args: argparse.Namespace) -> None:
 
     profile = load_profile(toml_path)
 
-    # If the toml has no public key, try loading it from the key file on disk.
+    # If the toml has no public key, try loading it from disk.
     if not profile.verification.public_key:
-        import os
-
-        from pypi_profile.signing import DEFAULT_KEY_DIR, DEFAULT_PK_NAME
-
-        env_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
-        pk_path = (
-            Path(env_path).expanduser().with_suffix(".pub")
-            if env_path
-            else DEFAULT_KEY_DIR / DEFAULT_PK_NAME
-        )
-        if pk_path.exists():
-            import minisign  # type: ignore[import-untyped]
-
-            pk = minisign.PublicKey.from_file(pk_path)
-            profile.verification.public_key = pk.to_base64().decode()
-            logger.info("Loaded public key from %s", pk_path)
-            print(f"Loaded public key from {pk_path}")
+        from pypi_profile.signing import read_public_key_b64
+        pub_b64 = read_public_key_b64()
+        if pub_b64:
+            profile.verification.public_key = pub_b64
+            logger.info("Loaded public key from disk")
+            print("Loaded public key from disk.")
         else:
             logger.warning("No public key in [verification] and none found on disk")
             print(
@@ -747,6 +766,51 @@ def cmd_api_dump(args: argparse.Namespace) -> None:
     toml_path = find_profile(args.source)
     profile = load_profile(toml_path)
     print(json.dumps(profile.model_dump(), indent=2, default=str))
+
+
+def cmd_update_proofs(args: argparse.Namespace) -> None:
+    """Sign all [[profiles]] URLs and write stored_proof values into the TOML."""
+    import os
+
+    from pypi_profile.loader import find_profile, load_profile
+    from pypi_profile.signing import patch_proofs_in_toml
+
+    try:
+        toml_path = find_profile(args.source)
+    except FileNotFoundError as exc:
+        logger.error("Profile not found: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    profile = load_profile(toml_path)
+    pypi_username = profile.identity.pypi_username
+    profile_package = args.profile_package or f"pypi-profile-{pypi_username}"
+
+    sk_path = Path(args.key).expanduser() if args.key else None
+    password = args.password or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "")
+
+    try:
+        updated = patch_proofs_in_toml(
+            toml_path=toml_path,
+            profile_package=profile_package,
+            pypi_username=pypi_username,
+            sk_path=sk_path,
+            password=password or None,
+            force=args.force,
+        )
+    except ImportError as exc:
+        logger.error("Missing dependency for signing: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if updated:
+        print(f"Updated stored_proof for {len(updated)} URL(s) in {toml_path}:")
+        for url in updated:
+            print(f"  {url}")
+        print()
+        print("Commit the updated TOML so the static build can use these proofs without the private key.")
+    else:
+        print("No URLs needed updating (all already have stored_proof, or no key found).")
 
 
 def cmd_build(args: argparse.Namespace) -> None:
@@ -925,6 +989,31 @@ def main() -> None:
         "--profile-package", default="", help="Profile package name override"
     )
     verify_p.set_defaults(func=cmd_verify)
+
+    update_proofs_p = subparsers.add_parser(
+        "update-proofs",
+        help="Sign all [[profiles]] URLs and write stored_proof values into the TOML",
+    )
+    update_proofs_p.add_argument(
+        "source", help="Profile package name, directory, or .toml path"
+    )
+    update_proofs_p.add_argument(
+        "--key",
+        default="",
+        help="Path to secret key file (default: ~/.pypi_profile/minisign.key)",
+    )
+    update_proofs_p.add_argument(
+        "--password", default="", help="Password for the secret key"
+    )
+    update_proofs_p.add_argument(
+        "--profile-package", default="", help="Profile package name override"
+    )
+    update_proofs_p.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-sign even if stored_proof is already present",
+    )
+    update_proofs_p.set_defaults(func=cmd_update_proofs)
 
     build_p = subparsers.add_parser(
         "build", help="Generate a static site from a profile"

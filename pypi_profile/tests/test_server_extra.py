@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -34,9 +32,11 @@ def test_generate_proofs_empty_needing_proof(minimal_profile: ProfileData) -> No
 
 
 def test_generate_proofs_no_key(minimal_profile: ProfileData, mocker: Any) -> None:
-    mocker.patch("pypi_profile.signing.DEFAULT_KEY_DIR", Path("/non/existent/dir/123"))
-    # Also need to mock the exists check on line 53
-    mocker.patch("pathlib.Path.exists", return_value=False)
+    # Simulate no key available: load_secret_key raises FileNotFoundError
+    mocker.patch(
+        "pypi_profile.signing.load_secret_key",
+        side_effect=FileNotFoundError("no key"),
+    )
 
     res = _generate_proofs(minimal_profile, "pkg", [])
     assert len(res) == 1
@@ -111,16 +111,14 @@ def test_api_projects_json(minimal_profile: ProfileData) -> None:
     assert data[0]["name"] == "my-proj"
 
 
-def test_generate_proofs_minisign_not_installed(
+def test_generate_proofs_sign_raises_os_error(
     minimal_profile: ProfileData, mocker: Any
 ) -> None:
-    # Trigger ImportError: from pypi_profile.signing import sign_controls_url
-    # We can do this by mocking the module itself in sys.modules
-    mocker.patch.dict(sys.modules, {"pypi_profile.signing": None})
-
-    # We need to make sure the import actually happens.
-    # Since it's inside _generate_proofs, it will look in sys.modules.
-    # If it's None, it raises ImportError.
+    # sign_controls_url raises OSError (e.g. key file unreadable)
+    mocker.patch(
+        "pypi_profile.signing.sign_controls_url",
+        side_effect=OSError("disk error"),
+    )
 
     res = _generate_proofs(minimal_profile, "pkg", [])
-    assert res[0]["error"] == "py-minisign not installed"
+    assert res[0]["error"] == "disk error"

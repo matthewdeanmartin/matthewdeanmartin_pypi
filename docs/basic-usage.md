@@ -15,7 +15,8 @@ For signed proof-of-control:
 2. paste the printed public key into `[verification]` in your TOML
 3. run `pypi-profile sign controls-url` for each external profile URL
 4. paste the proof token onto the external page
-5. run `pypi-profile verify` to confirm the round-trip
+5. run `pypi-profile update-proofs` to store proofs in the TOML for static builds
+6. run `pypi-profile verify` to confirm the round-trip
 
 ## Accepted profile sources
 
@@ -62,21 +63,24 @@ Prints the full validated profile model as JSON.
 
 ### `keygen`
 
-Generates a minisign keypair and writes it to `~/.pypi_profile/`. Prints the
-public key to paste into `[verification]` in your TOML. Run this once; protect
-the secret key file.
+Generates a minisign keypair. When `keyring` is installed and a usable backend
+is active, the secret key is stored in the system keyring (macOS Keychain,
+Windows Credential Manager, libsecret). A disk copy is always written to
+`~/.pypi_profile/minisign.key` as a fallback. Prints the public key to paste
+into `[verification]` in your TOML. Run this once.
 
 ```bash
 pypi-profile keygen
-pypi-profile keygen --password "passphrase"   # encrypt the secret key
+pypi-profile keygen --password "passphrase"   # encrypt the disk copy
 ```
 
-Requires `py-minisign`. Install with `pipx install "pypi-profile[sign]"`.
+Both `py-minisign` and `keyring` are included in a standard `pypi-profile` install.
 
 ### `sign`
 
 Signs a proof-of-control claim for an external URL and prints the
-`pypi-profile-proof:` token to paste onto that page.
+`pypi-profile-proof:` token to paste onto that page. Loads the secret key from
+the system keyring if available, otherwise from disk.
 
 ```bash
 pypi-profile sign controls-url pypi_profile.toml \
@@ -84,6 +88,18 @@ pypi-profile sign controls-url pypi_profile.toml \
 ```
 
 Requires `py-minisign`.
+
+### `update-proofs`
+
+Signs every `[[profiles]]` URL that lacks a `stored_proof` and writes the proof
+strings into the TOML in-place. Run this locally after signing so that static
+builds (which do not have access to the private key) can still include proof
+strings in the rendered `/verification` page.
+
+```bash
+pypi-profile update-proofs pypi_profile.toml
+pypi-profile update-proofs pypi_profile.toml --force   # re-sign everything
+```
 
 ### `verify`
 
@@ -94,7 +110,6 @@ pypi-profile verify pypi_profile.toml
 ```
 
 Reports each claim as `verified`, `unverified`, `invalid`, or `expired`.
-Requires `py-minisign`.
 
 ### `doctor`
 
@@ -133,3 +148,20 @@ The current schema covers:
 - `[verification]`
 
 That is enough to publish a useful maintainer or team profile today, even though some of the richer verification and export features are still roadmap items.
+
+### `[[profiles]]` fields
+
+Each profile link supports these fields:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `kind` | string | required | Platform identifier, e.g. `"github"`, `"mastodon"` |
+| `label` | string | required | Display label |
+| `url` | string | required | Full URL of the external profile or post |
+| `verification` | string | `"self_asserted"` | Claim status: `"self_asserted"`, `"verified"`, etc. |
+| `rel_me` | bool | `false` | Render `rel="me"` on the anchor; enables Mastodon-style link verification |
+| `stored_proof` | string | `""` | Pre-signed proof token written by `update-proofs`; used by static builds |
+
+Set `rel_me = true` on any link that should carry `rel="me"` — typically Mastodon
+and personal website links. Set `stored_proof` by running
+`pypi-profile update-proofs` rather than editing it by hand.

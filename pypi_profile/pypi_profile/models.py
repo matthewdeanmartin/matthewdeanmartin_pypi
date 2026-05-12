@@ -88,6 +88,8 @@ class ProfileLink(BaseModel):
     label: str
     url: str
     verification: ClaimStatus = "self_asserted"
+    rel_me: bool = False
+    stored_proof: str = ""
 
 
 class ContactMethod(BaseModel):

@@ -37,45 +37,41 @@ def _generate_proofs(
     if not needing_proof:
         return []
 
-    try:
-        from pypi_profile.signing import sign_controls_url
-    except ImportError:
-        logger.debug("py-minisign not installed; cannot generate proofs")
-        return [
-            {
-                "label": link.label,
-                "url": link.url,
-                "proof": None,
-                "error": "py-minisign not installed",
-            }
-            for link in needing_proof
-        ]
+    # Use stored proofs for any entry that has one (enables static builds without the key).
+    results_from_stored = []
+    still_needing = []
+    for link in needing_proof:
+        if link.stored_proof:
+            results_from_stored.append(
+                {"label": link.label, "url": link.url, "proof": link.stored_proof, "error": None}
+            )
+        else:
+            still_needing.append(link)
 
-    from pypi_profile.signing import DEFAULT_KEY_DIR, DEFAULT_SK_NAME
+    if not still_needing:
+        return results_from_stored
 
-    default_sk = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
-    sk_path = default_sk if default_sk.exists() else None
+    needing_proof = still_needing
 
-    if sk_path is None:
-        logger.debug("No secret key on disk; skipping proof generation")
-        return [
-            {"label": link.label, "url": link.url, "proof": None, "error": "no-key"}
-            for link in needing_proof
-        ]
+    from pypi_profile.signing import sign_controls_url
 
-    results = []
+    results = list(results_from_stored)
     for link in needing_proof:
         try:
             proof = sign_controls_url(
                 profile_package=profile_package,
                 pypi_username=profile.identity.pypi_username,
                 subject_url=link.url,
-                sk_path=sk_path,
             )
             results.append(
                 {"label": link.label, "url": link.url, "proof": proof, "error": None}
             )
-        except (ImportError, OSError, ValueError) as exc:
+        except FileNotFoundError:
+            logger.debug("No signing key available for %s", link.url)
+            results.append(
+                {"label": link.label, "url": link.url, "proof": None, "error": "no-key"}
+            )
+        except (OSError, ValueError) as exc:
             logger.warning("Failed to generate proof for %s: %s", link.url, exc)
             results.append(
                 {"label": link.label, "url": link.url, "proof": None, "error": str(exc)}
@@ -97,26 +93,11 @@ def build_app(
 
     # If the toml has no public key, try loading it from the key file on disk.
     if not profile.verification.public_key:
-        import os
-
-        from pypi_profile.signing import DEFAULT_KEY_DIR, DEFAULT_PK_NAME
-
-        env_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
-        pk_path = (
-            Path(env_path).expanduser().with_suffix(".pub")
-            if env_path
-            else DEFAULT_KEY_DIR / DEFAULT_PK_NAME
-        )
-        if pk_path.exists():
-            try:
-                import minisign  # type: ignore[import-untyped]
-
-                pk = minisign.PublicKey.from_file(pk_path)
-                profile.verification.public_key = pk.to_base64().decode()
-                logger.debug("Loaded public key from %s (server fallback)", pk_path)
-            except (ImportError, OSError, ValueError):
-                logger.warning("Could not load public key from %s", pk_path, exc_info=True)
-                profile.verification.public_key = ""
+        from pypi_profile.signing import read_public_key_b64
+        pub_b64 = read_public_key_b64()
+        if pub_b64:
+            profile.verification.public_key = pub_b64
+            logger.debug("Loaded public key from disk (server fallback)")
 
     logger.debug("Building FastAPI app (base_url=%r, static_mode=%s)", base_url, static_mode)
     ds_template_root, ds_static_root = template_root_path(), static_root_path()

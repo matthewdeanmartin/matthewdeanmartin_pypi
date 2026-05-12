@@ -122,7 +122,7 @@ pypi-profile-proof: eyJwcm9maWxlX3BhY2thZ2UiOiAi...
 Place the token somewhere on the page you are claiming. For example:
 
 - In a GitHub profile README
-- In a Mastodon bio field
+- In a Mastodon post (see [Mastodon workflow](#mastodon-workflow) below)
 - In a GitLab profile description
 - In the text of a personal website
 - In a project README on PyPI
@@ -131,7 +131,27 @@ The token is plain text and intentionally compact. It does not matter whether it
 appears in a comment, a paragraph, a code block, or a metadata field, as long as
 the raw text is accessible to an HTTP fetch.
 
-### 4. Verify
+### 4. Store proofs in the TOML for static builds
+
+If you publish a static site (via `pypi-profile build`), the private key is not
+available at build time. Run `update-proofs` locally after signing to store the
+proof strings in the TOML:
+
+```bash
+pypi-profile update-proofs pypi_profile.toml
+```
+
+This signs every `[[profiles]]` entry that does not yet have a `stored_proof`
+and writes the proof strings directly into the TOML file. Commit the result.
+The static build reads `stored_proof` instead of calling the private key.
+
+To re-sign everything (e.g. after key rotation):
+
+```bash
+pypi-profile update-proofs pypi_profile.toml --force
+```
+
+### 5. Verify
 
 ```bash
 pypi-profile verify pypi_profile.toml
@@ -248,6 +268,83 @@ Breaking any link in that chain breaks the proof:
 
 ---
 
+## Mastodon workflow
+
+Mastodon posts have a URL, but that URL is not known until after the post is
+created. The recommended workflow is:
+
+1. **Create a blank post** (or a placeholder post) on Mastodon.
+2. **Copy the post URL** from the browser address bar, e.g.
+   `https://fosstodon.org/@yourname/123456789`.
+3. **Add it to your TOML:**
+
+   ```toml
+   [[profiles]]
+   kind = "mastodon"
+   label = "Mastodon"
+   url = "https://fosstodon.org/@yourname/123456789"
+   verification = "self_asserted"
+   rel_me = true
+   ```
+
+4. **Sign it:**
+
+   ```bash
+   pypi-profile sign controls-url pypi_profile.toml \
+       --url https://fosstodon.org/@yourname/123456789
+   ```
+
+5. **Edit the Mastodon post** to include the `pypi-profile-proof: ...` token
+   that was printed. Mastodon allows editing posts.
+
+6. **Store the proof in the TOML** so static builds work without the private key:
+
+   ```bash
+   pypi-profile update-proofs pypi_profile.toml
+   ```
+
+7. **Verify:**
+
+   ```bash
+   pypi-profile verify pypi_profile.toml
+   ```
+
+Note: The verifier fetches the post URL as plain HTML. Mastodon renders post
+content in the server-side HTML, so the token will be found without requiring
+JavaScript.
+
+---
+
+## `rel="me"` links
+
+Mastodon and some other platforms use the HTML `rel="me"` attribute to establish
+bidirectional identity links between accounts. When a Mastodon profile contains
+`<a rel="me" href="https://example.com">`, and the linked page contains
+`<a rel="me" href="https://mastodon.social/@you">`, Mastodon marks the link as
+verified.
+
+To opt a profile link into `rel="me"` output, set `rel_me = true`:
+
+```toml
+[[profiles]]
+kind = "mastodon"
+label = "Mastodon"
+url = "https://fosstodon.org/@yourname/123456789"
+rel_me = true
+
+[[profiles]]
+kind = "github"
+label = "GitHub"
+url = "https://github.com/yourname"
+rel_me = true
+```
+
+The served and built pages will render the corresponding anchors as
+`<a href="..." rel="me">`. This is independent of the minisign proof-of-control
+mechanism — you can use `rel_me` with or without a `stored_proof`.
+
+---
+
 ## What can go wrong
 
 ### Stale tokens
@@ -262,12 +359,19 @@ tooling can report "signed by an old key" rather than just "invalid."
 
 ### Key loss
 
-If you lose the secret key file, you cannot sign new claims. You will need to
+If you lose the secret key, you cannot sign new claims. You will need to
 generate a new keypair, update `public_key` in your TOML, republish the package,
 and re-sign all external claims. There is no key recovery mechanism.
 
-Back up `~/.pypi_profile/minisign.key`. Encrypted storage or a password manager
-is appropriate.
+When `keyring` is installed and a usable backend is active (macOS Keychain,
+Windows Credential Manager, libsecret on Linux), `pypi-profile keygen`
+automatically stores the secret key there in addition to the disk file at
+`~/.pypi_profile/minisign.key`. Subsequent `sign` and `update-proofs` commands
+load the key from the keyring first and fall back to disk.
+
+If you are not using a keyring backend, back up
+`~/.pypi_profile/minisign.key` to an encrypted location (password manager,
+encrypted archive). Never commit it to version control.
 
 ### Secret key exposure
 
@@ -342,31 +446,54 @@ verification capacity.
 
 ## Security checklist
 
+- [ ] Install `pypi-profile[sign]` so that `keyring` and `py-minisign` are available
 - [ ] Generate your keypair once with `pypi-profile keygen`
-- [ ] Back up `~/.pypi_profile/minisign.key` securely
+- [ ] Confirm `pypi-profile doctor` shows a keyring backend and "Secret key found in keyring"
+- [ ] If no keyring backend is available, back up `~/.pypi_profile/minisign.key` to an encrypted location
 - [ ] Never commit the secret key file to version control
 - [ ] Add the printed public key to `[verification]` in your TOML
 - [ ] Republish your profile package so the public key is in the PyPI release
 - [ ] Run `pypi-profile sign controls-url` for each external URL you want to claim
 - [ ] Paste each proof token onto the corresponding external page
+- [ ] Run `pypi-profile update-proofs` to store proofs in the TOML for static builds
+- [ ] Commit the updated TOML (the stored proofs contain no secret material)
 - [ ] Run `pypi-profile verify` to confirm the round-trip works
 - [ ] Set a calendar reminder to re-sign before tokens expire (default: 1 year)
-- [ ] If you ever rotate your key, re-sign all external claims immediately
+- [ ] If you ever rotate your key, run `pypi-profile update-proofs --force` to re-sign all claims
 
 ---
 
-## Installing the signing dependency
+## Signing dependencies
 
-Signing and verification require `py-minisign`:
-
-```bash
-pipx install "pypi-profile[sign]"
-```
-
-Or if you already have `pypi-profile` installed:
+`py-minisign` and `keyring` are core dependencies of `pypi-profile` — no extra
+is required. A plain install includes both:
 
 ```bash
-pipx inject pypi-profile py-minisign
+pipx install pypi-profile
 ```
 
-Run `pypi-profile doctor` to confirm the dependency is present.
+Run `pypi-profile doctor` to confirm both are present and that a keyring backend
+is active.
+
+### Keyring backend availability
+
+| Platform | Default backend |
+|---|---|
+| macOS | Keychain |
+| Windows | Credential Manager |
+| Linux (GNOME/KDE) | libsecret / KWallet via `SecretService` |
+| Linux (headless CI) | No usable backend — disk fallback is used |
+
+On headless Linux (e.g. GitHub Actions), no keyring backend is available. The
+secret key will be loaded from disk only. Do not store the secret key in CI
+environments; use `update-proofs` locally and commit the stored proofs instead.
+
+### Overriding the keyring username
+
+If you manage multiple profiles on the same machine, set
+`PYPI_PROFILE_KEYRING_USERNAME` to a different value per profile:
+
+```bash
+PYPI_PROFILE_KEYRING_USERNAME=mycompany pypi-profile keygen
+PYPI_PROFILE_KEYRING_USERNAME=mycompany pypi-profile update-proofs pypi_profile.toml
+```
