@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any, cast
+
+logger = logging.getLogger(__name__)
 
 
 def _open_http_url(request: urllib.request.Request) -> Any:
@@ -44,6 +47,7 @@ def _validate_json_resume(raw: dict[str, Any]) -> None:
         from schema_resume import \
             validate_resume  # type: ignore[import-untyped]
     except ModuleNotFoundError:
+        logger.debug("schema_resume not installed; skipping JSON Resume validation")
         return
     result = validate_resume(raw)
     if not result["valid"]:
@@ -282,10 +286,12 @@ def _fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
     import xmlrpc.client  # nosec B411
 
     results: list[dict[str, Any]] = []
+    logger.debug("Fetching PyPI package list for user %r", username)
     try:
         client = xmlrpc.client.ServerProxy("https://pypi.org/pypi")
         role_pkg_pairs = cast(list[list[str]], client.user_packages(username))
     except (OSError, xmlrpc.client.Error):
+        logger.warning("Failed to fetch PyPI package list for %r", username, exc_info=True)
         return []
 
     for role, name in role_pkg_pairs:
@@ -310,6 +316,7 @@ def _fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
             urllib.error.URLError,
             ValueError,
         ):
+            logger.warning("Failed to fetch PyPI metadata for package %r", name, exc_info=True)
             results.append(
                 {
                     "name": name,
@@ -324,6 +331,7 @@ def _fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
 
 def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
     """Fetch metadata for a single PyPI package."""
+    logger.debug("Fetching PyPI metadata for package %r", package_name)
     try:
         data = _get_json(f"https://pypi.org/pypi/{package_name}/json")
         info = data.get("info", {})
@@ -349,6 +357,7 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
         urllib.error.URLError,
         ValueError,
     ):
+        logger.warning("Failed to fetch PyPI metadata for package %r", package_name, exc_info=True)
         return {}
 
 
@@ -359,6 +368,7 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
 
 def fetch_github_profile(username: str, token: str | None = None) -> dict[str, Any]:
     """Fetch public GitHub user profile data."""
+    logger.debug("Fetching GitHub profile for %r", username)
     try:
         url = f"https://api.github.com/users/{username}"
         req = urllib.request.Request(url)
@@ -390,11 +400,13 @@ def fetch_github_profile(username: str, token: str | None = None) -> dict[str, A
         urllib.error.URLError,
         ValueError,
     ):
+        logger.warning("Failed to fetch GitHub profile for %r", username, exc_info=True)
         return {}
 
 
 def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str, Any]]:
     """Fetch all public non-fork repos for a GitHub user, paginating through all results."""
+    logger.debug("Fetching GitHub repos for %r", username)
     results: list[dict[str, Any]] = []
     page = 1
     try:
@@ -434,7 +446,7 @@ def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str
         urllib.error.URLError,
         ValueError,
     ):
-        pass
+        logger.warning("Failed to fetch GitHub repos for %r (partial results may be returned)", username, exc_info=True)
     return results
 
 
@@ -460,6 +472,7 @@ def fetch_github_funding(
     for url in targets:
         try:
             text = _get_text(url)
+            logger.debug("Found FUNDING.yml at %s", url)
             return _parse_funding_yml(text)
         except (
             OSError,
@@ -468,7 +481,9 @@ def fetch_github_funding(
             urllib.error.URLError,
             ValueError,
         ):
+            logger.debug("No FUNDING.yml at %s", url)
             continue
+    logger.debug("No FUNDING.yml found for %r", username)
     return {}
 
 
@@ -506,6 +521,7 @@ def load_local_funding_yml(search_dirs: list[Path] | None = None) -> dict[str, A
 
 def fetch_gitlab_profile(username: str, token: str | None = None) -> dict[str, Any]:
     """Fetch public GitLab user profile data."""
+    logger.debug("Fetching GitLab profile for %r", username)
     try:
         url = f"https://gitlab.com/api/v4/users?username={username}"
         req = urllib.request.Request(url)
@@ -535,6 +551,7 @@ def fetch_gitlab_profile(username: str, token: str | None = None) -> dict[str, A
         urllib.error.URLError,
         ValueError,
     ):
+        logger.warning("Failed to fetch GitLab profile for %r", username, exc_info=True)
         return {}
 
 
@@ -545,6 +562,7 @@ def fetch_gitlab_profile(username: str, token: str | None = None) -> dict[str, A
 
 def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
     """Fetch a Mastodon user profile given a profile URL like https://fosstodon.org/@user."""
+    logger.debug("Fetching Mastodon profile for %r", account_url)
     try:
         # Parse instance and username from URL
         m = re.match(r"https?://([^/]+)/@([^/]+)", account_url)
@@ -581,6 +599,7 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
         urllib.error.URLError,
         ValueError,
     ):
+        logger.warning("Failed to fetch Mastodon profile for %r", account_url, exc_info=True)
         return {}
 
 

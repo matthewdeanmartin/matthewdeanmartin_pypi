@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import secrets
 import uuid
 from datetime import datetime, timezone
 from typing import Any, cast
+
+logger = logging.getLogger(__name__)
 
 PROOF_PREFIX = "pypi-profile-proof:"
 
@@ -75,4 +78,5 @@ def is_expired(claim: dict[str, Any]) -> bool:
         )
         return datetime.now(tz=timezone.utc) > expires
     except ValueError:
+        logger.debug("Could not parse expires_at %r in claim", expires_str, exc_info=True)
         return False

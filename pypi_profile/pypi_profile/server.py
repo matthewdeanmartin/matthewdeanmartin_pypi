@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,8 @@ from fastapi.staticfiles import StaticFiles
 
 from pypi_profile.ds.paths import static_root_path, template_root_path
 from pypi_profile.models import ProfileData
+
+logger = logging.getLogger(__name__)
 
 ClaimResult = dict[str, Any]
 ProofResult = dict[str, Any]
@@ -37,6 +40,7 @@ def _generate_proofs(
     try:
         from pypi_profile.signing import sign_controls_url
     except ImportError:
+        logger.debug("py-minisign not installed; cannot generate proofs")
         return [
             {
                 "label": link.label,
@@ -53,6 +57,7 @@ def _generate_proofs(
     sk_path = default_sk if default_sk.exists() else None
 
     if sk_path is None:
+        logger.debug("No secret key on disk; skipping proof generation")
         return [
             {"label": link.label, "url": link.url, "proof": None, "error": "no-key"}
             for link in needing_proof
@@ -71,6 +76,7 @@ def _generate_proofs(
                 {"label": link.label, "url": link.url, "proof": proof, "error": None}
             )
         except (ImportError, OSError, ValueError) as exc:
+            logger.warning("Failed to generate proof for %s: %s", link.url, exc)
             results.append(
                 {"label": link.label, "url": link.url, "proof": None, "error": str(exc)}
             )
@@ -107,9 +113,12 @@ def build_app(
 
                 pk = minisign.PublicKey.from_file(pk_path)
                 profile.verification.public_key = pk.to_base64().decode()
+                logger.debug("Loaded public key from %s (server fallback)", pk_path)
             except (ImportError, OSError, ValueError):
+                logger.warning("Could not load public key from %s", pk_path, exc_info=True)
                 profile.verification.public_key = ""
 
+    logger.debug("Building FastAPI app (base_url=%r, static_mode=%s)", base_url, static_mode)
     ds_template_root, ds_static_root = template_root_path(), static_root_path()
     loader = jinja2.FileSystemLoader(
         [
@@ -182,6 +191,7 @@ def build_app(
                 profile, profile_package=profile_package
             )
         except (ImportError, OSError, ValueError):
+            logger.warning("Verification failed during /verification render", exc_info=True)
             claim_results = []
 
         proofs = _generate_proofs(profile, profile_package, claim_results)
@@ -227,6 +237,7 @@ def build_app(
                 profile, profile_package=profile_package
             )
         except (ImportError, OSError, ValueError):
+            logger.warning("Verification failed during /api/verification.json", exc_info=True)
             claim_results = []
         return JSONResponse(
             {

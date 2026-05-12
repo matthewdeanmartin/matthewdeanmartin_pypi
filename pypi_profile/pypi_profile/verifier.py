@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import logging
 import re
 import urllib.error
 import urllib.parse
@@ -12,6 +13,8 @@ from typing import Any, cast
 
 from pypi_profile.claims import decode_claim, is_expired
 from pypi_profile.models import ClaimStatus, ProfileData, ProfileLink
+
+logger = logging.getLogger(__name__)
 
 PROOF_RE = re.compile(
     r"pypi-profile-proof:\s*([A-Za-z0-9_\-]+={0,3})",
@@ -25,6 +28,7 @@ def _import_minisign() -> Any:
 
         return minisign
     except ImportError as exc:
+        logger.debug("py-minisign not installed; verification unavailable")
         raise ImportError(
             "py-minisign is required for verification. Install it with: uv add py-minisign"
         ) from exc
@@ -73,6 +77,7 @@ def verify_claim_signature(claim: dict[str, Any], public_key_b64: str) -> bool:
         pk = ms.PublicKey.from_base64(public_key_b64)
         sig = ms.Signature.from_bytes(base64.standard_b64decode(sig_b64))
     except (TypeError, ValueError, OSError, binascii.Error):
+        logger.debug("Failed to parse public key or signature during claim verification", exc_info=True)
         return False
 
     from pypi_profile.signing import _claim_to_bytes
@@ -82,6 +87,7 @@ def verify_claim_signature(claim: dict[str, Any], public_key_b64: str) -> bool:
         pk.verify(claim_bytes, sig)
         return True
     except (TypeError, ValueError, OSError):
+        logger.debug("Claim signature verification failed", exc_info=True)
         return False
 
 
@@ -98,6 +104,7 @@ def _status_from_tokens(
         try:
             claim = decode_claim(token_str)
         except (TypeError, ValueError):
+            logger.debug("Could not decode proof token; skipping", exc_info=True)
             continue
 
         if claim.get("subject") != subject_url:
@@ -126,11 +133,14 @@ def verify_profile_link(
     Returns a ClaimStatus string.
     """
     if not public_key_b64:
+        logger.debug("No public key; skipping verification of %s", link.url)
         return "unverified"
 
+    logger.debug("Verifying profile link %s", link.url)
     try:
         text = fetch_page(link.url)
     except (OSError, ValueError):
+        logger.warning("Failed to fetch %s for verification", link.url, exc_info=True)
         return "unverified"
 
     return _status_from_tokens(
@@ -153,6 +163,7 @@ def verify_all_profiles(
     public_key_b64 = profile.verification.public_key
     pypi_username = profile.identity.pypi_username
 
+    logger.debug("Verifying %d profile link(s) for %r", len(profile.profiles), pypi_username)
     results = []
     for link in profile.profiles:
         status: ClaimStatus = verify_profile_link(
@@ -161,6 +172,7 @@ def verify_all_profiles(
             profile_package=profile_package,
             pypi_username=pypi_username,
         )
+        logger.debug("Link %s -> status=%s", link.url, status)
         results.append(
             {
                 "kind": link.kind,

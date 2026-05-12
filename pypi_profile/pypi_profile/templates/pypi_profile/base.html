@@ -3,6 +3,18 @@
 {% set _base = base_url | default("") %}
 {% set asset_base = _base ~ "/static/pypi_ds" %}
 {% block title %}{% block profile_title %}{% endblock %} · PyPI Profile{% endblock %}
+{% block head_extra %}
+<script>
+(function () {
+  var key = 'scroll:' + location.pathname;
+  var saved = sessionStorage.getItem(key);
+  if (saved !== null) { document.documentElement.scrollTop = +saved; }
+  window.addEventListener('pagehide', function () {
+    sessionStorage.setItem(key, document.documentElement.scrollTop);
+  });
+})();
+</script>
+{% endblock %}
 {% block body %}
   {{ layout.site_header(
     brand_name="PyPI Profile",

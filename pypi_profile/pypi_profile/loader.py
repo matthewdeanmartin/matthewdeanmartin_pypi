@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import importlib.metadata as meta
+import logging
 import sys
 from pathlib import Path
 
 from pypi_profile.models import ProfileData
+
+logger = logging.getLogger(__name__)
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -19,11 +22,22 @@ else:
 
 def load_profile(path: Path) -> ProfileData:
     """Read a pypi_profile.toml (or pyproject.toml [tool.pypi-profile]) and return a validated ProfileData."""
+    logger.debug("Loading profile from %s", path)
     with open(path, "rb") as fh:
         raw = tomllib.load(fh)
     if path.name == "pyproject.toml":
         raw = raw.get("tool", {}).get("pypi-profile", {})
-    return ProfileData.model_validate(raw)
+    profile = ProfileData.model_validate(raw)
+    if not profile.verification.public_key and path.name == "pypi_profile.toml":
+        try:
+            from pypi_profile.signing import patch_public_key_in_toml
+            pub_b64 = patch_public_key_in_toml(path)
+            if pub_b64:
+                profile.verification.public_key = pub_b64
+        except Exception:
+            logger.warning("Could not auto-patch public key into %s", path, exc_info=True)
+    logger.debug("Loaded profile for %r", profile.profile.display_name)
+    return profile
 
 
 def find_resume(toml_path: Path) -> Path | None:
@@ -65,7 +79,8 @@ def find_profile(source: str) -> Path:
         dist = meta.distribution(source)
         data_path = dist.locate_file("pypi_profile.toml")
         if Path(str(data_path)).exists():
+            logger.debug("Found profile via dist-info for package %r", source)
             return Path(str(data_path))
     except meta.PackageNotFoundError:
-        pass
+        logger.debug("No installed package named %r", source)
     raise FileNotFoundError(f"Cannot find pypi_profile.toml for: {source!r}")

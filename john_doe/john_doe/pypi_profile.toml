@@ -110,5 +110,5 @@ relationship = "co-maintainer"
 verification = "self_asserted"
 
 [verification]
-public_key = ""
+public_key = "RWRDcrgceTEEEvIzBBielJiZ6n//kkEFQ5Qs2CDsDGmJGhHKSjipUnjq"
 preferred_signature_backend = "minisign"

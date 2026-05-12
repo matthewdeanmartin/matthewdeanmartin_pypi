@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any
 
 from pypi_profile.__about__ import __version__
+
+logger = logging.getLogger(__name__)
 
 # Ensure stdout/stderr can emit Unicode (emoji, box-drawing chars) on Windows.
 if hasattr(sys.stdout, "reconfigure"):
@@ -26,6 +29,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
     toml_path = find_profile(args.source)
     profile = load_profile(toml_path)
+    logger.info("Starting server for %r on %s:%s", profile.profile.display_name, args.host, args.port)
     app = build_app(profile, allow_code=args.allow_code)
     uvicorn.run(app, host=args.host, port=args.port)
 
@@ -64,10 +68,12 @@ def cmd_validate(args: argparse.Namespace) -> None:
         )
         print(f"  signing key on disk: {_key_status()}")
     except ValidationError as exc:
+        logger.error("Profile validation failed: %s", exc)
         print(f"INVALID: {path}", file=sys.stderr)
         print(exc, file=sys.stderr)
         sys.exit(1)
     except FileNotFoundError as exc:
+        logger.error("Profile file not found: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
 
@@ -94,10 +100,12 @@ def cmd_init(args: argparse.Namespace) -> None:
             print("Run  pypi-profile serve .  to preview your profile.")
             return
         except (ImportError, KeyboardInterrupt):
+            logger.debug("Interactive wizard unavailable or interrupted", exc_info=True)
             print()  # newline after ^C
 
     # Non-interactive / scripted path (unchanged behaviour)
     if dest.exists() and not args.force:
+        logger.error("Output file %s already exists (use --force to overwrite)", dest)
         print(
             f"ERROR: {dest} already exists. Use --force to overwrite.", file=sys.stderr
         )
@@ -113,6 +121,7 @@ def cmd_init(args: argparse.Namespace) -> None:
 
         jrp = Path(args.from_json_resume)
         if not jrp.exists():
+            logger.error("JSON Resume file not found: %s", jrp)
             print(f"ERROR: JSON Resume file not found: {jrp}", file=sys.stderr)
             sys.exit(1)
         print(f"Importing JSON Resume from {jrp} ...")
@@ -412,6 +421,7 @@ def cmd_inspect(args: argparse.Namespace) -> None:
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
+        logger.error("Profile not found: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
 
@@ -491,6 +501,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
+        logger.error("Profile not found: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
 
@@ -576,9 +587,11 @@ def cmd_keygen(args: argparse.Namespace) -> None:
             force=args.force,
         )
     except FileExistsError as exc:
+        logger.error("Key already exists: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
     except ImportError as exc:
+        logger.error("Missing dependency for keygen: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
 
@@ -621,6 +634,7 @@ def cmd_sign(args: argparse.Namespace) -> None:
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
+        logger.error("Profile not found: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
 
@@ -640,9 +654,11 @@ def cmd_sign(args: argparse.Namespace) -> None:
             password=password,
         )
     except FileNotFoundError as exc:
+        logger.error("Secret key not found: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
     except ImportError as exc:
+        logger.error("Missing dependency for signing: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
 
@@ -661,6 +677,7 @@ def cmd_verify(args: argparse.Namespace) -> None:
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
+        logger.error("Profile not found: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
 
@@ -683,8 +700,10 @@ def cmd_verify(args: argparse.Namespace) -> None:
 
             pk = minisign.PublicKey.from_file(pk_path)
             profile.verification.public_key = pk.to_base64().decode()
+            logger.info("Loaded public key from %s", pk_path)
             print(f"Loaded public key from {pk_path}")
         else:
+            logger.warning("No public key in [verification] and none found on disk")
             print(
                 "⚠️  No public key in [verification] and none found on disk. Verification requires a public key.",
                 file=sys.stderr,
@@ -697,6 +716,7 @@ def cmd_verify(args: argparse.Namespace) -> None:
     try:
         results = verify_all_profiles(profile, profile_package=profile_package)
     except ImportError as exc:
+        logger.error("Missing dependency for verification: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
 
@@ -745,9 +765,11 @@ def cmd_build(args: argparse.Namespace) -> None:
             verbose=True,
         )
     except FileNotFoundError as exc:
+        logger.error("Profile not found for build: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
     except OSError as exc:
+        logger.error("I/O error during build: %s", exc)
         print(f"ERROR writing output: {exc}", file=sys.stderr)
         sys.exit(2)
 
@@ -760,6 +782,19 @@ def main() -> None:
     )
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    parser.add_argument(
+        "--log-level",
+        default="WARNING",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        metavar="LEVEL",
+        help="Set logging level (default: WARNING). Choices: DEBUG INFO WARNING ERROR CRITICAL",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Enable DEBUG logging (shorthand for --log-level DEBUG)",
     )
     subparsers = parser.add_subparsers(dest="command", metavar="command")
 
@@ -918,10 +953,15 @@ def main() -> None:
     gui_p.set_defaults(func=lambda _: _launch_gui())
 
     args = parser.parse_args()
+
+    from pypi_profile._log import configure_logging
+    configure_logging("DEBUG" if args.verbose else args.log_level)
+
     if not args.command:
         parser.print_help()
         sys.exit(0)
 
+    logger.debug("Running command %r", args.command)
     args.func(args)
 
 

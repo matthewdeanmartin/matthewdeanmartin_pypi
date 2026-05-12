@@ -80,5 +80,5 @@ policy = "If unreachable for 90 days, open a GitHub issue on any affected reposi
 last_reviewed = "2026-05-09"
 
 [verification]
-public_key = ""
+public_key = "RWRDcrgceTEEEvIzBBielJiZ6n//kkEFQ5Qs2CDsDGmJGhHKSjipUnjq"
 preferred_signature_backend = "minisign"

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import shutil
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 _STATIC_ROUTES: list[tuple[str, str]] = [
     ("/", "index.html"),
@@ -59,6 +62,7 @@ def build_static_site(
     toml_path = find_profile(source)
     profile = load_profile(toml_path)
 
+    logger.info("Building static site for %r (base_url=%r)", profile.profile.display_name, base_url)
     if verbose:
         print(f"Building static site for {profile.profile.display_name!r}...")
 
@@ -76,21 +80,26 @@ def build_static_site(
     for route, rel_path in _STATIC_ROUTES:
         resp = client.get(route)
         if resp.status_code == 404:
+            logger.debug("Route %s returned 404, skipping", route)
             continue
         dest = output / rel_path
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(resp.text, encoding="utf-8")
         html_count += 1
+        logger.debug("Rendered %s -> %s", route, rel_path)
         if verbose:
             print(f"  rendered {route} -> {rel_path}")
 
     json_count = 0
     for route, rel_path in _JSON_ROUTES:
         resp = client.get(route)
+        if resp.status_code != 200:
+            logger.warning("JSON route %s returned HTTP %s", route, resp.status_code)
         dest = output / rel_path
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(resp.text, encoding="utf-8")
         json_count += 1
+        logger.debug("Rendered %s -> %s", route, rel_path)
 
     resume_path = resume_file or find_resume(toml_path)
     resume_written = False
@@ -102,11 +111,13 @@ def build_static_site(
         )
         json_count += 1
         resume_written = True
+        logger.debug("Copied resume.json -> api/resume.json")
         if verbose:
             print("  resume.json -> api/resume.json")
 
     _copy_static_assets(output, verbose=verbose)
 
+    logger.info("Build complete: %d HTML pages, %d JSON files -> %s", html_count, json_count, output)
     if verbose:
         print()
         summary_lines = [
@@ -137,6 +148,7 @@ def _copy_static_assets(output: Path, verbose: bool = True) -> None:
 
     static_src = static_root_path()
     static_dest = output / "static" / "pypi_ds"
+    logger.debug("Copying static assets %s -> %s", static_src, static_dest)
     if static_dest.exists():
         shutil.rmtree(static_dest)
     shutil.copytree(static_src, static_dest)

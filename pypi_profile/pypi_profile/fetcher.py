@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 import urllib.error
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from pypi_profile.importers import (_fetch_pypi_user_packages,
                                     fetch_github_funding, fetch_github_profile,
@@ -41,9 +44,11 @@ def _cache_read(key: str) -> Any | None:
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
         if time.time() - data.get("_ts", 0) > CACHE_TTL:
+            logger.debug("Cache expired for key derived from %s", p.name)
             return None
         return data.get("payload")
     except FETCH_ERRORS:
+        logger.warning("Failed to read cache file %s", p, exc_info=True)
         return None
 
 
@@ -62,9 +67,11 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
         cached = _cache_read(key)
         if cached is not None:
             results["pypi_packages"] = cached
+            logger.debug("[cache] PyPI packages for %s", username)
             if verbose:
                 print(f"  [cache] PyPI packages for {username}")
         else:
+            logger.debug("[fetch] PyPI packages for %s", username)
             if verbose:
                 print(f"  [fetch] PyPI packages for {username} ...")
             pkgs = _fetch_pypi_user_packages(username)
@@ -79,6 +86,7 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
         if cached is not None:
             package_meta[pkg.name] = cached
         else:
+            logger.debug("[fetch] PyPI package metadata: %s", pkg.name)
             if verbose:
                 print(f"  [fetch] PyPI package metadata: {pkg.name} ...")
             meta = fetch_pypi_package_info(pkg.name)
@@ -97,9 +105,11 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
                 cached = _cache_read(key)
                 if cached is not None:
                     github_profile = cached
+                    logger.debug("[cache] GitHub profile for %s", gh_username)
                     if verbose:
                         print(f"  [cache] GitHub profile for {gh_username}")
                 else:
+                    logger.debug("[fetch] GitHub profile for %s", gh_username)
                     if verbose:
                         print(f"  [fetch] GitHub profile for {gh_username} ...")
                     github_profile = fetch_github_profile(gh_username)
@@ -109,7 +119,9 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
                 cached = _cache_read(key)
                 if cached is not None:
                     github_repos = cached
+                    logger.debug("[cache] GitHub repos for %s", gh_username)
                 else:
+                    logger.debug("[fetch] GitHub repos for %s", gh_username)
                     if verbose:
                         print(f"  [fetch] GitHub repos for {gh_username} ...")
                     github_repos = fetch_github_repos(gh_username)
@@ -119,7 +131,9 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
                 cached = _cache_read(key)
                 if cached is not None:
                     results["github_funding"] = cached
+                    logger.debug("[cache] GitHub FUNDING.yml for %s", gh_username)
                 else:
+                    logger.debug("[fetch] GitHub FUNDING.yml for %s", gh_username)
                     if verbose:
                         print(f"  [fetch] GitHub FUNDING.yml for {gh_username} ...")
                     funding = fetch_github_funding(gh_username)
@@ -138,9 +152,11 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
                 cached = _cache_read(key)
                 if cached is not None:
                     results["gitlab"] = cached
+                    logger.debug("[cache] GitLab profile for %s", gl_username)
                     if verbose:
                         print(f"  [cache] GitLab profile for {gl_username}")
                 else:
+                    logger.debug("[fetch] GitLab profile for %s", gl_username)
                     if verbose:
                         print(f"  [fetch] GitLab profile for {gl_username} ...")
                     gl = fetch_gitlab_profile(gl_username)
@@ -155,9 +171,11 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
             cached = _cache_read(key)
             if cached is not None:
                 results["mastodon"] = cached
+                logger.debug("[cache] Mastodon profile for %s", link.url)
                 if verbose:
                     print(f"  [cache] Mastodon profile for {link.url}")
             else:
+                logger.debug("[fetch] Mastodon profile for %s", link.url)
                 if verbose:
                     print(f"  [fetch] Mastodon profile for {link.url} ...")
                 masto = fetch_mastodon_profile(link.url)
