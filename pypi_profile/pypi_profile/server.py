@@ -20,7 +20,7 @@ ClaimResult = dict[str, Any]
 ProofResult = dict[str, Any]
 
 
-def _generate_proofs(
+def generate_proofs(
     profile: ProfileData,
     profile_package: str,
     claim_results: list[ClaimResult],
@@ -111,12 +111,12 @@ def build_app(
         loader=loader, autoescape=jinja2.select_autoescape(["html"])
     )
 
-    _static_base = base_url.rstrip("/")
+    static_base = base_url.rstrip("/")
 
     def render(template_name: str, context: dict[str, Any]) -> HTMLResponse:
         tmpl = env.get_template(template_name)
         context.setdefault("static_mode", static_mode)
-        context.setdefault("base_url", _static_base)
+        context.setdefault("base_url", static_base)
         html = tmpl.render(**context)
         return HTMLResponse(html)
 
@@ -175,7 +175,7 @@ def build_app(
             logger.warning("Verification failed during /verification render", exc_info=True)
             claim_results = []
 
-        proofs = _generate_proofs(profile, profile_package, claim_results)
+        proofs = generate_proofs(profile, profile_package, claim_results)
 
         return render(
             "pypi_profile/verification.html",

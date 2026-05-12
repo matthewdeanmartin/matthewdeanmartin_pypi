@@ -105,7 +105,7 @@ def test_json_resume_from_dict() -> None:
 
 
 def test_funding_yml_parsing() -> None:
-    from pypi_profile.importers import _parse_funding_yml
+    from pypi_profile.importers import parse_funding_yml
 
     text = """
 # FUNDING.yml
@@ -114,7 +114,7 @@ patreon: alice_patreon
 open_collective: alice-oc
 ko_fi: aliceko
 """
-    result = _parse_funding_yml(text)
+    result = parse_funding_yml(text)
     assert result["github"] == "alice"
     assert result["patreon"] == "alice_patreon"
     assert result["open_collective"] == "alice-oc"
@@ -122,10 +122,10 @@ ko_fi: aliceko
 
 
 def test_funding_yml_skips_nulls() -> None:
-    from pypi_profile.importers import _parse_funding_yml
+    from pypi_profile.importers import parse_funding_yml
 
     text = "github: alice\npatreon: null\ntidelift: ~\n"
-    result = _parse_funding_yml(text)
+    result = parse_funding_yml(text)
     assert "github" in result
     assert "patreon" not in result
     assert "tidelift" not in result
@@ -148,13 +148,13 @@ def test_load_local_funding_yml_found(tmp_path: Path) -> None:
 
 
 def test_normalize_date() -> None:
-    from pypi_profile.importers import _normalize_date
+    from pypi_profile.importers import normalize_date
 
-    assert _normalize_date("2021-03-01") == "2021-03"
-    assert _normalize_date("2021-03") == "2021-03"
-    assert _normalize_date("present") == "present"
-    assert _normalize_date("current") == "present"
-    assert _normalize_date("") == ""
+    assert normalize_date("2021-03-01") == "2021-03"
+    assert normalize_date("2021-03") == "2021-03"
+    assert normalize_date("present") == "present"
+    assert normalize_date("current") == "present"
+    assert normalize_date("") == ""
 
 
 def test_merge_live_data_fills_empty_fields() -> None:

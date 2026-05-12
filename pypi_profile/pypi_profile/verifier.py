@@ -22,7 +22,7 @@ PROOF_RE = re.compile(
 )
 
 
-def _import_minisign() -> Any:
+def import_minisign() -> Any:
     try:
         import minisign  # type: ignore[import-untyped]
 
@@ -67,7 +67,7 @@ def verify_claim_signature(claim: dict[str, Any], public_key_b64: str) -> bool:
 
     Returns True if valid, False otherwise.
     """
-    ms = _import_minisign()
+    ms = import_minisign()
 
     sig_b64 = claim.get("signature", "")
     if not sig_b64:
@@ -80,9 +80,9 @@ def verify_claim_signature(claim: dict[str, Any], public_key_b64: str) -> bool:
         logger.debug("Failed to parse public key or signature during claim verification", exc_info=True)
         return False
 
-    from pypi_profile.signing import _claim_to_bytes
+    from pypi_profile.signing import claim_to_bytes
 
-    claim_bytes = _claim_to_bytes(claim)
+    claim_bytes = claim_to_bytes(claim)
     try:
         pk.verify(claim_bytes, sig)
         return True
@@ -91,7 +91,7 @@ def verify_claim_signature(claim: dict[str, Any], public_key_b64: str) -> bool:
         return False
 
 
-def _status_from_tokens(
+def status_from_tokens(
     tokens: list[str],
     *,
     subject_url: str,
@@ -143,7 +143,7 @@ def verify_profile_link(
         logger.warning("Failed to fetch %s for verification", link.url, exc_info=True)
         return "unverified"
 
-    return _status_from_tokens(
+    return status_from_tokens(
         find_proof_tokens(text),
         subject_url=link.url,
         pypi_username=pypi_username,

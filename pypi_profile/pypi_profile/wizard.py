@@ -37,15 +37,15 @@ STYLE = Style.from_dict(
 
 
 @lru_cache(maxsize=1)
-def _session() -> PromptSession[str]:
+def session() -> PromptSession[str]:
     return PromptSession()
 
 
-def _print(msg: str) -> None:
+def print_styled(msg: str) -> None:
     print_formatted_text(HTML(msg), style=STYLE)
 
 
-def _ask(
+def ask(
     prompt: str, default: str = "", hint: str = "", validator: Validator | None = None
 ) -> str:
     """Prompt for a single line of text. Returns default if user presses enter."""
@@ -55,7 +55,7 @@ def _ask(
     if hint:
         display += f" <hint>({hint})</hint>"
     display += ": "
-    result = _session().prompt(
+    result = session().prompt(
         HTML(display),
         style=STYLE,
         default=default,
@@ -65,7 +65,7 @@ def _ask(
     return result.strip()
 
 
-def _ask_with_completer(
+def ask_with_completer(
     prompt: str, choices: list[str], default: str = "", hint: str = ""
 ) -> str:
     completer = WordCompleter(choices, ignore_case=True)
@@ -75,27 +75,27 @@ def _ask_with_completer(
     if hint:
         display += f" <hint>({hint})</hint>"
     display += ": "
-    result = _session().prompt(
+    result = session().prompt(
         HTML(display), style=STYLE, default=default, completer=completer
     )
     return result.strip()
 
 
-def _ask_bool(prompt: str, default: bool = False) -> bool:
+def ask_bool(prompt: str, default: bool = False) -> bool:
     default_hint = "Y/n" if default else "y/N"
     display = f"{prompt} <hint>[{default_hint}]</hint>: "
     while True:
-        result = _session().prompt(HTML(display), style=STYLE).strip().lower()
+        result = session().prompt(HTML(display), style=STYLE).strip().lower()
         if not result:
             return default
         if result in ("y", "yes"):
             return True
         if result in ("n", "no"):
             return False
-        _print("<warn>Please enter y or n.</warn>")
+        print_styled("<warn>Please enter y or n.</warn>")
 
 
-def _checkboxlist(
+def checkboxlist(
     title: str, choices: list[tuple[str, str]], defaults: list[str] | None = None
 ) -> list[str]:
     """Show a checkbox list dialog."""
@@ -117,13 +117,13 @@ def _checkboxlist(
 # ---------------------------------------------------------------------------
 
 
-class _NonEmptyValidator(Validator):
+class NonEmptyValidator(Validator):
     def validate(self, document: Any) -> None:
         if not document.text.strip():
             raise ValidationError(message="This field cannot be empty.")
 
 
-_REQUIRED = _NonEmptyValidator()
+REQUIRED = NonEmptyValidator()
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +131,7 @@ _REQUIRED = _NonEmptyValidator()
 # ---------------------------------------------------------------------------
 
 
-def _find_json_resume() -> Path | None:
+def find_json_resume() -> Path | None:
     """Search common locations for a JSON Resume file."""
     candidates = [
         Path.cwd() / "resume.json",
@@ -144,7 +144,7 @@ def _find_json_resume() -> Path | None:
     return None
 
 
-def _load_existing_toml(dest: Path) -> dict[str, Any]:
+def load_existing_toml(dest: Path) -> dict[str, Any]:
     """Load an existing pypi_profile.toml if it exists, returning raw dict."""
     if not dest.exists():
         return {}
@@ -152,13 +152,13 @@ def _load_existing_toml(dest: Path) -> dict[str, Any]:
         return tomllib.load(fh)
 
 
-def _fetch_pypi_data_silent(username: str) -> list[dict[str, Any]]:
+def fetch_pypi_data_silent(username: str) -> list[dict[str, Any]]:
     """Fetch PyPI packages for username with a spinner-style status line."""
-    from pypi_profile.importers import _fetch_pypi_user_packages
+    from pypi_profile.importers import fetch_pypi_user_packages
 
-    _print(f"<fetched>  Fetching PyPI packages for {username!r} …</fetched>")
-    pkgs = _fetch_pypi_user_packages(username)
-    _print(f"<ok>  Found {len(pkgs)} packages on PyPI.</ok>")
+    print_styled(f"<fetched>  Fetching PyPI packages for {username!r} …</fetched>")
+    pkgs = fetch_pypi_user_packages(username)
+    print_styled(f"<ok>  Found {len(pkgs)} packages on PyPI.</ok>")
     return pkgs
 
 
@@ -167,45 +167,45 @@ def _fetch_pypi_data_silent(username: str) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def _section_identity(
+def section_identity(
     existing: dict[str, Any], prefilled: dict[str, Any]
 ) -> dict[str, Any]:
-    _print(
+    print_styled(
         "\n<section>── Identity ──────────────────────────────────────────────────</section>"
     )
 
     ex_id = existing.get("identity", {})
     pf_id = prefilled.get("identity", {})
 
-    display_name = _ask(
+    display_name = ask(
         "Your display name",
         default=ex_id.get("display_name") or pf_id.get("display_name") or "",
-        validator=_REQUIRED,
+        validator=REQUIRED,
     )
     legal_name = (
-        _ask(
+        ask(
             "Legal name",
             default=ex_id.get("legal_name") or pf_id.get("legal_name") or display_name,
             hint="full legal name, optional",
         )
         or display_name
     )
-    pypi_username = _ask(
+    pypi_username = ask(
         "PyPI username",
         default=ex_id.get("pypi_username") or pf_id.get("pypi_username") or "",
-        validator=_REQUIRED,
+        validator=REQUIRED,
     )
-    location = _ask(
+    location = ask(
         "Location",
         default=ex_id.get("location") or pf_id.get("location") or "",
         hint="City, Country",
     )
-    timezone = _ask(
+    timezone = ask(
         "Timezone",
         default=ex_id.get("timezone") or pf_id.get("timezone") or "UTC",
         hint="e.g. America/New_York",
     )
-    pronouns = _ask(
+    pronouns = ask(
         "Pronouns",
         default=ex_id.get("pronouns") or pf_id.get("pronouns") or "",
         hint="optional, e.g. he/him",
@@ -221,10 +221,10 @@ def _section_identity(
     }
 
 
-def _section_profile_summary(
+def section_profile_summary(
     existing: dict[str, Any], prefilled: dict[str, Any], identity: dict[str, Any]
 ) -> dict[str, Any]:
-    _print(
+    print_styled(
         "\n<section>── Profile ──────────────────────────────────────────────────</section>"
     )
 
@@ -232,7 +232,7 @@ def _section_profile_summary(
     pf_prof = prefilled.get("profile", {})
 
     kind = (
-        _ask_with_completer(
+        ask_with_completer(
             "Profile kind",
             choices=[
                 "individual",
@@ -249,7 +249,7 @@ def _section_profile_summary(
         )
         or "individual"
     )
-    summary = _ask(
+    summary = ask(
         "Short bio / summary",
         default=ex_prof.get("summary") or pf_prof.get("summary") or "",
         hint="one or two sentences",
@@ -262,10 +262,10 @@ def _section_profile_summary(
     }
 
 
-def _section_social_profiles(
+def section_social_profiles(
     existing: dict[str, Any], prefilled: dict[str, Any], pypi_username: str
 ) -> list[dict[str, Any]]:
-    _print(
+    print_styled(
         "\n<section>── External Profiles / Links ──────────────────────────────────</section>"
     )
 
@@ -281,7 +281,7 @@ def _section_social_profiles(
     gh_default = merged.get("github", {}).get(
         "url", f"https://github.com/{pypi_username}" if pypi_username else ""
     )
-    gh_url = _ask("GitHub URL", default=gh_default, hint="leave blank to skip")
+    gh_url = ask("GitHub URL", default=gh_default, hint="leave blank to skip")
     if gh_url:
         merged["github"] = {
             "kind": "github",
@@ -292,7 +292,7 @@ def _section_social_profiles(
 
     # GitLab
     gl_default = merged.get("gitlab", {}).get("url", "")
-    gl_url = _ask("GitLab URL", default=gl_default, hint="optional")
+    gl_url = ask("GitLab URL", default=gl_default, hint="optional")
     if gl_url:
         merged["gitlab"] = {
             "kind": "gitlab",
@@ -303,7 +303,7 @@ def _section_social_profiles(
 
     # Mastodon
     masto_default = merged.get("mastodon", {}).get("url", "")
-    masto_url = _ask(
+    masto_url = ask(
         "Mastodon URL",
         default=masto_default,
         hint="e.g. https://fosstodon.org/@you, optional",
@@ -318,7 +318,7 @@ def _section_social_profiles(
 
     # LinkedIn
     li_default = merged.get("linkedin", {}).get("url", "")
-    li_url = _ask("LinkedIn URL", default=li_default, hint="optional")
+    li_url = ask("LinkedIn URL", default=li_default, hint="optional")
     if li_url:
         merged["linkedin"] = {
             "kind": "linkedin",
@@ -329,7 +329,7 @@ def _section_social_profiles(
 
     # Website
     web_default = merged.get("website", {}).get("url", "")
-    web_url = _ask("Personal website", default=web_default, hint="optional")
+    web_url = ask("Personal website", default=web_default, hint="optional")
     if web_url:
         merged["website"] = {
             "kind": "website",
@@ -341,10 +341,10 @@ def _section_social_profiles(
     return list(merged.values())
 
 
-def _section_contact(
+def section_contact(
     existing: dict[str, Any], prefilled: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    _print(
+    print_styled(
         "\n<section>── Contact Methods ──────────────────────────────────────────</section>"
     )
 
@@ -362,7 +362,7 @@ def _section_contact(
             email_default = c.get("value", "")
             break
 
-    email = _ask("Professional email", default=email_default, hint="optional")
+    email = ask("Professional email", default=email_default, hint="optional")
     if email:
         key = "email:" + email
         merged[key] = {
@@ -376,12 +376,12 @@ def _section_contact(
     return list(merged.values())
 
 
-def _section_packages(
+def section_packages(
     existing: dict[str, Any],
     prefilled: dict[str, Any],
     pypi_username: str,
 ) -> list[dict[str, Any]]:
-    _print(
+    print_styled(
         "\n<section>── PyPI Packages ──────────────────────────────────────────────</section>"
     )
 
@@ -394,12 +394,12 @@ def _section_packages(
     # Live fetch — only if we don't already have data and user is happy to wait
     live_pkgs: list[dict[str, Any]] = []
     if pypi_username and not ex_pkgs:
-        do_fetch = _ask_bool(
+        do_fetch = ask_bool(
             f"Fetch your PyPI packages for {pypi_username!r} from PyPI now?",
             default=True,
         )
         if do_fetch:
-            live_pkgs = _fetch_pypi_data_silent(pypi_username)
+            live_pkgs = fetch_pypi_data_silent(pypi_username)
 
     # Merge: existing > live > prefilled (from json-resume, usually empty for packages)
     all_pkgs: list[dict[str, Any]] = ex_pkgs[:]
@@ -409,20 +409,20 @@ def _section_packages(
             known_names.add(p["name"])
 
     if all_pkgs:
-        _print(f"<ok>  {len(all_pkgs)} package(s) will be included.</ok>")
+        print_styled(f"<ok>  {len(all_pkgs)} package(s) will be included.</ok>")
         for pkg in all_pkgs[:5]:
-            _print(
+            print_styled(
                 f"    • {pkg['name']}  <hint>({pkg.get('role', 'maintainer')}, {pkg.get('state', 'active')})</hint>"
             )
         if len(all_pkgs) > 5:
-            _print(f"    … and {len(all_pkgs) - 5} more")
+            print_styled(f"    … and {len(all_pkgs) - 5} more")
     else:
-        _print(
+        print_styled(
             "<hint>  No packages found. You can edit the TOML to add them later.</hint>"
         )
-        add_one = _ask_bool("Add a placeholder package entry?", default=False)
+        add_one = ask_bool("Add a placeholder package entry?", default=False)
         if add_one:
-            pkg_name = _ask("Package name", default="")
+            pkg_name = ask("Package name", default="")
             if pkg_name:
                 all_pkgs = [
                     {
@@ -437,17 +437,17 @@ def _section_packages(
     return all_pkgs
 
 
-def _section_hiring(existing: dict[str, Any]) -> dict[str, Any]:
-    _print(
+def section_hiring(existing: dict[str, Any]) -> dict[str, Any]:
+    print_styled(
         "\n<section>── Availability / Hiring ─────────────────────────────────────</section>"
     )
-    _print(
+    print_styled(
         "<hint>  (These fields appear on your profile page and help employers/clients find you.)</hint>"
     )
 
     ex_h = existing.get("hiring", {})
 
-    open_since = _ask(
+    open_since = ask(
         "Open to work since (YYYY-MM-DD, leave blank if not looking):",
         default=ex_h.get("open_to_work_since", ""),
     )
@@ -459,7 +459,7 @@ def _section_hiring(existing: dict[str, Any]) -> dict[str, Any]:
         ("freelance", "Freelance"),
     ]
     current_et = ex_h.get("employment_types", [])
-    selected_et = _checkboxlist(
+    selected_et = checkboxlist(
         "Employment types (space to toggle, enter to confirm):",
         employment_choices,
         defaults=current_et,
@@ -471,22 +471,22 @@ def _section_hiring(existing: dict[str, Any]) -> dict[str, Any]:
         ("onsite", "On-site"),
     ]
     current_wm = ex_h.get("work_model", [])
-    selected_wm = _checkboxlist(
+    selected_wm = checkboxlist(
         "Work model preferences:",
         model_choices,
         defaults=current_wm,
     )
 
-    jurisdiction_raw = _ask(
+    jurisdiction_raw = ask(
         "Jurisdiction(s) (comma-separated country codes, e.g. US,CA):",
         default=",".join(ex_h.get("jurisdiction", [])),
     )
     jurisdiction = [j.strip() for j in jurisdiction_raw.split(",") if j.strip()]
 
-    speaking = _ask_bool(
+    speaking = ask_bool(
         "Open to speaking engagements?", default=ex_h.get("speaking", False)
     )
-    sponsorship = _ask_bool(
+    sponsorship = ask_bool(
         "Open to sponsorship / donations?", default=ex_h.get("sponsorship", False)
     )
 
@@ -507,59 +507,59 @@ def _section_hiring(existing: dict[str, Any]) -> dict[str, Any]:
 
 def run_wizard(dest: Path, from_json_resume: str = "") -> dict[str, Any]:
     """Run the interactive init wizard and return the merged data dict."""
-    _print("")
-    _print(
+    print_styled("")
+    print_styled(
         "<header>╔══════════════════════════════════════════════════════════════╗</header>"
     )
-    _print(
+    print_styled(
         "<header>║         pypi-profile  —  interactive setup wizard           ║</header>"
     )
-    _print(
+    print_styled(
         "<header>╚══════════════════════════════════════════════════════════════╝</header>"
     )
-    _print("")
+    print_styled("")
 
     # ── Step 0: load existing data (safe to re-run) ──────────────────────────
     existing: dict[str, Any] = {}
     if dest.exists():
-        existing = _load_existing_toml(dest)
-        _print(f"<ok>  Found existing {dest} — pre-filling answers from it.</ok>")
-        _print("<hint>  Just press Enter to keep existing values.</hint>\n")
+        existing = load_existing_toml(dest)
+        print_styled(f"<ok>  Found existing {dest} — pre-filling answers from it.</ok>")
+        print_styled("<hint>  Just press Enter to keep existing values.</hint>\n")
     else:
-        _print(f"<hint>  Will create {dest}</hint>\n")
+        print_styled(f"<hint>  Will create {dest}</hint>\n")
 
     # ── Step 1: JSON Resume auto-detect ──────────────────────────────────────
     prefilled: dict[str, Any] = {}
 
     jr_path_str = from_json_resume
     if not jr_path_str:
-        found = _find_json_resume()
+        found = find_json_resume()
         if found:
-            _print(f"<ok>  Found JSON Resume at {found}</ok>")
-            use_jr = _ask_bool("Import data from it?", default=True)
+            print_styled(f"<ok>  Found JSON Resume at {found}</ok>")
+            use_jr = ask_bool("Import data from it?", default=True)
             if use_jr:
                 jr_path_str = str(found)
 
     if jr_path_str:
         jr_path = Path(jr_path_str)
         if jr_path.exists():
-            from pypi_profile.importers import from_json_resume as _from_jr
+            from pypi_profile.importers import from_json_resume as from_jr
 
-            _print(f"<fetched>  Importing {jr_path} …</fetched>")
-            prefilled = _from_jr(jr_path)
-            _print("<ok>  JSON Resume imported.</ok>")
+            print_styled(f"<fetched>  Importing {jr_path} …</fetched>")
+            prefilled = from_jr(jr_path)
+            print_styled("<ok>  JSON Resume imported.</ok>")
         else:
-            _print(f"<warn>  JSON Resume not found: {jr_path}</warn>")
+            print_styled(f"<warn>  JSON Resume not found: {jr_path}</warn>")
 
     # ── Step 2: Ask questions (shortest path) ────────────────────────────────
-    identity = _section_identity(existing, prefilled)
-    profile_sec = _section_profile_summary(existing, prefilled, identity)
-    social_profiles = _section_social_profiles(
+    identity = section_identity(existing, prefilled)
+    profile_sec = section_profile_summary(existing, prefilled, identity)
+    social_profiles = section_social_profiles(
         existing, prefilled, identity["pypi_username"]
     )
-    contact_methods = _section_contact(existing, prefilled)
-    packages = _section_packages(existing, prefilled, identity["pypi_username"])
-    hiring = _section_hiring(existing)
+    contact_methods = section_contact(existing, prefilled)
+    packages = section_packages(existing, prefilled, identity["pypi_username"])
+    hiring = section_hiring(existing)
 
     # ── Step 3: Carry over sections we didn't ask about ──────────────────────
     work_experience = (
@@ -570,7 +570,7 @@ def run_wizard(dest: Path, from_json_resume: str = "") -> dict[str, Any]:
     succession = existing.get("succession") or {}
     verification = existing.get("verification") or {}
     contact_preferences = existing.get("contact_preferences") or {}
-    funding = existing.get("_funding") or prefilled.get("_funding") or {}
+    funding = existing.get("funding") or prefilled.get("funding") or {}
 
     humans = existing.get("humans") or [
         {
@@ -580,8 +580,8 @@ def run_wizard(dest: Path, from_json_resume: str = "") -> dict[str, Any]:
         }
     ]
 
-    _print("")
-    _print("<ok>✔  All questions answered.</ok>")
+    print_styled("")
+    print_styled("<ok>✔  All questions answered.</ok>")
 
     return {
         "profile": profile_sec,
@@ -597,5 +597,5 @@ def run_wizard(dest: Path, from_json_resume: str = "") -> dict[str, Any]:
         "succession": succession,
         "verification": verification,
         "contact_preferences": contact_preferences,
-        "_funding": funding,
+        "funding": funding,
     }

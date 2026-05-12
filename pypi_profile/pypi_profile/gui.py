@@ -13,6 +13,20 @@ from pathlib import Path
 from tkinter import filedialog, font, scrolledtext, ttk
 from typing import Literal, TypedDict, cast
 
+
+def _detect_keyring_status() -> str:
+    """Return a short human-readable keyring status string."""
+    try:
+        import keyring
+        import keyring.backends.fail
+
+        backend = keyring.get_keyring()
+        if isinstance(backend, keyring.backends.fail.Keyring):
+            return "unavailable (disk only)"
+        return f"active ({type(backend).__name__})"
+    except Exception:
+        return "unavailable"
+
 ArgKind = Literal["file", "dir", "bool", "password", "choice", "str"]
 
 
@@ -293,8 +307,10 @@ COMMANDS: list[GuiCommand] = [
             "Source: path to a pypi_profile.toml, a directory, or a package name.\n"
             "--url: the URL you are asserting control over (required)\n"
             "--key: path to your secret key file\n"
-            "--password: password for the secret key\n"
-            "--profile-package: override the profile package name"
+            "--profile-package: override the profile package name\n\n"
+            "Key password: leave blank — the signing key is loaded from your system "
+            "keyring automatically.  Only enter a password if you are on a system "
+            "without keyring support and your key file is password-protected."
         ),
         "args": [
             {
@@ -317,7 +333,7 @@ COMMANDS: list[GuiCommand] = [
             },
             {
                 "flag": "--password",
-                "label": "Key password",
+                "label": "Key password (keyring fallback only)",
                 "default": "",
                 "kind": "password",
             },
@@ -330,6 +346,58 @@ COMMANDS: list[GuiCommand] = [
         ],
         "readonly": False,
     },
+    {
+        "name": "update-proofs",
+        "label": "Update Proofs",
+        "help": (
+            "Sign all [[profiles]] URLs and write stored_proof values into the TOML.\n\n"
+            "This is the batch equivalent of 'Sign Claim': it iterates every entry in "
+            "[[profiles]] that uses controls-url verification, signs each URL with your "
+            "minisign secret key, and patches the resulting proof strings directly into "
+            "pypi_profile.toml under stored_proof.\n\n"
+            "After running this command, commit the updated TOML so that the static "
+            "build can embed the proofs without needing your private key.\n\n"
+            "Source: path to a pypi_profile.toml, a directory, or a package name.\n"
+            "--profile-package: override the profile package name\n"
+            "--force: re-sign URLs that already have a stored_proof\n\n"
+            "Key password: leave blank — the signing key is loaded from your system "
+            "keyring automatically.  Only enter a password if you are on a system "
+            "without keyring support and your key file is password-protected."
+        ),
+        "args": [
+            {
+                "flag": "source",
+                "label": "Source (path or package)",
+                "default": "pypi_profile.toml",
+                "kind": "file",
+            },
+            {
+                "flag": "--key",
+                "label": "Secret key path",
+                "default": "~/.pypi_profile/minisign.key",
+                "kind": "file",
+            },
+            {
+                "flag": "--password",
+                "label": "Key password (keyring fallback only)",
+                "default": "",
+                "kind": "password",
+            },
+            {
+                "flag": "--profile-package",
+                "label": "Profile package name override",
+                "default": "",
+                "kind": "str",
+            },
+            {
+                "flag": "--force",
+                "label": "Re-sign existing proofs",
+                "default": False,
+                "kind": "bool",
+            },
+        ],
+        "readonly": False,
+    },
 ]
 
 HELP_INTRO = (
@@ -338,9 +406,14 @@ HELP_INTRO = (
     "Select a command from the left panel.\n\n"
     "Read-only commands (Doctor, Inspect, Validate, Dump, Fetch, Verify) "
     "run automatically when selected.\n\n"
-    "Write commands (Serve, Init, Keygen, Sign) require you to fill in "
-    "the arguments and press Run.\n\n"
-    "Use the Browse buttons to pick files or directories interactively."
+    "Write commands (Serve, Init, Keygen, Sign, Update Proofs) require you "
+    "to fill in the arguments and press Run.\n\n"
+    "Use the Browse buttons to pick files or directories interactively.\n\n"
+    "Key & password:\n"
+    "  Your signing key is stored in the system keyring — you do NOT need "
+    "to type a password for commands that use it.  The password field is "
+    "only needed on systems without keyring support (e.g. some Linux distros) "
+    "when the key file on disk is password-protected."
 )
 
 
@@ -350,18 +423,18 @@ class PypiProfileGui(tk.Tk):
         self.title("pypi-profile GUI")
         self.geometry("1100x680")
         self.minsize(900, 500)
-        self._running_proc: subprocess.Popen[str] | None = None
-        self._current_cmd: GuiCommand | None = None
-        self._arg_widgets: dict[str, tk.Variable] = {}
+        self.running_proc: subprocess.Popen[str] | None = None
+        self.current_cmd: GuiCommand | None = None
+        self.arg_widgets: dict[str, tk.Variable] = {}
 
         default_key = str(Path("~/.pypi_profile/minisign.key").expanduser())
-        self._global_key_path = tk.StringVar(value=default_key)
-        self._global_key_password = tk.StringVar(value="")
+        self.global_key_path = tk.StringVar(value=default_key)
+        self.global_key_password = tk.StringVar(value="")
 
-        self._build_ui()
-        self._select_command(COMMANDS[0])
+        self.build_ui()
+        self.select_command(COMMANDS[0])
 
-    def _build_ui(self) -> None:
+    def build_ui(self) -> None:
         mono = font.Font(family="Courier New", size=10)
 
         # ── root grid: 3 columns ──────────────────────────────────────────
@@ -385,7 +458,7 @@ class PypiProfileGui(tk.Tk):
             pady=6,
         ).grid(row=0, column=0, sticky="ew")
 
-        self._cmd_buttons: dict[str, tk.Button] = {}
+        self.cmd_buttons: dict[str, tk.Button] = {}
         for i, cmd in enumerate(COMMANDS):
             btn = tk.Button(
                 left,
@@ -397,11 +470,11 @@ class PypiProfileGui(tk.Tk):
                 fg="#cccccc",
                 activebackground="#444444",
                 activeforeground="white",
-                command=self._make_select_command(cmd),
+                command=self.make_select_command(cmd),
             )
             btn.grid(row=i + 1, column=0, sticky="ew", padx=2, pady=1)
             left.columnconfigure(0, weight=1)
-            self._cmd_buttons[cmd["name"]] = btn
+            self.cmd_buttons[cmd["name"]] = btn
 
         # ── Key settings (bottom of left panel) ──────────────────────────
         sep_row = len(COMMANDS) + 1
@@ -415,24 +488,37 @@ class PypiProfileGui(tk.Tk):
 
         tk.Label(
             key_frame,
-            text="Key",
+            text="Signing Key",
             bg="#2b2b2b",
             fg="#aaaaaa",
             font=("Helvetica", 9, "bold"),
             anchor="w",
         ).grid(row=0, column=0, columnspan=2, sticky="w")
 
+        keyring_status = _detect_keyring_status()
+        keyring_color = "#55cc55" if "unavailable" not in keyring_status else "#cc8855"
         tk.Label(
             key_frame,
-            text="Path:",
+            text=f"Keyring: {keyring_status}",
+            bg="#2b2b2b",
+            fg=keyring_color,
+            font=("Helvetica", 7),
+            anchor="w",
+            wraplength=150,
+            justify=tk.LEFT,
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 4))
+
+        tk.Label(
+            key_frame,
+            text="Fallback path:",
             bg="#2b2b2b",
             fg="#aaaaaa",
             font=("Helvetica", 8),
             anchor="w",
-        ).grid(row=1, column=0, sticky="w", pady=(2, 0))
+        ).grid(row=2, column=0, sticky="w", pady=(2, 0))
         key_path_entry = tk.Entry(
             key_frame,
-            textvariable=self._global_key_path,
+            textvariable=self.global_key_path,
             width=16,
             font=("Courier New", 8),
             bg="#1a1a1a",
@@ -440,33 +526,45 @@ class PypiProfileGui(tk.Tk):
             insertbackground="white",
             relief=tk.FLAT,
         )
-        key_path_entry.grid(row=2, column=0, sticky="ew", pady=(0, 2))
+        key_path_entry.grid(row=3, column=0, sticky="ew", pady=(0, 2))
         tk.Button(
             key_frame,
             text="…",
             font=("Helvetica", 8),
             padx=2,
             pady=0,
-            command=lambda: self._global_key_path.set(
+            command=lambda: self.global_key_path.set(
                 filedialog.askopenfilename(
                     title="Select secret key",
                     filetypes=[("Key files", "*.key"), ("All files", "*.*")],
                 )
-                or self._global_key_path.get()
+                or self.global_key_path.get()
             ),
-        ).grid(row=2, column=1, padx=(2, 0))
+        ).grid(row=3, column=1, padx=(2, 0))
 
         tk.Label(
             key_frame,
-            text="Password:",
+            text="Password (keyring fallback only):",
             bg="#2b2b2b",
             fg="#aaaaaa",
             font=("Helvetica", 8),
             anchor="w",
-        ).grid(row=3, column=0, sticky="w", pady=(4, 0))
+            wraplength=150,
+            justify=tk.LEFT,
+        ).grid(row=4, column=0, columnspan=2, sticky="w", pady=(4, 0))
+        tk.Label(
+            key_frame,
+            text="Leave blank if keyring is active.",
+            bg="#2b2b2b",
+            fg="#777777",
+            font=("Helvetica", 7),
+            anchor="w",
+            wraplength=150,
+            justify=tk.LEFT,
+        ).grid(row=5, column=0, columnspan=2, sticky="w")
         tk.Entry(
             key_frame,
-            textvariable=self._global_key_password,
+            textvariable=self.global_key_password,
             show="*",
             width=16,
             font=("Courier New", 8),
@@ -474,7 +572,7 @@ class PypiProfileGui(tk.Tk):
             fg="#cccccc",
             insertbackground="white",
             relief=tk.FLAT,
-        ).grid(row=4, column=0, columnspan=2, sticky="ew")
+        ).grid(row=6, column=0, columnspan=2, sticky="ew")
 
         # ── CENTER panel ─────────────────────────────────────────────────
         center = tk.Frame(self)
@@ -485,10 +583,10 @@ class PypiProfileGui(tk.Tk):
         center.columnconfigure(0, weight=1)
 
         # Title
-        self._title_var = tk.StringVar(value="")
+        self.title_var = tk.StringVar(value="")
         tk.Label(
             center,
-            textvariable=self._title_var,
+            textvariable=self.title_var,
             font=("Helvetica", 13, "bold"),
             anchor="w",
         ).grid(row=0, column=0, sticky="ew", pady=(0, 4))
@@ -497,7 +595,7 @@ class PypiProfileGui(tk.Tk):
         args_outer = tk.Frame(center, bd=1, relief=tk.GROOVE)
         args_outer.grid(row=1, column=0, sticky="ew", pady=(0, 4))
         args_outer.columnconfigure(0, weight=1)
-        self._args_frame = args_outer
+        self.args_frame = args_outer
 
         # Output
         out_label = tk.Label(
@@ -505,39 +603,39 @@ class PypiProfileGui(tk.Tk):
         )
         out_label.grid(row=2, column=0, sticky="w")
 
-        self._output = scrolledtext.ScrolledText(
+        self.output = scrolledtext.ScrolledText(
             center, font=mono, bg="#1e1e1e", fg="#d4d4d4", wrap=tk.WORD
         )
-        self._output.grid(row=3, column=0, sticky="nsew")
+        self.output.grid(row=3, column=0, sticky="nsew")
         center.rowconfigure(3, weight=1)
 
         # Run / Stop bar
         btn_bar = tk.Frame(center)
         btn_bar.grid(row=4, column=0, sticky="ew", pady=(4, 0))
-        self._run_btn = tk.Button(
+        self.run_btn = tk.Button(
             btn_bar,
             text="Run",
             width=10,
-            command=self._run_command,
+            command=self.run_command,
             bg="#0e7c0e",
             fg="white",
         )
-        self._run_btn.pack(side=tk.LEFT, padx=(0, 4))
-        self._stop_btn = tk.Button(
+        self.run_btn.pack(side=tk.LEFT, padx=(0, 4))
+        self.stop_btn = tk.Button(
             btn_bar,
             text="Stop",
             width=10,
-            command=self._stop_command,
+            command=self.stop_command,
             bg="#7c0e0e",
             fg="white",
             state=tk.DISABLED,
         )
-        self._stop_btn.pack(side=tk.LEFT)
-        self._status_var = tk.StringVar(value="")
-        self._status_label = tk.Label(
-            btn_bar, textvariable=self._status_var, fg="#888888"
+        self.stop_btn.pack(side=tk.LEFT)
+        self.status_var = tk.StringVar(value="")
+        self.status_label = tk.Label(
+            btn_bar, textvariable=self.status_var, fg="#888888"
         )
-        self._status_label.pack(side=tk.LEFT, padx=8)
+        self.status_label.pack(side=tk.LEFT, padx=8)
 
         # ── RIGHT panel ──────────────────────────────────────────────────
         right = tk.Frame(self, bd=1, relief=tk.SUNKEN)
@@ -548,7 +646,7 @@ class PypiProfileGui(tk.Tk):
         tk.Label(
             right, text="Help", font=("Helvetica", 11, "bold"), anchor="w", pady=4
         ).grid(row=0, column=0, sticky="ew", padx=6)
-        self._help_text = scrolledtext.ScrolledText(
+        self.help_text = scrolledtext.ScrolledText(
             right,
             font=("Helvetica", 10),
             wrap=tk.WORD,
@@ -556,90 +654,100 @@ class PypiProfileGui(tk.Tk):
             fg="#222222",
             relief=tk.FLAT,
         )
-        self._help_text.grid(row=1, column=0, sticky="nsew", padx=4, pady=(0, 4))
-        self._help_text.insert(tk.END, HELP_INTRO)
-        self._help_text.config(state=tk.DISABLED)
+        self.help_text.grid(row=1, column=0, sticky="nsew", padx=4, pady=(0, 4))
+        self.help_text.insert(tk.END, HELP_INTRO)
+        self.help_text.config(state=tk.DISABLED)
 
-    def _make_select_command(self, cmd: GuiCommand) -> Callable[[], None]:
+    def make_select_command(self, cmd: GuiCommand) -> Callable[[], None]:
         def select_command() -> None:
-            self._select_command(cmd)
+            self.select_command(cmd)
 
         return select_command
 
-    def _select_command(self, cmd: GuiCommand) -> None:
-        self._stop_command()
-        self._current_cmd = cmd
+    def select_command(self, cmd: GuiCommand) -> None:
+        self.stop_command()
+        self.current_cmd = cmd
 
         # Highlight active button
-        for name, btn in self._cmd_buttons.items():
+        for name, btn in self.cmd_buttons.items():
             is_active = name == cmd["name"]
             btn.config(
                 bg="#005f99" if is_active else "#2b2b2b",
                 fg="white" if is_active else "#cccccc",
             )
 
-        self._title_var.set(cmd["label"])
-        self._build_args_form(cmd)
-        self._update_help(cmd["help"])
-        self._output.delete("1.0", tk.END)
+        self.title_var.set(cmd["label"])
+        self.build_args_form(cmd)
+        self.update_help(cmd["help"])
+        self.output.delete("1.0", tk.END)
 
         if cmd["readonly"]:
-            self._run_btn.config(state=tk.DISABLED)
-            self._run_command()
+            self.run_btn.config(state=tk.DISABLED)
+            self.run_command()
         else:
-            self._run_btn.config(state=tk.NORMAL)
+            self.run_btn.config(state=tk.NORMAL)
 
-    def _build_args_form(self, cmd: GuiCommand) -> None:
-        for w in self._args_frame.winfo_children():
+    def build_args_form(self, cmd: GuiCommand) -> None:
+        for w in self.args_frame.winfo_children():
             w.destroy()
-        self._arg_widgets.clear()
+        self.arg_widgets.clear()
 
         if not cmd["args"]:
             tk.Label(
-                self._args_frame, text="No arguments needed.", fg="#888888", pady=4
+                self.args_frame, text="No arguments needed.", fg="#888888", pady=4
             ).grid(row=0, column=0, columnspan=3, padx=8)
             return
 
-        self._args_frame.columnconfigure(1, weight=1)
+        self.args_frame.columnconfigure(1, weight=1)
         for row_i, arg in enumerate(cmd["args"]):
             label = arg["label"]
             flag = arg["flag"]
             kind = arg["kind"]
             default = arg["default"]
 
-            tk.Label(self._args_frame, text=label + ":", anchor="e").grid(
+            tk.Label(self.args_frame, text=label + ":", anchor="e").grid(
                 row=row_i, column=0, sticky="e", padx=(8, 4), pady=3
             )
 
             if kind == "bool":
                 var: tk.Variable = tk.BooleanVar(value=bool(default))
-                tk.Checkbutton(self._args_frame, variable=var).grid(
+                tk.Checkbutton(self.args_frame, variable=var).grid(
                     row=row_i, column=1, sticky="w", pady=3
                 )
-                self._arg_widgets[flag] = var
+                self.arg_widgets[flag] = var
 
             elif kind == "choice":
                 var = tk.StringVar(value=str(default))
                 cb = ttk.Combobox(
-                    self._args_frame,
+                    self.args_frame,
                     textvariable=var,
                     values=arg["choices"],
                     state="readonly",
                     width=24,
                 )
                 cb.grid(row=row_i, column=1, sticky="ew", pady=3, padx=(0, 8))
-                self._arg_widgets[flag] = var
+                self.arg_widgets[flag] = var
 
             elif kind == "password":
                 var = tk.StringVar(value=str(default))
-                tk.Entry(self._args_frame, textvariable=var, show="*", width=36).grid(
-                    row=row_i, column=1, sticky="ew", pady=3, padx=(0, 8)
+                pw_frame = tk.Frame(self.args_frame)
+                pw_frame.grid(row=row_i, column=1, columnspan=2, sticky="ew", pady=3, padx=(0, 8))
+                pw_frame.columnconfigure(0, weight=1)
+                tk.Entry(pw_frame, textvariable=var, show="*", width=36).grid(
+                    row=0, column=0, sticky="ew"
                 )
-                self._arg_widgets[flag] = var
+                tk.Label(
+                    pw_frame,
+                    text="Leave blank — keyring handles this automatically.",
+                    fg="#888888",
+                    font=("Helvetica", 8),
+                    anchor="w",
+                ).grid(row=1, column=0, sticky="w")
+                self.arg_widgets[flag] = var
 
             elif kind in ("file", "dir"):
                 var = tk.StringVar(value=str(default))
-                entry = tk.Entry(self._args_frame, textvariable=var, width=36)
+                entry = tk.Entry(self.args_frame, textvariable=var, width=36)
                 entry.grid(row=row_i, column=1, sticky="ew", pady=3)
 
                 if kind == "file":
@@ -655,24 +763,24 @@ class PypiProfileGui(tk.Tk):
                             value_var.set(selected_path)
 
                 tk.Button(
-                    self._args_frame, text="Browse", command=browse_for_path
+                    self.args_frame, text="Browse", command=browse_for_path
                 ).grid(row=row_i, column=2, padx=(4, 8), pady=3)
-                self._arg_widgets[flag] = var
+                self.arg_widgets[flag] = var
 
             else:
                 var = tk.StringVar(value=str(default))
-                tk.Entry(self._args_frame, textvariable=var, width=36).grid(
+                tk.Entry(self.args_frame, textvariable=var, width=36).grid(
                     row=row_i, column=1, sticky="ew", pady=3, padx=(0, 8)
                 )
-                self._arg_widgets[flag] = var
+                self.arg_widgets[flag] = var
 
-    def _update_help(self, text: str) -> None:
-        self._help_text.config(state=tk.NORMAL)
-        self._help_text.delete("1.0", tk.END)
-        self._help_text.insert(tk.END, text)
-        self._help_text.config(state=tk.DISABLED)
+    def update_help(self, text: str) -> None:
+        self.help_text.config(state=tk.NORMAL)
+        self.help_text.delete("1.0", tk.END)
+        self.help_text.insert(tk.END, text)
+        self.help_text.config(state=tk.DISABLED)
 
-    def _build_argv_and_env(self, cmd: GuiCommand) -> tuple[list[str], dict[str, str]]:
+    def build_argv_and_env(self, cmd: GuiCommand) -> tuple[list[str], dict[str, str]]:
         """Return (argv, extra_env).  Passwords and key path are passed via env vars, not argv."""
         import os
 
@@ -687,7 +795,7 @@ class PypiProfileGui(tk.Tk):
         for arg in cmd["args"]:
             flag = arg["flag"]
             kind = arg["kind"]
-            var = self._arg_widgets.get(flag)
+            var = self.arg_widgets.get(flag)
             if var is None:
                 continue
             get_value = cast(Callable[[], object], var.get)
@@ -709,8 +817,8 @@ class PypiProfileGui(tk.Tk):
 
         # Global key settings — applied to every command, not just sign/keygen.
         # Per-command password (above) wins if both are set.
-        key_path = self._global_key_path.get().strip()
-        key_password = self._global_key_password.get().strip()
+        key_path = self.global_key_path.get().strip()
+        key_password = self.global_key_password.get().strip()
         if key_path:
             extra_env.setdefault("PYPI_PROFILE_KEY_PATH", key_path)
         if key_password:
@@ -719,19 +827,19 @@ class PypiProfileGui(tk.Tk):
         env = {**os.environ, **extra_env}
         return argv, env
 
-    def _run_command(self) -> None:
-        cmd = self._current_cmd
+    def run_command(self) -> None:
+        cmd = self.current_cmd
         if cmd is None:
             return
 
-        self._output.delete("1.0", tk.END)
-        argv, env = self._build_argv_and_env(cmd)
+        self.output.delete("1.0", tk.END)
+        argv, env = self.build_argv_and_env(cmd)
         # Show the command without revealing env-var secrets
-        self._append_output(f"$ {' '.join(argv)}\n\n")
-        self._status_var.set("Running…")
-        self._status_label.config(fg="#888888")
-        self._run_btn.config(state=tk.DISABLED)
-        self._stop_btn.config(state=tk.NORMAL)
+        self.append_output(f"$ {' '.join(argv)}\n\n")
+        self.status_var.set("Running…")
+        self.status_label.config(fg="#888888")
+        self.run_btn.config(state=tk.DISABLED)
+        self.stop_btn.config(state=tk.NORMAL)
 
         def worker() -> None:
             try:
@@ -746,47 +854,47 @@ class PypiProfileGui(tk.Tk):
                     cwd=str(Path.cwd()),
                     env=env,
                 ) as proc:
-                    self._running_proc = proc
+                    self.running_proc = proc
                     assert proc.stdout is not None
                     for line in proc.stdout:
-                        self._append_output(line)
+                        self.append_output(line)
                     rc = proc.wait()
-                self._running_proc = None
-                self.after(0, lambda: self._on_done(rc, cmd))
+                self.running_proc = None
+                self.after(0, lambda: self.on_done(rc, cmd))
             except (OSError, ValueError, subprocess.SubprocessError) as exc:
-                self._append_output(f"\nERROR: {exc}\n")
-                self._running_proc = None
-                self.after(0, lambda: self._on_done(1, cmd))
+                self.append_output(f"\nERROR: {exc}\n")
+                self.running_proc = None
+                self.after(0, lambda: self.on_done(1, cmd))
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_done(self, rc: int, cmd: GuiCommand) -> None:
-        self._stop_btn.config(state=tk.DISABLED)
+    def on_done(self, rc: int, cmd: GuiCommand) -> None:
+        self.stop_btn.config(state=tk.DISABLED)
         if not cmd["readonly"]:
-            self._run_btn.config(state=tk.NORMAL)
+            self.run_btn.config(state=tk.NORMAL)
         msg = f"Exited {rc}"
-        self._status_var.set(msg)
-        self._status_label.config(fg="#0e7c0e" if rc == 0 else "#7c0e0e")
-        self._append_output(f"\n[{msg}]\n")
-        self.after(5000, lambda: self._status_var.set(""))
+        self.status_var.set(msg)
+        self.status_label.config(fg="#0e7c0e" if rc == 0 else "#7c0e0e")
+        self.append_output(f"\n[{msg}]\n")
+        self.after(5000, lambda: self.status_var.set(""))
 
-    def _stop_command(self) -> None:
-        if self._running_proc is not None:
+    def stop_command(self) -> None:
+        if self.running_proc is not None:
             with suppress(OSError):
-                self._running_proc.terminate()
-            self._running_proc = None
-        self._stop_btn.config(state=tk.DISABLED)
-        if self._current_cmd and not self._current_cmd["readonly"]:
-            self._run_btn.config(state=tk.NORMAL)
-        self._status_var.set("")
-        self._status_label.config(fg="#888888")
+                self.running_proc.terminate()
+            self.running_proc = None
+        self.stop_btn.config(state=tk.DISABLED)
+        if self.current_cmd and not self.current_cmd["readonly"]:
+            self.run_btn.config(state=tk.NORMAL)
+        self.status_var.set("")
+        self.status_label.config(fg="#888888")
 
-    def _append_output(self, text: str) -> None:
-        def _do() -> None:
-            self._output.insert(tk.END, text)
-            self._output.see(tk.END)
+    def append_output(self, text: str) -> None:
+        def do() -> None:
+            self.output.insert(tk.END, text)
+            self.output.see(tk.END)
 
-        self.after(0, _do)
+        self.after(0, do)
 
 
 def main() -> None:

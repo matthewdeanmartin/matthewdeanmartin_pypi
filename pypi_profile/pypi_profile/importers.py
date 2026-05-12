@@ -14,7 +14,7 @@ from typing import Any, cast
 logger = logging.getLogger(__name__)
 
 
-def _open_http_url(request: urllib.request.Request) -> Any:
+def open_http_url(request: urllib.request.Request) -> Any:
     """Open an HTTP(S) request after rejecting other URL schemes."""
     scheme = urllib.parse.urlsplit(request.full_url).scheme
     if scheme not in {"http", "https"}:
@@ -22,17 +22,17 @@ def _open_http_url(request: urllib.request.Request) -> Any:
     return urllib.request.urlopen(request, timeout=10)  # nosec B310
 
 
-def _get_json(url: str, accept: str = "application/json") -> Any:
+def get_json(url: str, accept: str = "application/json") -> Any:
     req = urllib.request.Request(
         url, headers={"Accept": accept, "User-Agent": "pypi-profile/0.1"}
     )
-    with _open_http_url(req) as resp:
+    with open_http_url(req) as resp:
         return json.loads(cast(bytes, resp.read()).decode())
 
 
-def _get_text(url: str) -> str:
+def get_text(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "pypi-profile/0.1"})
-    with _open_http_url(req) as resp:
+    with open_http_url(req) as resp:
         return cast(bytes, resp.read()).decode()
 
 
@@ -41,7 +41,7 @@ def _get_text(url: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _validate_json_resume(raw: dict[str, Any]) -> None:
+def validate_json_resume(raw: dict[str, Any]) -> None:
     """Warn if raw dict does not conform to the JSON Resume schema."""
     try:
         from schema_resume import \
@@ -63,17 +63,17 @@ def _validate_json_resume(raw: dict[str, Any]) -> None:
 def from_json_resume(path: Path) -> dict[str, Any]:
     """Convert a JSON Resume file into a pypi_profile data dict."""
     raw = json.loads(path.read_text(encoding="utf-8"))
-    _validate_json_resume(raw)
-    return _map_json_resume(raw)
+    validate_json_resume(raw)
+    return map_json_resume(raw)
 
 
 def from_json_resume_dict(raw: dict[str, Any]) -> dict[str, Any]:
     """Convert a JSON Resume dict into a pypi_profile data dict."""
-    _validate_json_resume(raw)
-    return _map_json_resume(raw)
+    validate_json_resume(raw)
+    return map_json_resume(raw)
 
 
-def _map_json_resume(r: dict[str, Any]) -> dict[str, Any]:
+def map_json_resume(r: dict[str, Any]) -> dict[str, Any]:
     basics = r.get("basics", {})
     name = basics.get("name", "")
     email = basics.get("email", "")
@@ -201,8 +201,8 @@ def _map_json_resume(r: dict[str, Any]) -> dict[str, Any]:
             {
                 "organization": w.get("name", w.get("company", "")),
                 "title": w.get("position", ""),
-                "start_date": _normalize_date(w.get("startDate", "")),
-                "end_date": _normalize_date(w.get("endDate", "present")) or "present",
+                "start_date": normalize_date(w.get("startDate", "")),
+                "end_date": normalize_date(w.get("endDate", "present")) or "present",
                 "summary": w.get("summary", ""),
             }
         )
@@ -251,17 +251,17 @@ def _map_json_resume(r: dict[str, Any]) -> dict[str, Any]:
         },
     }
     if github_url:
-        data["_github_url"] = github_url
+        data["github_url"] = github_url
     if mastodon_url:
-        data["_mastodon_url"] = mastodon_url
+        data["mastodon_url"] = mastodon_url
     if gitlab_url:
-        data["_gitlab_url"] = gitlab_url
+        data["gitlab_url"] = gitlab_url
     if skills:
-        data["_skills"] = skills
+        data["skills"] = skills
     return data
 
 
-def _normalize_date(d: str) -> str:
+def normalize_date(d: str) -> str:
     if not d:
         return ""
     if d.lower() in ("present", "current", "now"):
@@ -277,10 +277,10 @@ def _normalize_date(d: str) -> str:
 
 def fetch_pypi_packages(username: str) -> list[dict[str, Any]]:
     """Return list of package dicts for packages where username is a maintainer/owner."""
-    return _fetch_pypi_user_packages(username)
+    return fetch_pypi_user_packages(username)
 
 
-def _fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
+def fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
     """Fetch packages owned/maintained by a PyPI user via the PyPI XML-RPC API."""
     # PyPI exposes maintainer package data through this trusted upstream API.
     import xmlrpc.client  # nosec B411
@@ -296,7 +296,7 @@ def _fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
 
     for role, name in role_pkg_pairs:
         try:
-            meta = _get_json(f"https://pypi.org/pypi/{name}/json")
+            meta = get_json(f"https://pypi.org/pypi/{name}/json")
             info = meta.get("info", {})
             results.append(
                 {
@@ -333,7 +333,7 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
     """Fetch metadata for a single PyPI package."""
     logger.debug("Fetching PyPI metadata for package %r", package_name)
     try:
-        data = _get_json(f"https://pypi.org/pypi/{package_name}/json")
+        data = get_json(f"https://pypi.org/pypi/{package_name}/json")
         info = data.get("info", {})
         return {
             "name": package_name,
@@ -376,7 +376,7 @@ def fetch_github_profile(username: str, token: str | None = None) -> dict[str, A
         req.add_header("User-Agent", "pypi-profile/0.1")
         if token:
             req.add_header("Authorization", f"Bearer {token}")
-        with _open_http_url(req) as resp:
+        with open_http_url(req) as resp:
             data = json.loads(resp.read().decode())
         return {
             "name": data.get("name", ""),
@@ -417,7 +417,7 @@ def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str
             req.add_header("User-Agent", "pypi-profile/0.1")
             if token:
                 req.add_header("Authorization", f"Bearer {token}")
-            with _open_http_url(req) as resp:
+            with open_http_url(req) as resp:
                 repos = json.loads(resp.read().decode())
                 link_header = resp.headers.get("Link", "")
             for r in repos:
@@ -451,7 +451,7 @@ def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str
 
 
 def fetch_github_funding(
-    username: str, repo: str = "", _token: str | None = None
+    username: str, repo: str = "", token: str | None = None
 ) -> dict[str, Any]:
     """Fetch FUNDING.yml from a GitHub user's .github or specified repo."""
     targets = []
@@ -471,9 +471,9 @@ def fetch_github_funding(
 
     for url in targets:
         try:
-            text = _get_text(url)
+            text = get_text(url)
             logger.debug("Found FUNDING.yml at %s", url)
-            return _parse_funding_yml(text)
+            return parse_funding_yml(text)
         except (
             OSError,
             TimeoutError,
@@ -487,7 +487,7 @@ def fetch_github_funding(
     return {}
 
 
-def _parse_funding_yml(text: str) -> dict[str, Any]:
+def parse_funding_yml(text: str) -> dict[str, Any]:
     """Parse a FUNDING.yml file into a dict of platform→handle."""
     result: dict[str, Any] = {}
     for line in text.splitlines():
@@ -510,7 +510,7 @@ def load_local_funding_yml(search_dirs: list[Path] | None = None) -> dict[str, A
         for name in ("FUNDING.yml", "FUNDING.yaml", "funding.yml", "funding.yaml"):
             candidate = directory / name
             if candidate.exists():
-                return _parse_funding_yml(candidate.read_text(encoding="utf-8"))
+                return parse_funding_yml(candidate.read_text(encoding="utf-8"))
     return {}
 
 
@@ -528,7 +528,7 @@ def fetch_gitlab_profile(username: str, token: str | None = None) -> dict[str, A
         req.add_header("User-Agent", "pypi-profile/0.1")
         if token:
             req.add_header("PRIVATE-TOKEN", token)
-        with _open_http_url(req) as resp:
+        with open_http_url(req) as resp:
             users = json.loads(resp.read().decode())
         if not users:
             return {}
@@ -571,7 +571,7 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
         instance, username = m.group(1), m.group(2)
         url = f"https://{instance}/api/v1/accounts/lookup?acct={username}"
         req = urllib.request.Request(url, headers={"User-Agent": "pypi-profile/0.1"})
-        with _open_http_url(req) as resp:
+        with open_http_url(req) as resp:
             data = json.loads(resp.read().decode())
         # Parse metadata fields (e.g., verification links)
         fields = []

@@ -9,14 +9,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pypi_profile.importers import (_get_json, _get_text, _normalize_date,
-                                    _open_http_url, fetch_github_funding,
-                                    fetch_github_profile, fetch_github_repos,
-                                    fetch_gitlab_profile,
+from pypi_profile.importers import (fetch_github_funding, fetch_github_profile,
+                                    fetch_github_repos, fetch_gitlab_profile,
                                     fetch_mastodon_profile,
                                     fetch_pypi_package_info,
                                     fetch_pypi_packages, from_json_resume_dict,
-                                    merge_live_data_into_profile)
+                                    get_json, get_text,
+                                    merge_live_data_into_profile,
+                                    normalize_date, open_http_url)
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def test_open_http_url_invalid_scheme() -> None:
 
     req = Request("ftp://example.com")
     with pytest.raises(ValueError, match="Unsupported URL scheme"):
-        _open_http_url(req)
+        open_http_url(req)
 
 
 def test_get_json(mock_urlopen: MagicMock) -> None:
@@ -38,7 +38,7 @@ def test_get_json(mock_urlopen: MagicMock) -> None:
     mock_resp.__enter__.return_value = mock_resp
     mock_urlopen.return_value = mock_resp
 
-    data = _get_json("https://api.example.com/data")
+    data = get_json("https://api.example.com/data")
     assert data == {"key": "value"}
 
 
@@ -48,7 +48,7 @@ def test_get_text(mock_urlopen: MagicMock) -> None:
     mock_resp.__enter__.return_value = mock_resp
     mock_urlopen.return_value = mock_resp
 
-    text = _get_text("https://example.com/file.txt")
+    text = get_text("https://example.com/file.txt")
     assert text == "hello world"
 
 
@@ -152,13 +152,13 @@ def test_map_json_resume_more_networks() -> None:
 
 
 def test_normalize_date_aliases() -> None:
-    assert _normalize_date("current") == "present"
-    assert _normalize_date("now") == "present"
-    assert _normalize_date("2021-03-01T12:00:00") == "2021-03"
+    assert normalize_date("current") == "present"
+    assert normalize_date("now") == "present"
+    assert normalize_date("2021-03-01T12:00:00") == "2021-03"
 
 
 def test_fetch_github_funding_with_repo(mocker: Any) -> None:
-    mock_get_text = mocker.patch("pypi_profile.importers._get_text")
+    mock_get_text = mocker.patch("pypi_profile.importers.get_text")
     # First call fails, triggers 'continue'
     mock_get_text.side_effect = [urllib.error.URLError("fail"), "github: alice"]
 
@@ -168,7 +168,7 @@ def test_fetch_github_funding_with_repo(mocker: Any) -> None:
 
 
 def test_fetch_github_funding_all_fail(mocker: Any) -> None:
-    mock_get_text = mocker.patch("pypi_profile.importers._get_text")
+    mock_get_text = mocker.patch("pypi_profile.importers.get_text")
     mock_get_text.side_effect = urllib.error.URLError("fail")
     assert fetch_github_funding("alice") == {}
 
@@ -258,7 +258,7 @@ def test_fetch_github_repos(mock_urlopen: MagicMock) -> None:
 
 
 def test_fetch_github_funding(mocker: Any) -> None:
-    mock_get_text = mocker.patch("pypi_profile.importers._get_text")
+    mock_get_text = mocker.patch("pypi_profile.importers.get_text")
     mock_get_text.side_effect = [OSError("Failed"), "github: alice\npatreon: alicep"]
 
     funding = fetch_github_funding("alice")

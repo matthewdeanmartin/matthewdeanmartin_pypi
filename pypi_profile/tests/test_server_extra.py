@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from pypi_profile.models import (IdentitySection, ProfileData, ProfileLink,
                                  ProfileSection, VerificationSection)
-from pypi_profile.server import _generate_proofs, build_app
+from pypi_profile.server import build_app, generate_proofs
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def minimal_profile() -> ProfileData:
 def test_generate_proofs_empty_needing_proof(minimal_profile: ProfileData) -> None:
     # All verified -> needing_proof is empty
     claim_results = [{"url": "https://github.com/alice", "status": "verified"}]
-    res = _generate_proofs(minimal_profile, "pkg", claim_results)
+    res = generate_proofs(minimal_profile, "pkg", claim_results)
     assert res == []
 
 
@@ -38,7 +38,7 @@ def test_generate_proofs_no_key(minimal_profile: ProfileData, mocker: Any) -> No
         side_effect=FileNotFoundError("no key"),
     )
 
-    res = _generate_proofs(minimal_profile, "pkg", [])
+    res = generate_proofs(minimal_profile, "pkg", [])
     assert len(res) == 1
     assert res[0]["error"] == "no-key"
 
@@ -49,7 +49,7 @@ def test_generate_proofs_sign_error(minimal_profile: ProfileData, mocker: Any) -
     mock_sign = mocker.patch("pypi_profile.signing.sign_controls_url")
     mock_sign.side_effect = ValueError("invalid key")
 
-    res = _generate_proofs(minimal_profile, "pkg", [])
+    res = generate_proofs(minimal_profile, "pkg", [])
     assert res[0]["error"] == "invalid key"
 
 
@@ -120,5 +120,5 @@ def test_generate_proofs_sign_raises_os_error(
         side_effect=OSError("disk error"),
     )
 
-    res = _generate_proofs(minimal_profile, "pkg", [])
+    res = generate_proofs(minimal_profile, "pkg", [])
     assert res[0]["error"] == "disk error"

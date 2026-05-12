@@ -23,15 +23,15 @@ DEFAULT_KEY_DIR = Path("~/.pypi_profile").expanduser()
 DEFAULT_SK_NAME = "minisign.key"
 DEFAULT_PK_NAME = "minisign.pub"
 
-_KEYRING_SERVICE = "pypi-profile"
+KEYRING_SERVICE = "pypi-profile"
 
 
-def _keyring_username() -> str:
+def keyring_username() -> str:
     """Return the keyring username for the secret key entry."""
     return os.environ.get("PYPI_PROFILE_KEYRING_USERNAME", "default")
 
 
-def _keyring_is_usable() -> bool:
+def keyring_is_usable() -> bool:
     """Return True when a non-fail keyring backend is active."""
     backend = keyring.get_keyring()
     if isinstance(backend, keyring.backends.fail.Keyring):
@@ -40,24 +40,24 @@ def _keyring_is_usable() -> bool:
     return True
 
 
-def _store_key_in_keyring(sk_bytes: bytes) -> bool:
+def store_key_in_keyring(sk_bytes: bytes) -> bool:
     """Store raw secret key bytes in keyring. Returns True on success."""
     try:
         encoded = base64.b64encode(sk_bytes).decode()
-        keyring.set_password(_KEYRING_SERVICE, _keyring_username(), encoded)
-        logger.info("Secret key stored in keyring (service=%r, username=%r)", _KEYRING_SERVICE, _keyring_username())
+        keyring.set_password(KEYRING_SERVICE, keyring_username(), encoded)
+        logger.info("Secret key stored in keyring (service=%r, username=%r)", KEYRING_SERVICE, keyring_username())
         return True
     except Exception:
         logger.warning("Could not store key in keyring", exc_info=True)
         return False
 
 
-def _load_key_bytes_from_keyring() -> bytes | None:
+def load_key_bytes_from_keyring() -> bytes | None:
     """Retrieve raw secret key bytes from keyring, or None if unavailable."""
     try:
-        encoded = keyring.get_password(_KEYRING_SERVICE, _keyring_username())
+        encoded = keyring.get_password(KEYRING_SERVICE, keyring_username())
         if encoded is None:
-            logger.debug("No key found in keyring for service=%r username=%r", _KEYRING_SERVICE, _keyring_username())
+            logger.debug("No key found in keyring for service=%r username=%r", KEYRING_SERVICE, keyring_username())
             return None
         return base64.b64decode(encoded)
     except Exception:
@@ -99,8 +99,8 @@ def generate_keypair(
     pk_path.write_bytes(bytes(kp.public_key) + b"\n")
     logger.info("Keypair written: sk=%s pk=%s", sk_path, pk_path)
 
-    if _keyring_is_usable():
-        if _store_key_in_keyring(sk_bytes):
+    if keyring_is_usable():
+        if store_key_in_keyring(sk_bytes):
             logger.info("Secret key also stored in system keyring")
 
     public_key_b64 = kp.public_key.to_base64().decode()
@@ -145,8 +145,8 @@ def load_secret_key(sk_path: Path | None = None, password: str | None = None) ->
         return sk
 
     # Try keyring first.
-    if _keyring_is_usable():
-        sk_bytes = _load_key_bytes_from_keyring()
+    if keyring_is_usable():
+        sk_bytes = load_key_bytes_from_keyring()
         if sk_bytes is not None:
             logger.debug("Loading secret key from system keyring")
             sk = minisign.SecretKey.from_bytes(sk_bytes.rstrip(b"\n"))
@@ -192,7 +192,7 @@ def sign_controls_url(
         signature_backend="minisign",
     )
 
-    claim_json_bytes = _claim_to_bytes(claim)
+    claim_json_bytes = claim_to_bytes(claim)
     sig = sk.sign(claim_json_bytes, prehash=True)
     sig_b64 = base64.standard_b64encode(bytes(sig)).decode()
 
@@ -313,7 +313,7 @@ def patch_proofs_in_toml(
 
         escaped_url = re.escape(url)
 
-        def _replace_or_insert(m: re.Match[str]) -> str:
+        def replace_or_insert(m: re.Match[str]) -> str:
             block = m.group(0)
             proof_line = f'stored_proof = "{proof}"'
             if re.search(r'(?m)^stored_proof\s*=', block):
@@ -327,7 +327,7 @@ def patch_proofs_in_toml(
             return block
 
         pattern = rf'(\[\[profiles\]\][^[]*?url\s*=\s*"{escaped_url}"[^[]*?)(?=\[\[|\Z)'
-        new_text, n = re.subn(pattern, _replace_or_insert, text, flags=re.DOTALL)
+        new_text, n = re.subn(pattern, replace_or_insert, text, flags=re.DOTALL)
         if n:
             text = new_text
             updated.append(url)
@@ -345,7 +345,7 @@ def patch_proofs_in_toml(
     return updated
 
 
-def _claim_to_bytes(claim: dict[str, Any]) -> bytes:
+def claim_to_bytes(claim: dict[str, Any]) -> bytes:
     """Deterministic JSON bytes for a claim (without the signature field)."""
     canonical = {k: v for k, v in claim.items() if k != "signature"}
     return json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()

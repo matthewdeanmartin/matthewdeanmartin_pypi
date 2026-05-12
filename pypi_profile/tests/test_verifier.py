@@ -93,7 +93,7 @@ def test_verify_claim_signature_no_sig() -> None:
 def test_verify_claim_signature_invalid_pubkey(mocker: Any) -> None:
     from pypi_profile.verifier import verify_claim_signature
 
-    mocker.patch("pypi_profile.verifier._import_minisign")
+    mocker.patch("pypi_profile.verifier.import_minisign")
     assert not verify_claim_signature({"signature": "sig"}, "invalid-pubkey")
 
 

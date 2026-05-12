@@ -34,24 +34,23 @@ def cmd_serve(args: argparse.Namespace) -> None:
     uvicorn.run(app, host=args.host, port=args.port)
 
 
-def _key_status() -> str:
+def key_status() -> str:
     """Return a one-line summary of where the signing key was found."""
     import os
 
     from pypi_profile.signing import (DEFAULT_KEY_DIR, DEFAULT_SK_NAME,
-                                      _keyring_is_usable,
-                                      _keyring_username,
-                                      _load_key_bytes_from_keyring)
+                                      keyring_is_usable, keyring_username,
+                                      load_key_bytes_from_keyring)
 
     env_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
     if env_path:
         sk_path = Path(env_path).expanduser()
         return f"found ({sk_path})" if sk_path.exists() else f"not found ({sk_path})"
 
-    if _keyring_is_usable():
-        if _load_key_bytes_from_keyring() is not None:
-            return f"found in keyring (username={_keyring_username()!r})"
-        return f"not found in keyring (username={_keyring_username()!r})"
+    if keyring_is_usable():
+        if load_key_bytes_from_keyring() is not None:
+            return f"found in keyring (username={keyring_username()!r})"
+        return f"not found in keyring (username={keyring_username()!r})"
 
     sk_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
     if sk_path.exists():
@@ -76,7 +75,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
         print(
             f"  public key in toml: {'yes' if profile.verification.public_key else 'no'}"
         )
-        print(f"  signing key on disk: {_key_status()}")
+        print(f"  signing key on disk: {key_status()}")
     except ValidationError as exc:
         logger.error("Profile validation failed: %s", exc)
         print(f"INVALID: {path}", file=sys.stderr)
@@ -100,7 +99,7 @@ def cmd_init(args: argparse.Namespace) -> None:
             from pypi_profile.wizard import run_wizard
 
             data = run_wizard(dest, from_json_resume=args.from_json_resume or "")
-            _write_toml_from_data(
+            write_toml_from_data(
                 dest,
                 data,
                 username=data.get("identity", {}).get("pypi_username", ""),
@@ -149,7 +148,7 @@ def cmd_init(args: argparse.Namespace) -> None:
     funding = load_local_funding_yml()
     if funding:
         print(f"Found local FUNDING.yml: {list(funding.keys())}")
-        profile_data["_funding"] = funding
+        profile_data["funding"] = funding
 
     # Optionally fetch live data
     if args.fetch:
@@ -168,16 +167,16 @@ def cmd_init(args: argparse.Namespace) -> None:
         else:
             import re
 
-            from pypi_profile.importers import (_fetch_pypi_user_packages,
-                                                fetch_github_funding,
+            from pypi_profile.importers import (fetch_github_funding,
                                                 fetch_github_profile,
                                                 fetch_github_repos,
+                                                fetch_pypi_user_packages,
                                                 merge_live_data_into_profile)
 
             live: dict[str, Any] = {}
             if pypi_username:
                 print(f"Fetching PyPI packages for {pypi_username!r} ...")
-                live["pypi_packages"] = _fetch_pypi_user_packages(pypi_username)
+                live["pypi_packages"] = fetch_pypi_user_packages(pypi_username)
                 print(f"  Found {len(live['pypi_packages'])} packages on PyPI.")
             if github_url:
                 m = re.match(r"https?://github\.com/([^/]+)/?$", github_url)
@@ -194,15 +193,15 @@ def cmd_init(args: argparse.Namespace) -> None:
                     gh_funding = fetch_github_funding(gh_user)
                     if gh_funding:
                         print(f"  Found funding platforms: {list(gh_funding.keys())}")
-                        profile_data["_funding"] = {
-                            **profile_data.get("_funding", {}),
+                        profile_data["funding"] = {
+                            **profile_data.get("funding", {}),
                             **gh_funding,
                         }
             profile_data = merge_live_data_into_profile(profile_data, live)
             if live.get("pypi_packages"):
                 profile_data["packages"] = live["pypi_packages"]
 
-    _write_toml_from_data(dest, profile_data, username=username, kind=kind)
+    write_toml_from_data(dest, profile_data, username=username, kind=kind)
     print(f"Created {dest}")
     if not args.fetch:
         print(
@@ -210,7 +209,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         )
 
 
-def _write_toml_from_data(
+def write_toml_from_data(
     dest: Path, data: dict[str, Any], username: str = "", kind: str = "individual"
 ) -> None:
     """Write a pypi_profile.toml from a merged data dict."""
@@ -228,7 +227,7 @@ def _write_toml_from_data(
     contact_prefs = data.get("contact_preferences", {})
     succession = data.get("succession", {})
     verification = data.get("verification", {})
-    funding = data.get("_funding", {})
+    funding = data.get("funding", {})
 
     display_name = (
         profile_sec.get("display_name", "")
@@ -249,17 +248,17 @@ def _write_toml_from_data(
 
     lines.append("[profile]")
     lines.append(f'kind = "{kind}"')
-    lines.append(f"display_name = {_toml_str(display_name)}")
-    lines.append(f"summary = {_toml_str(summary)}")
+    lines.append(f"display_name = {toml_str(display_name)}")
+    lines.append(f"summary = {toml_str(summary)}")
     lines.append("")
 
     lines.append("[identity]")
-    lines.append(f"legal_name = {_toml_str(legal_name)}")
-    lines.append(f"display_name = {_toml_str(display_name)}")
-    lines.append(f"pypi_username = {_toml_str(pypi_username)}")
+    lines.append(f"legal_name = {toml_str(legal_name)}")
+    lines.append(f"display_name = {toml_str(display_name)}")
+    lines.append(f"pypi_username = {toml_str(pypi_username)}")
     lines.append('pronouns = ""')
-    lines.append(f"timezone = {_toml_str(timezone)}")
-    lines.append(f"location = {_toml_str(location)}")
+    lines.append(f"timezone = {toml_str(timezone)}")
+    lines.append(f"location = {toml_str(location)}")
     lines.append("")
 
     # Humans
@@ -267,11 +266,11 @@ def _write_toml_from_data(
         humans = [{"id": pypi_username, "display_name": display_name, "role": "Owner"}]
     for h in humans:
         lines.append("[[humans]]")
-        lines.append(f'id = {_toml_str(h.get("id", pypi_username))}')
-        lines.append(f'display_name = {_toml_str(h.get("display_name", display_name))}')
-        lines.append(f'role = {_toml_str(h.get("role", "Owner"))}')
+        lines.append(f'id = {toml_str(h.get("id", pypi_username))}')
+        lines.append(f'display_name = {toml_str(h.get("display_name", display_name))}')
+        lines.append(f'role = {toml_str(h.get("role", "Owner"))}')
         if h.get("bio"):
-            lines.append(f'bio = {_toml_str(h["bio"])}')
+            lines.append(f'bio = {toml_str(h["bio"])}')
         lines.append("")
 
     # Profiles (external links)
@@ -286,9 +285,9 @@ def _write_toml_from_data(
         ]
     for p in profiles:
         lines.append("[[profiles]]")
-        lines.append(f'kind = {_toml_str(p.get("kind", "website"))}')
-        lines.append(f'label = {_toml_str(p.get("label", ""))}')
-        lines.append(f'url = {_toml_str(p.get("url", ""))}')
+        lines.append(f'kind = {toml_str(p.get("kind", "website"))}')
+        lines.append(f'label = {toml_str(p.get("label", ""))}')
+        lines.append(f'url = {toml_str(p.get("url", ""))}')
         lines.append('verification = "self_asserted"')
         lines.append("")
 
@@ -305,25 +304,25 @@ def _write_toml_from_data(
         ]
     for c in contact_methods:
         lines.append("[[contact_methods]]")
-        lines.append(f'kind = {_toml_str(c.get("kind", "email"))}')
-        lines.append(f'label = {_toml_str(c.get("label", ""))}')
-        lines.append(f'value = {_toml_str(c.get("value", ""))}')
+        lines.append(f'kind = {toml_str(c.get("kind", "email"))}')
+        lines.append(f'label = {toml_str(c.get("label", ""))}')
+        lines.append(f'value = {toml_str(c.get("value", ""))}')
         audience = c.get("audience", [])
         lines.append(f"audience = {json.dumps(audience)}")
-        lines.append(f'visibility = {_toml_str(c.get("visibility", "public"))}')
+        lines.append(f'visibility = {toml_str(c.get("visibility", "public"))}')
         lines.append("")
 
     # Packages
     if packages:
         for pkg in packages:
             lines.append("[[packages]]")
-            lines.append(f'name = {_toml_str(pkg.get("name", ""))}')
-            lines.append(f'role = {_toml_str(pkg.get("role", "maintainer"))}')
-            lines.append(f'state = {_toml_str(pkg.get("state", "active"))}')
+            lines.append(f'name = {toml_str(pkg.get("name", ""))}')
+            lines.append(f'role = {toml_str(pkg.get("role", "maintainer"))}')
+            lines.append(f'state = {toml_str(pkg.get("state", "active"))}')
             if pkg.get("summary"):
-                lines.append(f'summary = {_toml_str(pkg["summary"])}')
+                lines.append(f'summary = {toml_str(pkg["summary"])}')
             if pkg.get("url"):
-                lines.append(f'url = {_toml_str(pkg["url"])}')
+                lines.append(f'url = {toml_str(pkg["url"])}')
             lines.append("")
     else:
         lines.append("[[packages]]")
@@ -336,29 +335,29 @@ def _write_toml_from_data(
     # Projects
     for proj in projects:
         lines.append("[[projects]]")
-        lines.append(f'name = {_toml_str(proj.get("name", ""))}')
-        lines.append(f'url = {_toml_str(proj.get("url", ""))}')
-        lines.append(f'role = {_toml_str(proj.get("role", "creator"))}')
-        lines.append(f'state = {_toml_str(proj.get("state", "active"))}')
+        lines.append(f'name = {toml_str(proj.get("name", ""))}')
+        lines.append(f'url = {toml_str(proj.get("url", ""))}')
+        lines.append(f'role = {toml_str(proj.get("role", "creator"))}')
+        lines.append(f'state = {toml_str(proj.get("state", "active"))}')
         if proj.get("summary"):
-            lines.append(f'summary = {_toml_str(proj["summary"])}')
+            lines.append(f'summary = {toml_str(proj["summary"])}')
         lines.append("")
 
     # Work experience
     for w in work_experience:
         lines.append("[[work_experience]]")
-        lines.append(f'organization = {_toml_str(w.get("organization", ""))}')
-        lines.append(f'title = {_toml_str(w.get("title", ""))}')
-        lines.append(f'start_date = {_toml_str(w.get("start_date", ""))}')
-        lines.append(f'end_date = {_toml_str(w.get("end_date", "present"))}')
+        lines.append(f'organization = {toml_str(w.get("organization", ""))}')
+        lines.append(f'title = {toml_str(w.get("title", ""))}')
+        lines.append(f'start_date = {toml_str(w.get("start_date", ""))}')
+        lines.append(f'end_date = {toml_str(w.get("end_date", "present"))}')
         if w.get("summary"):
-            lines.append(f'summary = {_toml_str(w["summary"])}')
+            lines.append(f'summary = {toml_str(w["summary"])}')
         lines.append("")
 
     # Hiring
     lines.append("[hiring]")
     lines.append(
-        f'open_to_work_since = {_toml_str(hiring.get("open_to_work_since", ""))}'
+        f'open_to_work_since = {toml_str(hiring.get("open_to_work_since", ""))}'
     )
     et = hiring.get("employment_types", [])
     lines.append(f"employment_types = {json.dumps(et)}")
@@ -366,14 +365,14 @@ def _write_toml_from_data(
     lines.append(f"work_model = {json.dumps(wm)}")
     jur = hiring.get("jurisdiction", [])
     lines.append(f"jurisdiction = {json.dumps(jur)}")
-    lines.append(f'speaking = {_toml_bool(hiring.get("speaking", False))}')
-    lines.append(f'sponsorship = {_toml_bool(hiring.get("sponsorship", False))}')
+    lines.append(f'speaking = {toml_bool(hiring.get("speaking", False))}')
+    lines.append(f'sponsorship = {toml_bool(hiring.get("sponsorship", False))}')
     lines.append("")
 
     # Contracting
     if contracting:
         lines.append("[contracting]")
-        lines.append(f'legal_entity = {_toml_str(contracting.get("legal_entity", ""))}')
+        lines.append(f'legal_entity = {toml_str(contracting.get("legal_entity", ""))}')
         et = contracting.get("engagement_types", [])
         lines.append(f"engagement_types = {json.dumps(et)}")
         lines.append("")
@@ -393,14 +392,14 @@ def _write_toml_from_data(
     succ_policy = succession.get("policy", "") if succession else ""
     succ_reviewed = succession.get("last_reviewed", "") if succession else ""
     lines.append("[succession]")
-    lines.append(f"policy = {_toml_str(succ_policy)}")
-    lines.append(f"last_reviewed = {_toml_str(succ_reviewed)}")
+    lines.append(f"policy = {toml_str(succ_policy)}")
+    lines.append(f"last_reviewed = {toml_str(succ_reviewed)}")
     lines.append("")
 
     # Verification
     lines.append("[verification]")
     lines.append(
-        f'public_key = {_toml_str(verification.get("public_key", "") if verification else "")}'
+        f'public_key = {toml_str(verification.get("public_key", "") if verification else "")}'
     )
     lines.append('preferred_signature_backend = "minisign"')
     lines.append("")
@@ -415,12 +414,12 @@ def _write_toml_from_data(
     dest.write_text("\n".join(lines), encoding="utf-8")
 
 
-def _toml_str(s: object) -> str:
+def toml_str(s: object) -> str:
     s = str(s) if s is not None else ""
     return json.dumps(s)
 
 
-def _toml_bool(b: object) -> str:
+def toml_bool(b: object) -> str:
     return "true" if b else "false"
 
 
@@ -445,7 +444,7 @@ def cmd_inspect(args: argparse.Namespace) -> None:
     print(f"Profiles:     {len(profile.profiles)}")
     print(f"Public key:   {'yes' if profile.verification.public_key else 'no'}")
     print(f"Sig backend:  {profile.verification.preferred_signature_backend}")
-    print(f"Signing key:  {_key_status()}")
+    print(f"Signing key:  {key_status()}")
 
 
 def cmd_doctor(args: argparse.Namespace) -> None:
@@ -490,14 +489,14 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     print()
     print("Signing setup:")
     from pypi_profile.signing import (DEFAULT_KEY_DIR, DEFAULT_SK_NAME,
-                                      _keyring_is_usable, _keyring_username,
-                                      _load_key_bytes_from_keyring)
+                                      keyring_is_usable, keyring_username,
+                                      load_key_bytes_from_keyring)
 
-    if _keyring_is_usable():
-        import keyring as _kr  # type: ignore[import-untyped]
-        backend_name = type(_kr.get_keyring()).__name__
-        print(f"  OK  Keyring backend: {backend_name} (username={_keyring_username()!r})")
-        if _load_key_bytes_from_keyring() is not None:
+    if keyring_is_usable():
+        import keyring as kr  # type: ignore[import-untyped]
+        backend_name = type(kr.get_keyring()).__name__
+        print(f"  OK  Keyring backend: {backend_name} (username={keyring_username()!r})")
+        if load_key_bytes_from_keyring() is not None:
             print("  OK  Secret key found in keyring")
         else:
             print("  --  No secret key in keyring (run: pypi-profile keygen)")
@@ -620,9 +619,9 @@ def cmd_keygen(args: argparse.Namespace) -> None:
 
     print(f"Secret key: {sk_path}")
     print(f"Public key: {pk_path}")
-    from pypi_profile.signing import _keyring_is_usable, _keyring_username
-    if _keyring_is_usable():
-        print(f"Key storage: system keyring (username={_keyring_username()!r})")
+    from pypi_profile.signing import keyring_is_usable, keyring_username
+    if keyring_is_usable():
+        print(f"Key storage: system keyring (username={keyring_username()!r})")
         print(f"  Disk copy also kept at {sk_path} as a fallback.")
     else:
         print(f"Key storage: disk only ({sk_path})")
@@ -1039,11 +1038,11 @@ def main() -> None:
     build_p.set_defaults(func=cmd_build)
 
     gui_p = subparsers.add_parser("gui", help="Launch the Tkinter GUI")
-    gui_p.set_defaults(func=lambda _: _launch_gui())
+    gui_p.set_defaults(func=lambda _: launch_gui())
 
     args = parser.parse_args()
 
-    from pypi_profile._log import configure_logging
+    from pypi_profile.log import configure_logging
     configure_logging("DEBUG" if args.verbose else args.log_level)
 
     if not args.command:
@@ -1054,7 +1053,7 @@ def main() -> None:
     args.func(args)
 
 
-def _launch_gui() -> None:
+def launch_gui() -> None:
     from pypi_profile.gui import main as gui_main
 
     gui_main()

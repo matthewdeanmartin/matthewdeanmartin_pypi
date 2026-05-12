@@ -9,7 +9,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_STATIC_ROUTES: list[tuple[str, str]] = [
+STATIC_ROUTES: list[tuple[str, str]] = [
     ("/", "index.html"),
     ("/packages", "packages/index.html"),
     ("/projects", "projects/index.html"),
@@ -21,7 +21,7 @@ _STATIC_ROUTES: list[tuple[str, str]] = [
     ("/people", "people/index.html"),
 ]
 
-_JSON_ROUTES: list[tuple[str, str]] = [
+JSON_ROUTES: list[tuple[str, str]] = [
     ("/api/profile.json", "api/profile.json"),
     ("/api/packages.json", "api/packages.json"),
     ("/api/projects.json", "api/projects.json"),
@@ -77,7 +77,7 @@ def build_static_site(
     output.mkdir(parents=True, exist_ok=True)
 
     html_count = 0
-    for route, rel_path in _STATIC_ROUTES:
+    for route, rel_path in STATIC_ROUTES:
         resp = client.get(route)
         if resp.status_code == 404:
             logger.debug("Route %s returned 404, skipping", route)
@@ -91,7 +91,7 @@ def build_static_site(
             print(f"  rendered {route} -> {rel_path}")
 
     json_count = 0
-    for route, rel_path in _JSON_ROUTES:
+    for route, rel_path in JSON_ROUTES:
         resp = client.get(route)
         if resp.status_code != 200:
             logger.warning("JSON route %s returned HTTP %s", route, resp.status_code)
@@ -115,7 +115,7 @@ def build_static_site(
         if verbose:
             print("  resume.json -> api/resume.json")
 
-    _copy_static_assets(output, verbose=verbose)
+    copy_static_assets(output, verbose=verbose)
 
     logger.info("Build complete: %d HTML pages, %d JSON files -> %s", html_count, json_count, output)
     if verbose:
@@ -143,7 +143,7 @@ def build_static_site(
     }
 
 
-def _copy_static_assets(output: Path, verbose: bool = True) -> None:
+def copy_static_assets(output: Path, verbose: bool = True) -> None:
     from pypi_profile.ds.paths import static_root_path
 
     static_src = static_root_path()

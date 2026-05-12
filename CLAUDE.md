@@ -1,5 +1,7 @@
 # CLAUDE.md — Claude Code guidance for this repo
 
+## Never use prefix of _ to mean private, it is okay to use it to mean unused.
+
 ## Always use `uv run` — never bare `python`
 
 This is a **uv workspace**. The system Python does not have the project dependencies installed.

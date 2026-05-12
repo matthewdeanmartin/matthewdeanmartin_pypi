@@ -9,9 +9,8 @@ from typing import Any
 
 import pytest
 
-from pypi_profile.fetcher import (_extract_github_username,
-                                  _extract_gitlab_username, compare_packages,
-                                  fetch_all)
+from pypi_profile.fetcher import (compare_packages, extract_github_username,
+                                  extract_gitlab_username, fetch_all)
 from pypi_profile.models import (IdentitySection, PackageEntry, ProfileData,
                                  ProfileLink, ProfileSection)
 
@@ -48,7 +47,7 @@ def test_fetch_all_calls_importers(
 ) -> None:
     # Mock all importer functions
     mock_pypi_user = mocker.patch(
-        "pypi_profile.fetcher._fetch_pypi_user_packages",
+        "pypi_profile.fetcher.fetch_pypi_user_packages",
         return_value=[{"name": "pkg1"}],
     )
     mock_pypi_pkg = mocker.patch(
@@ -96,34 +95,34 @@ def test_fetch_all_uses_cache(
 
     # GitHub profile
     cache_file = mock_cache_dir / "github_profile_alice.json"
-    cache_data = {"_ts": time.time(), "payload": {"name": "Cached Alice"}}
+    cache_data = {"ts": time.time(), "payload": {"name": "Cached Alice"}}
     cache_file.write_text(json.dumps(cache_data))
 
     # PyPI packages
     cache_file_pypi = mock_cache_dir / "pypi_packages_alice_pypi.json"
-    cache_data_pypi = {"_ts": time.time(), "payload": [{"name": "cached-pkg"}]}
+    cache_data_pypi = {"ts": time.time(), "payload": [{"name": "cached-pkg"}]}
     cache_file_pypi.write_text(json.dumps(cache_data_pypi))
 
     # GitHub funding
     cache_file_funding = mock_cache_dir / "github_funding_alice.json"
-    cache_data_funding = {"_ts": time.time(), "payload": {"github": "alice"}}
+    cache_data_funding = {"ts": time.time(), "payload": {"github": "alice"}}
     cache_file_funding.write_text(json.dumps(cache_data_funding))
 
     # GitLab profile
     cache_file_gl = mock_cache_dir / "gitlab_profile_alice_gl.json"
-    cache_data_gl = {"_ts": time.time(), "payload": {"name": "Cached GL"}}
+    cache_data_gl = {"ts": time.time(), "payload": {"name": "Cached GL"}}
     cache_file_gl.write_text(json.dumps(cache_data_gl))
 
     # Mastodon profile
     cache_file_masto = (
         mock_cache_dir / "mastodon_https___fosstodon.org__at_alice_masto.json"
     )
-    cache_data_masto = {"_ts": time.time(), "payload": {"display_name": "Cached M"}}
+    cache_data_masto = {"ts": time.time(), "payload": {"display_name": "Cached M"}}
     cache_file_masto.write_text(json.dumps(cache_data_masto))
 
     # Mock importer functions - they should NOT be called
     mock_gh_profile = mocker.patch("pypi_profile.fetcher.fetch_github_profile")
-    mocker.patch("pypi_profile.fetcher._fetch_pypi_user_packages")
+    mocker.patch("pypi_profile.fetcher.fetch_pypi_user_packages")
     mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={})
     mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[])
     mocker.patch("pypi_profile.fetcher.fetch_github_funding")
@@ -146,14 +145,14 @@ def test_fetch_all_cache_expiry(
     # Pre-populate cache with expired data
     cache_file = mock_cache_dir / "github_profile_alice.json"
     mock_cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_data = {"_ts": time.time() - 4000, "payload": {"name": "Old Alice"}}
+    cache_data = {"ts": time.time() - 4000, "payload": {"name": "Old Alice"}}
     cache_file.write_text(json.dumps(cache_data))
 
     # Mock importer functions - GH profile SHOULD be called
     mock_gh_profile = mocker.patch(
         "pypi_profile.fetcher.fetch_github_profile", return_value={"name": "New Alice"}
     )
-    mocker.patch("pypi_profile.fetcher._fetch_pypi_user_packages", return_value=[])
+    mocker.patch("pypi_profile.fetcher.fetch_pypi_user_packages", return_value=[])
     mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={})
     mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[])
     mocker.patch("pypi_profile.fetcher.fetch_github_funding", return_value={})
@@ -225,11 +224,11 @@ def test_compare_packages_no_username() -> None:
 
 
 def test_extract_usernames() -> None:
-    assert _extract_github_username("https://github.com/alice") == "alice"
-    assert _extract_github_username("https://github.com/alice/") == "alice"
-    assert _extract_github_username("http://github.com/bob") == "bob"
-    assert _extract_github_username("https://notgithub.com/alice") == ""
+    assert extract_github_username("https://github.com/alice") == "alice"
+    assert extract_github_username("https://github.com/alice/") == "alice"
+    assert extract_github_username("http://github.com/bob") == "bob"
+    assert extract_github_username("https://notgithub.com/alice") == ""
 
-    assert _extract_gitlab_username("https://gitlab.com/alice") == "alice"
-    assert _extract_gitlab_username("https://gitlab.com/alice/") == "alice"
-    assert _extract_gitlab_username("https://notgitlab.com/alice") == ""
+    assert extract_gitlab_username("https://gitlab.com/alice") == "alice"
+    assert extract_gitlab_username("https://gitlab.com/alice/") == "alice"
+    assert extract_gitlab_username("https://notgitlab.com/alice") == ""
