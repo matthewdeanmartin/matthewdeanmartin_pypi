@@ -1,6 +1,7 @@
 {% extends "pypi_ds/base.html" %}
 {% import "pypi_ds/components/layout.html" as layout %}
 {% set _base = base_url | default("") %}
+{% set asset_base = _base ~ "/static/pypi_ds" %}
 {% block title %}{% block profile_title %}{% endblock %} · PyPI Profile{% endblock %}
 {% block body %}
   {{ layout.site_header(
@@ -17,11 +18,12 @@
       {"label": "Succession", "href": _base ~ "/succession"}
     ],
     secondary_items=[],
-    asset_base=_base ~ "/static/pypi_ds"
+    asset_base=asset_base
   ) }}
   {% block content %}{% endblock %}
   {{ layout.site_footer(
     footer_note="Powered by pypi-profile — the missing PyPI profile page.",
-    supporting_note="Profile data is self-asserted unless explicitly verified."
+    supporting_note="Profile data is self-asserted unless explicitly verified.",
+    asset_base=asset_base
   ) }}
 {% endblock %}
