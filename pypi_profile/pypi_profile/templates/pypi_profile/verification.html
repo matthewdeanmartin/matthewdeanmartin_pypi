@@ -144,76 +144,276 @@
     </div>
   {% endcall %}
 
-<script>
-(function () {
-  'use strict';
-  var base = {{ (_base ~ '') | tojson }};
-  var apiUrl = (base || '') + '/api/verification.json';
+<script type="module">
+// ---------------------------------------------------------------------------
+// pypi-profile · verification diagnostics
+//
+// Loads api/verification.json (same-origin, works on static sites), logs a
+// structured summary, then attempts live browser-side cryptographic
+// verification for any GitHub profile URLs found.
+//
+// GitHub-specific live check:
+//   • Fetches raw.githubusercontent.com/<user>/<user>/HEAD/README.md
+//     (CORS-open; the profile README where the proof string is pasted).
+//   • Extracts the pypi-profile-proof token, decodes the claim JSON.
+//   • Verifies the Ed25519 signature using:
+//       - Blake2b-512 (blakejs via esm.sh) for prehash  ← minisign prehash mode
+//       - crypto.subtle Ed25519 (Web Crypto API)
+//   • Public key: strip the 10-byte minisign header from the TOML base64 value
+//     to get the raw 32-byte Ed25519 key.
+//   • Signature: strip the 10-byte minisign header from the claim's sig field
+//     to get the raw 64-byte Ed25519 signature.
+// ---------------------------------------------------------------------------
 
-  function statusEmoji(s) {
-    return {verified:'✅', self_asserted:'🔵', unverified:'❓', invalid:'❌', expired:'⚠️'}[s] || '❓';
+import { blake2b } from 'https://esm.sh/blakejs@1.2.1/blake2b';
+
+const base   = {{ (_base ~ '') | tojson }};
+const apiUrl = (base || '') + '/api/verification.json';
+
+const STATUS_EMOJI = {verified:'✅', self_asserted:'🔵', unverified:'❓', invalid:'❌', expired:'⚠️'};
+function emoji(s) { return STATUS_EMOJI[s] || '❓'; }
+
+// ── helpers ────────────────────────────────────────────────────────────────
+
+function b64decode(str) {
+  // Standard base64 → Uint8Array
+  return Uint8Array.from(atob(str), c => c.charCodeAt(0));
+}
+
+function b64urlDecode(str) {
+  // Base64url (no padding) → Uint8Array
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/')
+                    .padEnd(str.length + (4 - str.length % 4) % 4, '=');
+  return b64decode(padded);
+}
+
+function canonicalClaimBytes(claim) {
+  // Matches Python claim_to_bytes(): JSON sorted keys, no signature field.
+  const copy = Object.fromEntries(
+    Object.keys(claim).filter(k => k !== 'signature').sort()
+      .map(k => [k, claim[k]])
+  );
+  return new TextEncoder().encode(JSON.stringify(copy));
+}
+
+function isExpired(claim) {
+  if (!claim.expires_at) return false;
+  return new Date(claim.expires_at + 'Z') < new Date();
+}
+
+// Extract github username from https://github.com/<user> URLs
+function githubUser(url) {
+  const m = url.match(/^https?:\/\/github\.com\/([A-Za-z0-9_.-]+)\/?$/);
+  return m ? m[1] : null;
+}
+
+// Raw README URL — try HEAD branch alias so it works for main and master.
+function githubReadmeUrl(user) {
+  return `https://raw.githubusercontent.com/${user}/${user}/HEAD/README.md`;
+}
+
+// Find all pypi-profile-proof tokens in text.
+const PROOF_RE = /pypi-profile-proof:\s*([A-Za-z0-9_\-]+=*)/gi;
+function findProofTokens(text) {
+  const tokens = [];
+  let m;
+  while ((m = PROOF_RE.exec(text)) !== null) tokens.push(m[0]);
+  PROOF_RE.lastIndex = 0;
+  return tokens;
+}
+
+// ── crypto ─────────────────────────────────────────────────────────────────
+
+async function verifySignature(publicKeyB64, claim) {
+  // publicKeyB64: minisign base64 — 42 bytes: 2-byte algo + 8-byte key_id + 32-byte ed25519 pk
+  // claim.signature: standard base64 of 74-byte minisign sig: 2-byte algo + 8-byte key_id + 64-byte ed25519 sig
+
+  const pkFull  = b64decode(publicKeyB64);         // 42 bytes
+  const sigFull = b64decode(claim.signature);      // 74 bytes
+
+  if (pkFull.length !== 42)  throw new Error(`Unexpected public key length: ${pkFull.length} (expected 42)`);
+  if (sigFull.length !== 74) throw new Error(`Unexpected signature length: ${sigFull.length} (expected 74)`);
+
+  const algoBytes = String.fromCharCode(sigFull[0], sigFull[1]);
+  if (algoBytes !== 'ED') {
+    throw new Error(`Unexpected sig algorithm "${algoBytes}" — expected "ED" (prehash). Legacy "Ed" mode not supported.`);
   }
 
-  console.group('pypi-profile · verification diagnostics');
-  console.info('Fetching', apiUrl);
+  const rawPk  = pkFull.slice(10);   // 32 bytes
+  const rawSig = sigFull.slice(10);  // 64 bytes
 
-  fetch(apiUrl)
-    .then(function (r) {
-      if (!r.ok) { throw new Error('HTTP ' + r.status + ' from ' + apiUrl); }
-      return r.json();
-    })
-    .then(function (data) {
-      var results = data.claim_results || [];
-      console.info('Public key present:', !!data.public_key);
-      console.info('Signature backend :', data.preferred_signature_backend || '(not set)');
-      console.info('Static build      :', !!data.static_mode);
-      console.info('Claims found      :', results.length);
+  // Prehash: blake2b-512(canonical_claim_json)
+  const msgBytes    = canonicalClaimBytes(claim);
+  const msgHash     = blake2b(msgBytes, null, 64);   // 64-byte = 512-bit output
 
-      if (results.length === 0) {
-        console.warn('No claim results returned. Possible causes:');
-        console.warn('  • No [[profiles]] entries in your pypi_profile.toml');
-        console.warn('  • No public_key in [verification] and no stored_proof on any entry');
-        console.warn('  • Verification threw an exception during build (check builder output)');
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw', rawPk, { name: 'Ed25519' }, false, ['verify']
+  );
+
+  return crypto.subtle.verify({ name: 'Ed25519' }, cryptoKey, rawSig, msgHash);
+}
+
+// ── per-URL live GitHub check ───────────────────────────────────────────────
+
+async function checkGithub(item, publicKeyB64) {
+  const user = githubUser(item.url);
+  if (!user) return;
+
+  const readmeUrl = githubReadmeUrl(user);
+  console.group(`  🔍 Live GitHub check for ${item.label} (${item.url})`);
+  console.info('Fetching', readmeUrl);
+
+  let text;
+  try {
+    const r = await fetch(readmeUrl);
+    if (!r.ok) {
+      if (r.status === 404) {
+        console.warn('README not found — create a profile README repo:', `https://github.com/new (name it "${user}")`);
+      } else {
+        console.warn(`HTTP ${r.status} fetching README`);
       }
-
-      results.forEach(function (item) {
-        var label = statusEmoji(item.status) + ' ' + item.label + ' — ' + item.status.toUpperCase();
-        if (item.status === 'verified' || item.status === 'self_asserted') {
-          console.info(label, item.url);
-        } else {
-          console.warn(label, item.url);
-          if (item.status === 'unverified') {
-            if (data.static_mode && !item.has_stored_proof) {
-              console.warn('    → No stored_proof in TOML. Run: pypi-profile update-proofs <source>');
-            } else if (!data.static_mode) {
-              console.warn('    → Live fetch found no matching proof token at this URL.');
-              console.warn('    → Expected pattern: pypi-profile-proof: <base64>');
-            }
-          }
-          if (item.status === 'invalid') {
-            console.error('    → Proof token found but signature verification FAILED.');
-            console.error('    → Check that the public_key in your TOML matches the secret key used to sign.');
-          }
-          if (item.status === 'expired') {
-            console.warn('    → Proof token found but the claim has expired. Re-run update-proofs.');
-          }
-        }
-        if (data.static_mode && item.has_stored_proof) {
-          console.debug('    stored_proof present in TOML for', item.url);
-        }
-      });
-
-      if (!data.public_key) {
-        console.warn('No public_key in [verification]. Run: pypi-profile keygen');
-      }
-    })
-    .catch(function (err) {
-      console.error('Failed to load verification data:', err);
-      console.error('URL attempted:', apiUrl);
-    })
-    .finally(function () {
       console.groupEnd();
-    });
-}());
+      return;
+    }
+    text = await r.text();
+  } catch (err) {
+    console.error('Fetch failed:', err.message);
+    console.groupEnd();
+    return;
+  }
+
+  const tokens = findProofTokens(text);
+  console.info(`Found ${tokens.length} proof token(s) in README`);
+
+  if (tokens.length === 0) {
+    console.warn('No pypi-profile-proof token found in README.');
+    console.warn('Paste the proof string from "Add proof-of-control" section into your profile README.');
+    console.groupEnd();
+    return;
+  }
+
+  let matched = false;
+  for (const tokenStr of tokens) {
+    const b64part = tokenStr.replace(/^pypi-profile-proof:\s*/i, '');
+    let claim;
+    try {
+      claim = JSON.parse(new TextDecoder().decode(b64urlDecode(b64part)));
+    } catch (e) {
+      console.warn('Could not decode token:', tokenStr.slice(0, 80), '—', e.message);
+      continue;
+    }
+
+    console.debug('Decoded claim:', claim);
+
+    if (claim.subject !== item.url) {
+      console.debug('Subject mismatch — skipping (subject:', claim.subject, ')');
+      continue;
+    }
+
+    matched = true;
+
+    if (isExpired(claim)) {
+      console.warn('⚠️  Claim is EXPIRED (expires_at:', claim.expires_at, ')');
+      console.warn('    Re-run: pypi-profile update-proofs <source>');
+      break;
+    }
+
+    if (!publicKeyB64) {
+      console.warn('❓  Token found but no public_key in TOML — cannot verify signature.');
+      console.warn('    Run: pypi-profile keygen  then add the public key to [verification].');
+      break;
+    }
+
+    console.info('Verifying Ed25519 signature via Web Crypto + Blake2b-512…');
+    try {
+      const valid = await verifySignature(publicKeyB64, claim);
+      if (valid) {
+        console.info('✅  Signature VALID — claim is cryptographically verified!');
+        console.info('    profile_package:', claim.profile_package);
+        console.info('    pypi_username  :', claim.pypi_username);
+        console.info('    issued_at      :', claim.issued_at);
+        console.info('    expires_at     :', claim.expires_at);
+      } else {
+        console.error('❌  Signature INVALID — proof token found but signature does not verify.');
+        console.error('    Check that public_key in [verification] matches the key used to sign.');
+      }
+    } catch (err) {
+      console.error('❌  Verification error:', err.message);
+      if (err.message.includes('Ed25519')) {
+        console.warn('    Your browser may not support Ed25519 in Web Crypto. Try Chrome 137+ or Firefox 129+.');
+      }
+    }
+    break;
+  }
+
+  if (!matched) {
+    console.warn('No token with subject =', item.url, 'found (subject mismatch).');
+    console.warn('Expected subject in claim to equal the URL exactly:', item.url);
+  }
+
+  console.groupEnd();
+}
+
+// ── main ───────────────────────────────────────────────────────────────────
+
+async function main() {
+  console.group('pypi-profile · verification diagnostics');
+
+  let data;
+  try {
+    const r = await fetch(apiUrl);
+    if (!r.ok) throw new Error(`HTTP ${r.status} from ${apiUrl}`);
+    data = await r.json();
+  } catch (err) {
+    console.error('Failed to load verification data:', err.message, '—', apiUrl);
+    console.groupEnd();
+    return;
+  }
+
+  const results = data.claim_results || [];
+  console.info('Public key present:', !!data.public_key);
+  console.info('Signature backend :', data.preferred_signature_backend || '(not set)');
+  console.info('Static build      :', !!data.static_mode);
+  console.info('Claims found      :', results.length);
+
+  if (results.length === 0) {
+    console.warn('No claim results — check [[profiles]] entries and [verification] public_key in your TOML.');
+  }
+
+  for (const item of results) {
+    const label = emoji(item.status) + ' ' + item.label + ' — ' + item.status.toUpperCase();
+    if (item.status === 'verified' || item.status === 'self_asserted') {
+      console.info(label, item.url);
+    } else {
+      console.warn(label, item.url);
+    }
+
+    if (item.status === 'unverified' && data.static_mode && !item.has_stored_proof) {
+      console.warn('    → No stored_proof in TOML. Run: pypi-profile update-proofs <source>');
+    }
+    if (item.status === 'invalid') {
+      console.error('    → Signature verification FAILED. Check public_key matches signing key.');
+    }
+    if (item.status === 'expired') {
+      console.warn('    → Claim expired. Re-run: pypi-profile update-proofs <source>');
+    }
+    if (data.static_mode && item.has_stored_proof) {
+      console.debug('    stored_proof present in TOML for', item.url);
+    }
+
+    // Live GitHub check (CORS-open via raw.githubusercontent.com)
+    if (githubUser(item.url)) {
+      await checkGithub(item, data.public_key || '');
+    }
+  }
+
+  if (!data.public_key) {
+    console.warn('No public_key in [verification]. Run: pypi-profile keygen');
+  }
+
+  console.groupEnd();
+}
+
+main();
 </script>
 {% endblock %}
