@@ -25,7 +25,9 @@ def _import_minisign() -> Any:
 
         return minisign
     except ImportError as exc:
-        raise ImportError("py-minisign is required for verification. Install it with: uv add py-minisign") from exc
+        raise ImportError(
+            "py-minisign is required for verification. Install it with: uv add py-minisign"
+        ) from exc
 
 
 def fetch_page(url: str) -> str:

@@ -38,6 +38,9 @@ sign = [
 validate = [
     "schema-resume-validator>=1.1.0",
 ]
+build = [
+    "httpx>=0.27.0",
+]
 all = [
     "httpx>=0.27.0",
     "py-minisign>=0.13.2",
@@ -63,6 +66,7 @@ include = [
     "pypi_profile/**/*.py",
     "pypi_profile/**/*.html",
     "pypi_profile/**/*.css",
+    "pypi_profile/**/*.js",
     "pypi_profile/**/*.ico",
     "pypi_profile/**/*.svg",
     "pypi_profile/**/*.png",
@@ -77,6 +81,7 @@ include = ["/README.md", "LICENSE", "/pypi_profile", "/tests"]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.27.0",
     "bandit>=1.9.4",
     "black>=26.0.0",
     "isort>=6.0.0",

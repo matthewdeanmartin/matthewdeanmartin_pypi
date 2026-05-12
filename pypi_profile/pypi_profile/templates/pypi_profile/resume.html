@@ -18,9 +18,9 @@
     <div class="project-layout">
       <aside class="project-layout__navigation">
         {{ navigation.vertical_tabs([
-          {"id": "overview", "label": "Overview", "href": "/"},
-          {"id": "resume", "label": "Resume", "href": "/resume"},
-          {"id": "packages", "label": "Packages", "href": "/packages"}
+          {"id": "overview", "label": "Overview", "href": _base ~ "/"},
+          {"id": "resume", "label": "Resume", "href": _base ~ "/resume"},
+          {"id": "packages", "label": "Packages", "href": _base ~ "/packages"}
         ], active_id="resume", aria_label="Profile navigation") }}
       </aside>
 
@@ -46,7 +46,7 @@
             </div>
             {% if profile.packages | length > 5 %}
               <p style="margin-top: 0.75rem;">
-                <a href="/packages">View all {{ profile.packages | length }} packages →</a>
+                <a href="{{ _base }}/packages">View all {{ profile.packages | length }} packages →</a>
               </p>
             {% endif %}
           {% endcall %}
@@ -61,7 +61,7 @@
             </div>
             {% if profile.projects | length > 5 %}
               <p style="margin-top: 0.75rem;">
-                <a href="/projects">View all {{ profile.projects | length }} projects →</a>
+                <a href="{{ _base }}/projects">View all {{ profile.projects | length }} projects →</a>
               </p>
             {% endif %}
           {% endcall %}
@@ -79,7 +79,7 @@
             {% if profile.projects %}
               <p class="sidebar-copy">{{ profile.projects | length }} project(s) listed</p>
             {% endif %}
-            <p class="sidebar-copy"><a href="/packages">Browse all packages →</a></p>
+            <p class="sidebar-copy"><a href="{{ _base }}/packages">Browse all packages →</a></p>
           {% endcall %}
         {% endif %}
       </aside>

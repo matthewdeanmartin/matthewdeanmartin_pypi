@@ -9,8 +9,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pypi_profile.claims import is_expired, decode_claim
-from pypi_profile.ds.paths import package_root_path, template_root_path, static_root_path
+from pypi_profile.claims import decode_claim, is_expired
+from pypi_profile.ds.paths import (package_root_path, static_root_path,
+                                   template_root_path)
 from pypi_profile.loader import find_profile
 from pypi_profile.signing import generate_keypair, load_secret_key
 
@@ -36,7 +37,7 @@ def test_loader_find_profile_package(mocker: Any):
     mock_dist.locate_file.return_value = "pypi_profile.toml"
     mocker.patch("importlib.metadata.distribution", return_value=mock_dist)
     mocker.patch("pathlib.Path.exists", return_value=True)
-    
+
     path = find_profile("some-package")
     assert str(path) == "pypi_profile.toml"
 
@@ -66,7 +67,7 @@ def test_signing_load_secret_key_env(tmp_path: Path, mocker: Any):
     sk.touch()
     # Mock SecretKey.from_file to avoid actual loading of empty file
     mocker.patch("minisign.SecretKey.from_file")
-    
+
     mocker.patch.dict(os.environ, {"PYPI_PROFILE_KEY_PATH": str(sk)})
     key = load_secret_key()
     assert key is not None

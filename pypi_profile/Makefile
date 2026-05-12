@@ -190,10 +190,10 @@ dev-status:
 	@$(UV) run troml-dev-status validate .
 
 gha-validate:
-	@$(MAKE) -C .. gha-validate
+	@"$(MAKE)" -C .. gha-validate
 
 gha-pin:
-	@$(MAKE) -C .. gha-pin
+	@"$(MAKE)" -C .. gha-pin
 
 gha-upgrade: gha-pin gha-validate
 

@@ -21,13 +21,13 @@
       <aside class="project-layout__navigation">
         {{ navigation.vertical_tabs([
           {"id": "overview", "label": "Overview", "href": "#overview"},
-          {"id": "packages", "label": "Packages", "href": "/packages"},
-          {"id": "projects", "label": "Projects", "href": "/projects"},
-          {"id": "resume", "label": "Resume", "href": "/resume"},
-          {"id": "hiring", "label": "Hiring", "href": "/hiring"},
-          {"id": "contact", "label": "Contact", "href": "/contact"},
-          {"id": "verification", "label": "Verification", "href": "/verification"},
-          {"id": "succession", "label": "Succession", "href": "/succession"}
+          {"id": "packages", "label": "Packages", "href": _base ~ "/packages"},
+          {"id": "projects", "label": "Projects", "href": _base ~ "/projects"},
+          {"id": "resume", "label": "Resume", "href": _base ~ "/resume"},
+          {"id": "hiring", "label": "Hiring", "href": _base ~ "/hiring"},
+          {"id": "contact", "label": "Contact", "href": _base ~ "/contact"},
+          {"id": "verification", "label": "Verification", "href": _base ~ "/verification"},
+          {"id": "succession", "label": "Succession", "href": _base ~ "/succession"}
         ], active_id="overview", aria_label="Profile navigation") }}
       </aside>
 
@@ -55,7 +55,7 @@
               {% endfor %}
             </div>
             {% if profile.packages | length > 6 %}
-              <p><a href="/packages">View all {{ profile.packages | length }} packages →</a></p>
+              <p><a href="{{ _base }}/packages">View all {{ profile.packages | length }} packages →</a></p>
             {% endif %}
           {% endcall %}
         {% endif %}
@@ -93,7 +93,7 @@
               </li>
             {% endfor %}
           </ul>
-          <p><a href="/contact">All contact options →</a></p>
+          <p><a href="{{ _base }}/contact">All contact options →</a></p>
         {% endcall %}
 
         {% call layout.sidebar_section("Verification") %}
@@ -102,7 +102,7 @@
           {% else %}
             {{ feedback.badge("No verification key") }}
           {% endif %}
-          <p><a href="/verification">Verification details →</a></p>
+          <p><a href="{{ _base }}/verification">Verification details →</a></p>
         {% endcall %}
 
         {% if profile.humans | length > 1 %}

@@ -9,8 +9,11 @@ from typing import Any
 
 import pytest
 
-from pypi_profile.fetcher import _extract_github_username, _extract_gitlab_username, compare_packages, fetch_all
-from pypi_profile.models import IdentitySection, ProfileSection, ProfileData, ProfileLink, PackageEntry
+from pypi_profile.fetcher import (_extract_github_username,
+                                  _extract_gitlab_username, compare_packages,
+                                  fetch_all)
+from pypi_profile.models import (IdentitySection, PackageEntry, ProfileData,
+                                 ProfileLink, ProfileSection)
 
 
 @pytest.fixture
@@ -27,24 +30,46 @@ def sample_profile() -> ProfileData:
         identity=IdentitySection(pypi_username="alice_pypi"),
         profiles=[
             ProfileLink(kind="github", label="GitHub", url="https://github.com/alice"),
-            ProfileLink(kind="gitlab", label="GitLab", url="https://gitlab.com/alice_gl"),
-            ProfileLink(kind="mastodon", label="Mastodon", url="https://fosstodon.org/@alice_masto"),
+            ProfileLink(
+                kind="gitlab", label="GitLab", url="https://gitlab.com/alice_gl"
+            ),
+            ProfileLink(
+                kind="mastodon",
+                label="Mastodon",
+                url="https://fosstodon.org/@alice_masto",
+            ),
         ],
-        packages=[
-            PackageEntry(name="my-cool-pkg", role="owner")
-        ]
+        packages=[PackageEntry(name="my-cool-pkg", role="owner")],
     )
 
 
-def test_fetch_all_calls_importers(mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData) -> None:
+def test_fetch_all_calls_importers(
+    mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData
+) -> None:
     # Mock all importer functions
-    mock_pypi_user = mocker.patch("pypi_profile.fetcher._fetch_pypi_user_packages", return_value=[{"name": "pkg1"}])
-    mock_pypi_pkg = mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={"summary": "desc"})
-    mock_gh_profile = mocker.patch("pypi_profile.fetcher.fetch_github_profile", return_value={"name": "Alice GH"})
-    mock_gh_repos = mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[{"name": "repo1"}])
-    mock_gh_funding = mocker.patch("pypi_profile.fetcher.fetch_github_funding", return_value={"github": "alice"})
-    mock_gl_profile = mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile", return_value={"name": "Alice GL"})
-    mock_masto_profile = mocker.patch("pypi_profile.fetcher.fetch_mastodon_profile", return_value={"display_name": "Alice M"})
+    mock_pypi_user = mocker.patch(
+        "pypi_profile.fetcher._fetch_pypi_user_packages",
+        return_value=[{"name": "pkg1"}],
+    )
+    mock_pypi_pkg = mocker.patch(
+        "pypi_profile.fetcher.fetch_pypi_package_info", return_value={"summary": "desc"}
+    )
+    mock_gh_profile = mocker.patch(
+        "pypi_profile.fetcher.fetch_github_profile", return_value={"name": "Alice GH"}
+    )
+    mock_gh_repos = mocker.patch(
+        "pypi_profile.fetcher.fetch_github_repos", return_value=[{"name": "repo1"}]
+    )
+    mock_gh_funding = mocker.patch(
+        "pypi_profile.fetcher.fetch_github_funding", return_value={"github": "alice"}
+    )
+    mock_gl_profile = mocker.patch(
+        "pypi_profile.fetcher.fetch_gitlab_profile", return_value={"name": "Alice GL"}
+    )
+    mock_masto_profile = mocker.patch(
+        "pypi_profile.fetcher.fetch_mastodon_profile",
+        return_value={"display_name": "Alice M"},
+    )
 
     results = fetch_all(sample_profile, verbose=True)
 
@@ -63,10 +88,12 @@ def test_fetch_all_calls_importers(mocker: Any, mock_cache_dir: Path, sample_pro
     mock_gl_profile.assert_called_once_with("alice_gl")
 
 
-def test_fetch_all_uses_cache(mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData) -> None:
+def test_fetch_all_uses_cache(
+    mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData
+) -> None:
     # Pre-populate cache
     mock_cache_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # GitHub profile
     cache_file = mock_cache_dir / "github_profile_alice.json"
     cache_data = {"_ts": time.time(), "payload": {"name": "Cached Alice"}}
@@ -88,7 +115,9 @@ def test_fetch_all_uses_cache(mocker: Any, mock_cache_dir: Path, sample_profile:
     cache_file_gl.write_text(json.dumps(cache_data_gl))
 
     # Mastodon profile
-    cache_file_masto = mock_cache_dir / "mastodon_https___fosstodon.org__at_alice_masto.json"
+    cache_file_masto = (
+        mock_cache_dir / "mastodon_https___fosstodon.org__at_alice_masto.json"
+    )
     cache_data_masto = {"_ts": time.time(), "payload": {"display_name": "Cached M"}}
     cache_file_masto.write_text(json.dumps(cache_data_masto))
 
@@ -111,7 +140,9 @@ def test_fetch_all_uses_cache(mocker: Any, mock_cache_dir: Path, sample_profile:
     mock_gh_profile.assert_not_called()
 
 
-def test_fetch_all_cache_expiry(mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData) -> None:
+def test_fetch_all_cache_expiry(
+    mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData
+) -> None:
     # Pre-populate cache with expired data
     cache_file = mock_cache_dir / "github_profile_alice.json"
     mock_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -119,7 +150,9 @@ def test_fetch_all_cache_expiry(mocker: Any, mock_cache_dir: Path, sample_profil
     cache_file.write_text(json.dumps(cache_data))
 
     # Mock importer functions - GH profile SHOULD be called
-    mock_gh_profile = mocker.patch("pypi_profile.fetcher.fetch_github_profile", return_value={"name": "New Alice"})
+    mock_gh_profile = mocker.patch(
+        "pypi_profile.fetcher.fetch_github_profile", return_value={"name": "New Alice"}
+    )
     mocker.patch("pypi_profile.fetcher._fetch_pypi_user_packages", return_value=[])
     mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={})
     mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[])
@@ -140,13 +173,21 @@ def test_compare_packages() -> None:
             PackageEntry(name="pkg-ok", role="owner"),
             PackageEntry(name="pkg-wrong", role="maintainer"),
             PackageEntry(name="pkg-missing", role="owner"),
-        ]
+        ],
     )
 
     live_results = {
         "package_meta": {
-            "pkg-ok": {"maintainers": ["alice", "bob"], "summary": "OK", "version": "1.0"},
-            "pkg-wrong": {"maintainers": ["charlie"], "summary": "Wrong", "version": "2.0"},
+            "pkg-ok": {
+                "maintainers": ["alice", "bob"],
+                "summary": "OK",
+                "version": "1.0",
+            },
+            "pkg-wrong": {
+                "maintainers": ["charlie"],
+                "summary": "Wrong",
+                "version": "2.0",
+            },
             # pkg-missing is missing from live_results
         }
     }
@@ -154,7 +195,7 @@ def test_compare_packages() -> None:
     report = compare_packages(profile, live_results)
 
     assert len(report) == 3
-    
+
     ok = next(r for r in report if r["name"] == "pkg-ok")
     assert ok["status"] == "confirmed"
     assert ok["pypi_version"] == "1.0"
@@ -172,7 +213,7 @@ def test_compare_packages_no_username() -> None:
         identity=IdentitySection(pypi_username=""),
         packages=[
             PackageEntry(name="pkg-any", role="owner"),
-        ]
+        ],
     )
     live_results = {
         "package_meta": {

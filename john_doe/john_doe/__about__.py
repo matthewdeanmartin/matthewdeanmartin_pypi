@@ -15,9 +15,9 @@ __all__ = [
 
 __title__ = "john-doe"
 __version__ = "0.1.0"
-__description__ = "Example pypi-profile plugin — proves two plugins can coexist."
+__description__ = "Example pypi-profile plugin — a data package that publishes a profile website via pypi-profile."
 __readme__ = "README.md"
-__credits__ = [{"name": "Matthew Martin", "email": "matthewdeanmartin@gmail.com"}]
+__credits__ = [{"name": "John Doe", "email": "john@example.com"}]
 __keywords__ = ["pypi", "profile", "plugin"]
 __license__ = "MIT"
 __requires_python__ = ">=3.10"

@@ -83,10 +83,10 @@ end_date = "2021-02"
 summary = "Python microservices and internal tooling."
 
 [hiring]
-open_to_work = true
-employment = false
-contracting = true
-consulting = true
+open_to_work_since = "2026-01-01"
+employment_types = ["contracting", "consulting"]
+work_model = ["remote", "hybrid", "onsite"]
+jurisdiction = ["US"]
 speaking = true
 sponsorship = false
 

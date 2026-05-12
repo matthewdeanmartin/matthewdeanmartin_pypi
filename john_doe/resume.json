@@ -10,7 +10,7 @@
     "summary": "Python developer, open-source maintainer, and consultant. Passionate about packaging tooling and developer experience.",
     "location": {
       "city": "Chicago",
-      "region": "IL",
+      "region": "Illinois",
       "countryCode": "US"
     },
     "profiles": [
@@ -37,12 +37,16 @@
       "position": "Senior Python Engineer",
       "url": "https://example.com",
       "startDate": "2021-03",
-      "endDate": "present",
       "summary": "Backend systems, packaging infrastructure, and CLI tooling.",
       "highlights": [
         "Reduced CI build times by 40%",
         "Led migration from setup.py to pyproject.toml"
-      ]
+      ],
+      "location": {
+        "city": "Chicago",
+        "region": "Illinois",
+        "countryCode": "US"
+      }
     },
     {
       "name": "Widgets LLC",
@@ -50,7 +54,12 @@
       "url": "https://widgets.example.com",
       "startDate": "2018-06",
       "endDate": "2021-02",
-      "summary": "Python microservices and internal tooling."
+      "summary": "Python microservices and internal tooling.",
+      "location": {
+        "city": "Chicago",
+        "region": "Illinois",
+        "countryCode": "US"
+      }
     }
   ],
   "volunteer": [],
@@ -96,7 +105,6 @@
       "highlights": [],
       "keywords": ["community", "python"],
       "startDate": "2019",
-      "endDate": "",
       "url": "https://chipug.org",
       "roles": ["contributor"],
       "entity": "ChiPUG",

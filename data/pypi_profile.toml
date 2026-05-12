@@ -55,20 +55,20 @@ summary = "Automated pyproject.toml metadata fixer."
 
 
 [hiring]
-open_to_work = false
-employment = false
-contracting = true
-consulting = true
+open_to_work_since = "2026-07-15"
+employment_types = ["employment", "contracting", "consulting"]
+work_model = ["remote", "hybrid"]
+jurisdiction = ["US"]
 speaking = false
 sponsorship = true
 
 [contracting]
 legal_entity = ""
-engagement_types = ["hourly", "retainer"]
+engagement_types = []
 
 [contact_preferences]
-do_contact_about = ["consulting", "package-maintenance", "security"]
-do_not_contact_about = ["cryptocurrency", "unpaid-custom-work"]
+do_contact_about = [ "package-maintenance", "security"]
+do_not_contact_about = ["consulting","cryptocurrency", "unpaid-custom-work"]
 
 [succession]
 policy = "If unreachable for 90 days, open a GitHub issue on any affected repository."

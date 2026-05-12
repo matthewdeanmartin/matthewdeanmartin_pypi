@@ -3,157 +3,100 @@ MAKEFLAGS += --no-print-directory
 export PYTHONUTF8 := 1
 
 PACKAGE := john_doe
-PYTHON_TARGETS := john_doe tests
-PYLINT_MAIN_TARGETS := john_doe
-PYLINT_TEST_TARGETS := tests
-MARKDOWN_TARGETS := $(wildcard README.md CHANGELOG.md AGENTS.md docs)
-YAML_TARGETS := $(wildcard mkdocs.yml .readthedocs.yaml .github/dependabot.yml)
+TOML    := john_doe/pypi_profile.toml
 ABOUT_FILE := john_doe/__about__.py
-AUDIT_IGNORE := PYSEC-2022-42969
 
 .PHONY: \
-	sync pre-commit-install \
-	format format-python format-yaml format-markdown \
-	format-check format-check-python format-check-yaml format-check-markdown \
-	lint lint-check ruff-fix ruff-check pylint pylint-tests pylint-spelling \
-	spell \
-	docs-check docs-check-docstrings docs-check-links docs-check-pydoctest griffe \
-	build-docs \
-	dead-code vulture deadcode \
-	explore refurb crosshair deptry import-linter \
-	security bandit audit \
-	smoke test test-ci tox \
-	typecheck typecheck-mypy \
-	metadata metadata-check version-check dev-status \
-	gha-validate gha-pin gha-upgrade publish-gha \
-	prerelease publish-check publish \
+	sync \
+	init update \
+	serve inspect validate dump doctor \
+	format lint typecheck security \
+	test test-ci \
+	metadata metadata-check \
+	publish-check publish \
 	check check-ci help
 
 help:
-	@echo "Package: $(PACKAGE)"
-	@echo "Targets: sync format format-check lint lint-check spell test test-ci tox"
-	@echo "         typecheck security docs-check build-docs dead-code explore"
-	@echo "         metadata metadata-check version-check dev-status"
-	@echo "         gha-validate gha-pin gha-upgrade publish-gha (delegates to repo root)"
-	@echo "         check check-ci prerelease publish-check publish"
+	@echo "john-doe profile package — targets:"
+	@echo ""
+	@echo "  Profile management:"
+	@echo "    init          Re-run the interactive wizard to create/update pypi_profile.toml"
+	@echo "    update        Re-fetch live PyPI/GitHub data and merge into pypi_profile.toml"
+	@echo "    serve         Serve the profile website locally (http://127.0.0.1:8000)"
+	@echo "    inspect       Inspect the profile (no code executed)"
+	@echo "    validate      Validate pypi_profile.toml against the schema"
+	@echo "    dump          Dump profile as JSON (for debugging)"
+	@echo "    doctor        Check that all runtime dependencies are installed"
+	@echo ""
+	@echo "  Development:"
+	@echo "    sync          Install all dependencies"
+	@echo "    format        Auto-format Python source"
+	@echo "    lint          Lint Python source"
+	@echo "    typecheck     Type-check with mypy"
+	@echo "    security      Run bandit security scan"
+	@echo "    test          Run tests"
+	@echo "    test-ci       Run tests (CI mode, parallel)"
+	@echo "    check         Full local quality gate"
+	@echo "    check-ci      CI quality gate"
+	@echo ""
+	@echo "  Publishing:"
+	@echo "    metadata      Regenerate $(ABOUT_FILE) from pyproject.toml"
+	@echo "    publish-check Build wheel/sdist and list artifacts"
+	@echo "    publish       Publish to PyPI"
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
 
 sync:
 	@$(UV) sync
 
-pre-commit-install:
-	@$(UV) run pre-commit install
+# ── Profile management ────────────────────────────────────────────────────────
 
-format: format-python format-yaml format-markdown
+init:
+	@$(UV) run --package pypi-profile pypi-profile init \
+		--username john_doe \
+		--output $(TOML) \
+		--force
+	@"$(MAKE)" validate
 
-format-python:
-	@$(UV) run isort $(PYTHON_TARGETS)
-	@$(UV) run black $(PYTHON_TARGETS)
-	@$(UV) run ruff check --fix --quiet $(PYTHON_TARGETS)
-	@$(UV) run black $(PYTHON_TARGETS)
+update:
+	@$(UV) run --package pypi-profile pypi-profile init \
+		--username john_doe \
+		--output $(TOML) \
+		--force \
+		--fetch
+	@"$(MAKE)" validate
 
-format-yaml:
-	@if [ -n "$(strip $(YAML_TARGETS))" ]; then "$(UV)" run yamlfix $(YAML_TARGETS); fi
+serve:
+	@$(UV) run --package pypi-profile pypi-profile serve $(TOML)
 
-format-markdown:
-	@if [ -n "$(strip $(MARKDOWN_TARGETS))" ]; then "$(UV)" run mdformat $(MARKDOWN_TARGETS); fi
+inspect:
+	@$(UV) run --package pypi-profile pypi-profile inspect $(TOML)
 
-format-check: format-check-python format-check-yaml format-check-markdown
+validate:
+	@$(UV) run --package pypi-profile pypi-profile validate $(TOML)
 
-format-check-python:
-	@$(UV) run isort --check-only $(PYTHON_TARGETS)
-	@$(UV) run black --check $(PYTHON_TARGETS)
-	@$(UV) run ruff check --quiet $(PYTHON_TARGETS)
+dump:
+	@$(UV) run --package pypi-profile pypi-profile dump $(TOML)
 
-format-check-yaml:
-	@if [ -n "$(strip $(YAML_TARGETS))" ]; then "$(UV)" run yamlfix --check $(YAML_TARGETS); fi
+doctor:
+	@$(UV) run --package pypi-profile pypi-profile doctor
 
-format-check-markdown:
-	@if [ -n "$(strip $(MARKDOWN_TARGETS))" ]; then "$(UV)" run mdformat --check $(MARKDOWN_TARGETS); fi
+# ── Code quality ──────────────────────────────────────────────────────────────
 
-lint: ruff-fix pylint pylint-tests
+format:
+	@$(UV) run ruff check --fix --quiet $(PACKAGE) tests
+	@$(UV) run ruff format $(PACKAGE) tests
 
-lint-check: ruff-check pylint pylint-tests
+lint:
+	@$(UV) run ruff check --quiet $(PACKAGE) tests
 
-ruff-fix:
-	@$(UV) run ruff check --fix --quiet $(PYTHON_TARGETS)
+typecheck:
+	@$(UV) run mypy --hide-error-context $(PACKAGE) tests
 
-ruff-check:
-	@$(UV) run ruff check --quiet $(PYTHON_TARGETS)
-
-pylint:
-	@$(UV) run pylint --score=n --reports=n --rcfile=.pylintrc $(PYLINT_MAIN_TARGETS)
-
-pylint-tests:
-	@$(UV) run pylint --score=n --reports=n --rcfile=.pylintrc_tests $(PYLINT_TEST_TARGETS)
-
-pylint-spelling:
-	@$(UV) run pylint --score=n --reports=n --rcfile=.pylintrc_spell $(PYLINT_MAIN_TARGETS)
-
-spell: pylint-spelling
-	@$(UV) run codespell --ignore-words=private_dictionary.txt \
-		$(PACKAGE) tests README.md CHANGELOG.md AGENTS.md docs
-
-docs-check: docs-check-docstrings docs-check-pydoctest docs-check-links
-
-docs-check-docstrings:
-	@$(UV) run interrogate $(PACKAGE) --verbose --fail-under 70
-
-docs-check-pydoctest:
-	@$(UV) run pydoctest --config .pydoctest.json \
-		| grep -v "__init__" | grep -v "__main__" | grep -v "Unable to parse" || true
-
-docs-check-links:
-	@$(UV) run linkcheckMarkdown README.md || true
-	@$(UV) run mdformat --check README.md CHANGELOG.md docs/*.md || true
-
-griffe:
-	@echo "=== griffe API surface check (advisory) ==="
-	@$(UV) run griffe check $(PACKAGE) || true
-
-build-docs:
-	@$(UV) run mkdocs build
-
-dead-code: vulture deadcode
-
-vulture:
-	@echo "=== vulture (advisory) ==="
-	@$(UV) run vulture $(PACKAGE) --min-confidence 80 || true
-
-deadcode:
-	@echo "=== deadcode (advisory) ==="
-	@$(UV) run deadcode $(PACKAGE) || true
-
-explore: refurb crosshair deptry import-linter
-
-refurb:
-	@echo "=== refurb (advisory) ==="
-	@$(UV) run refurb $(PACKAGE) || true
-
-crosshair:
-	@echo "=== crosshair (advisory) ==="
-	@$(UV) run crosshair check $(PACKAGE) || true
-
-deptry:
-	@echo "=== deptry (advisory) ==="
-	@$(UV) run deptry . || true
-
-import-linter:
-	@echo "=== import-linter (advisory) ==="
-	@$(UV) run lint-imports || true
-
-security: bandit audit
-
-bandit:
+security:
 	@$(UV) run bandit -q -c pyproject.toml -r $(PACKAGE)
 
-audit:
-	@echo "=== uv audit ==="
-	@$(UV) audit --ignore-until-fixed $(AUDIT_IGNORE)
-	@echo "=== pip-audit ==="
-	@$(UV) run pip-audit --ignore-vuln $(AUDIT_IGNORE)
-
-smoke:
-	@$(UV) run bash scripts/basic_checks.sh
+# ── Tests ─────────────────────────────────────────────────────────────────────
 
 test:
 	@$(UV) run pytest -q \
@@ -163,43 +106,19 @@ test:
 		--timeout=60
 
 test-ci:
-	@$(UV) run pytest -q -n auto --dist=loadfile \
+	@$(UV) run pytest -q \
 		--cov=$(PACKAGE) \
 		--cov-report=xml \
 		--junitxml=junit.xml \
 		--timeout=60
 
-tox:
-	@$(UV) run tox
-
-typecheck: typecheck-mypy
-
-typecheck-mypy:
-	@$(UV) run mypy --hide-error-context $(PACKAGE) tests
+# ── Metadata & publishing ─────────────────────────────────────────────────────
 
 metadata:
 	@$(UV) run metametameta pep621 --name $(PACKAGE) --source pyproject.toml --output $(ABOUT_FILE)
 
 metadata-check:
 	@$(UV) run metametameta sync-check --output $(ABOUT_FILE)
-
-version-check:
-	@$(UV) run jiggle_version check
-
-dev-status:
-	@$(UV) run troml-dev-status validate .
-
-gha-validate:
-	@$(MAKE) -C .. gha-validate
-
-gha-pin:
-	@$(MAKE) -C .. gha-pin
-
-gha-upgrade: gha-pin gha-validate
-
-publish-gha:
-	@echo "No publish workflow is configured for john_doe; use the pypi_profile or matthewdeanmartin publish workflows."
-	@exit 1
 
 publish-check:
 	@$(UV) build
@@ -208,11 +127,10 @@ publish-check:
 publish:
 	@$(UV) publish
 
-check: format-check lint-check security test typecheck metadata-check version-check
+# ── Gates ─────────────────────────────────────────────────────────────────────
+
+check: format lint security test typecheck validate
 	@echo "All checks passed."
 
-check-ci: format-check lint-check security test-ci typecheck metadata-check version-check
+check-ci: lint security test-ci typecheck validate
 	@echo "CI checks passed."
-
-prerelease: check dev-status docs-check smoke spell publish-check
-	@echo "Pre-release checks complete — ready to publish."

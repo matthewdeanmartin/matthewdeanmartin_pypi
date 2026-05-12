@@ -1629,47 +1629,11 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "bandit" },
-    { name = "black" },
-    { name = "codespell" },
-    { name = "crosshair-tool" },
-    { name = "deadcode" },
-    { name = "deptry" },
-    { name = "gha-update", marker = "python_full_version >= '3.12'" },
-    { name = "git2md" },
-    { name = "griffe" },
-    { name = "hypothesis" },
-    { name = "import-linter" },
-    { name = "interrogate" },
-    { name = "isort" },
-    { name = "jiggle-version" },
-    { name = "linkcheckmd" },
-    { name = "mdformat" },
-    { name = "metametameta" },
-    { name = "mkdocs" },
-    { name = "mkdocstrings", extra = ["python"] },
     { name = "mypy" },
-    { name = "pip-audit" },
-    { name = "pre-commit" },
-    { name = "pyclean" },
-    { name = "pydoclint" },
-    { name = "pydoctest" },
-    { name = "pyenchant" },
-    { name = "pylint", extra = ["spelling"] },
     { name = "pytest" },
     { name = "pytest-cov" },
-    { name = "pytest-mock" },
-    { name = "pytest-randomly" },
-    { name = "pytest-sugar" },
     { name = "pytest-timeout" },
-    { name = "pytest-xdist" },
-    { name = "pyyaml" },
-    { name = "refurb" },
     { name = "ruff" },
-    { name = "tox" },
-    { name = "tox-uv" },
-    { name = "troml-dev-status" },
-    { name = "vulture" },
-    { name = "yamlfix" },
 ]
 
 [package.metadata]
@@ -1678,47 +1642,11 @@ requires-dist = [{ name = "pypi-profile", editable = "pypi_profile" }]
 [package.metadata.requires-dev]
 dev = [
     { name = "bandit", specifier = ">=1.9.4" },
-    { name = "black", specifier = ">=26.0.0" },
-    { name = "codespell", specifier = ">=2.4.1" },
-    { name = "crosshair-tool", marker = "python_full_version >= '3.10'", specifier = ">=0.0.80" },
-    { name = "deadcode", specifier = ">=2.4.0" },
-    { name = "deptry", specifier = ">=0.20.0" },
-    { name = "gha-update", marker = "python_full_version >= '3.12'", specifier = ">=0.1.0" },
-    { name = "git2md", specifier = ">=0.1.0" },
-    { name = "griffe", specifier = ">=1.0.0" },
-    { name = "hypothesis", specifier = ">=6.100.0" },
-    { name = "import-linter", specifier = ">=2.0" },
-    { name = "interrogate", specifier = ">=1.5.0" },
-    { name = "isort", specifier = ">=6.0.0" },
-    { name = "jiggle-version", specifier = ">=2.1.0" },
-    { name = "linkcheckmd", specifier = ">=1.4.0" },
-    { name = "mdformat", specifier = ">=1.0.0" },
-    { name = "metametameta", specifier = ">=0.1.5" },
-    { name = "mkdocs", specifier = ">=1.6.0" },
-    { name = "mkdocstrings", extras = ["python"], specifier = ">=0.26.0" },
     { name = "mypy", specifier = ">=1.18.0" },
-    { name = "pip-audit", specifier = ">=2.7.0" },
-    { name = "pre-commit", specifier = ">=4.0.0" },
-    { name = "pyclean", specifier = ">=3.0.0" },
-    { name = "pydoclint", marker = "python_full_version >= '3.10'", specifier = ">=0.8.0" },
-    { name = "pydoctest", specifier = "==0.2.1" },
-    { name = "pyenchant", specifier = ">=3.2.2" },
-    { name = "pylint", extras = ["spelling"], specifier = ">=4.0.0" },
     { name = "pytest", specifier = ">=8.4.0" },
     { name = "pytest-cov", specifier = ">=6.0.0" },
-    { name = "pytest-mock", specifier = ">=3.14.0" },
-    { name = "pytest-randomly", specifier = ">=3.15.0" },
-    { name = "pytest-sugar", specifier = ">=0.9.7" },
     { name = "pytest-timeout", specifier = ">=2.4.0" },
-    { name = "pytest-xdist", specifier = ">=3.5.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "refurb", marker = "python_full_version >= '3.10'", specifier = ">=2.0.0" },
     { name = "ruff", specifier = ">=0.12.0" },
-    { name = "tox", specifier = ">=4.0" },
-    { name = "tox-uv", specifier = ">=1.0" },
-    { name = "troml-dev-status", specifier = ">=0.6.0" },
-    { name = "vulture", specifier = ">=2.11" },
-    { name = "yamlfix", specifier = ">=1.19.0" },
 ]
 
 [[package]]
@@ -3155,6 +3083,9 @@ all = [
     { name = "py-minisign" },
     { name = "schema-resume-validator" },
 ]
+build = [
+    { name = "httpx" },
+]
 fetch = [
     { name = "httpx" },
 ]
@@ -3176,6 +3107,7 @@ dev = [
     { name = "gha-update", marker = "python_full_version >= '3.12'" },
     { name = "git2md" },
     { name = "griffe" },
+    { name = "httpx" },
     { name = "hypothesis" },
     { name = "import-linter" },
     { name = "interrogate" },
@@ -3215,6 +3147,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "httpx", marker = "extra == 'all'", specifier = ">=0.27.0" },
+    { name = "httpx", marker = "extra == 'build'", specifier = ">=0.27.0" },
     { name = "httpx", marker = "extra == 'fetch'", specifier = ">=0.27.0" },
     { name = "jinja2", specifier = ">=3.1.0" },
     { name = "pluggy", specifier = ">=1.5.0" },
@@ -3227,7 +3160,7 @@ requires-dist = [
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
     { name = "uvicorn", specifier = ">=0.30.0" },
 ]
-provides-extras = ["fetch", "sign", "validate", "all"]
+provides-extras = ["fetch", "sign", "validate", "build", "all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3240,6 +3173,7 @@ dev = [
     { name = "gha-update", marker = "python_full_version >= '3.12'", specifier = ">=0.1.0" },
     { name = "git2md", specifier = ">=0.1.0" },
     { name = "griffe", specifier = ">=1.0.0" },
+    { name = "httpx", specifier = ">=0.27.0" },
     { name = "hypothesis", specifier = ">=6.100.0" },
     { name = "import-linter", specifier = ">=2.0" },
     { name = "interrogate", specifier = ">=1.5.0" },

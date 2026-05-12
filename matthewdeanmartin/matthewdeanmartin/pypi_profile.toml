@@ -60,10 +60,10 @@ state = "active"
 summary = "Convert a git repo to a markdown document for LLM consumption."
 
 [hiring]
-open_to_work = false
-employment = false
-contracting = true
-consulting = true
+open_to_work_since = "2026-07-15"
+employment_types = ["employment", "contracting", "consulting"]
+work_model = ["remote", "hybrid"]
+jurisdiction = ["US"]
 speaking = false
 sponsorship = true
 

@@ -74,34 +74,34 @@ doctor:
 	$(UV) run --package pypi-profile pypi-profile doctor
 
 test:
-	@$(MAKE) -C pypi_profile test
-	@$(MAKE) -C matthewdeanmartin test
-	@$(MAKE) -C john_doe test
+	@"$(MAKE)" -C pypi_profile test
+	@"$(MAKE)" -C matthewdeanmartin test
+	@"$(MAKE)" -C john_doe test
 
 format:
-	@$(MAKE) -C pypi_profile format
-	@$(MAKE) -C matthewdeanmartin format
-	@$(MAKE) -C john_doe format
+	@"$(MAKE)" -C pypi_profile format
+	@"$(MAKE)" -C matthewdeanmartin format
+	@"$(MAKE)" -C john_doe format
 
 lint:
-	@$(MAKE) -C pypi_profile lint
-	@$(MAKE) -C matthewdeanmartin lint
-	@$(MAKE) -C john_doe lint
+	@"$(MAKE)" -C pypi_profile lint
+	@"$(MAKE)" -C matthewdeanmartin lint
+	@"$(MAKE)" -C john_doe lint
 
 typecheck:
-	@$(MAKE) -C pypi_profile typecheck
-	@$(MAKE) -C matthewdeanmartin typecheck
-	@$(MAKE) -C john_doe typecheck
+	@"$(MAKE)" -C pypi_profile typecheck
+	@"$(MAKE)" -C matthewdeanmartin typecheck
+	@"$(MAKE)" -C john_doe typecheck
 
 check:
-	@$(MAKE) -C pypi_profile check
-	@$(MAKE) -C matthewdeanmartin check
-	@$(MAKE) -C john_doe check
+	@"$(MAKE)" -C pypi_profile check
+	@"$(MAKE)" -C matthewdeanmartin check
+	@"$(MAKE)" -C john_doe check
 
 check-ci:
-	@$(MAKE) -C pypi_profile check-ci
-	@$(MAKE) -C matthewdeanmartin check-ci
-	@$(MAKE) -C john_doe check-ci
+	@"$(MAKE)" -C pypi_profile check-ci
+	@"$(MAKE)" -C matthewdeanmartin check-ci
+	@"$(MAKE)" -C john_doe check-ci
 
 gha-validate:
 	@$(UV) run python -c "import pathlib, yaml; [yaml.safe_load(p.read_text(encoding='utf-8')) for p in pathlib.Path('$(GHA_WORKFLOWS)').glob('*.yml')]; print('YAML parse OK')"

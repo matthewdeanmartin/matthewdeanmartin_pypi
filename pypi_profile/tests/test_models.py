@@ -4,8 +4,15 @@ from pathlib import Path
 
 import pytest
 
-JOHN_DOE_TOML = Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
-MATT_TOML = Path(__file__).parent.parent.parent / "matthewdeanmartin" / "matthewdeanmartin" / "pypi_profile.toml"
+JOHN_DOE_TOML = (
+    Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
+)
+MATT_TOML = (
+    Path(__file__).parent.parent.parent
+    / "matthewdeanmartin"
+    / "matthewdeanmartin"
+    / "pypi_profile.toml"
+)
 
 
 def test_empty_profile_has_defaults() -> None:
@@ -14,7 +21,7 @@ def test_empty_profile_has_defaults() -> None:
     p = ProfileData()
     assert p.profile.kind == "individual"
     assert p.packages == []
-    assert p.hiring.open_to_work is False
+    assert p.hiring.open_to_work_since == ""
 
 
 def test_load_john_doe_profile() -> None:
@@ -25,7 +32,7 @@ def test_load_john_doe_profile() -> None:
     assert profile.profile.kind == "individual"
     assert len(profile.packages) == 3
     assert len(profile.work_experience) == 2
-    assert profile.hiring.consulting is True
+    assert "consulting" in profile.hiring.employment_types
 
 
 def test_load_matthewdeanmartin_profile() -> None:

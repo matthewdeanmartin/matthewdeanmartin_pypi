@@ -6,7 +6,9 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-ClaimStatus = Literal["self_asserted", "verified", "unverified", "invalid", "expired", "unknown"]
+ClaimStatus = Literal[
+    "self_asserted", "verified", "unverified", "invalid", "expired", "unknown"
+]
 
 PrincipalKind = Literal[
     "individual",
@@ -121,10 +123,10 @@ class WorkEntry(BaseModel):
 
 
 class HiringSection(BaseModel):
-    open_to_work: bool = False
-    employment: bool = False
-    contracting: bool = False
-    consulting: bool = False
+    open_to_work_since: str = ""
+    employment_types: list[str] = []
+    work_model: list[str] = []
+    jurisdiction: list[str] = []
     speaking: bool = False
     sponsorship: bool = False
 

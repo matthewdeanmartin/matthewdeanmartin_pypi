@@ -90,10 +90,13 @@ The pluggy wiring exists but the hook API is minimal and the allow-code path is 
 
 ## Static site export (Phase 2)
 
-- [ ] `pypi_profile/builder.py` — iterate all registered routes, render each to a static HTML file
-- [ ] Write rendered HTML, CSS, and JSON files to `--output` directory
-- [ ] Copy static assets (`/static/pypi_ds/`) into the output tree
-- [ ] `pypi-profile build <source> --output dist/` CLI subcommand
+- [x] `pypi_profile/builder.py` — iterate all registered routes, render each to a static HTML file
+- [x] Write rendered HTML, CSS, and JSON files to `--output` directory
+- [x] Copy static assets (`/static/pypi_ds/`) into the output tree
+- [x] `pypi-profile build <source> --output dist/` CLI subcommand
+- [x] `resume.json` auto-discovered and published at `api/resume.json`
+- [x] `base_url` support for GitHub Pages subpath deployments (`--base-url /reponame`)
+- [x] GitHub Actions workflow `.github/workflows/publish_pages_matthewdeanmartin.yml` publishes matthewdeanmartin profile from source on push to main
 - [ ] Handle the search form gracefully (omit or replace with a static note)
 - [ ] Document how to publish the output to GitHub Pages / Netlify / Cloudflare Pages
 - [ ] Add `make build-john-doe` target to the root Makefile as a demo

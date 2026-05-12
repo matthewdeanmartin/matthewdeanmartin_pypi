@@ -9,15 +9,11 @@ import urllib.error
 from pathlib import Path
 from typing import Any
 
-from pypi_profile.importers import (
-    _fetch_pypi_user_packages,
-    fetch_github_funding,
-    fetch_github_profile,
-    fetch_github_repos,
-    fetch_gitlab_profile,
-    fetch_mastodon_profile,
-    fetch_pypi_package_info,
-)
+from pypi_profile.importers import (_fetch_pypi_user_packages,
+                                    fetch_github_funding, fetch_github_profile,
+                                    fetch_github_repos, fetch_gitlab_profile,
+                                    fetch_mastodon_profile,
+                                    fetch_pypi_package_info)
 from pypi_profile.models import ProfileData
 
 CACHE_DIR = Path(".pypi_profile_cache")
@@ -172,7 +168,9 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
     return results
 
 
-def compare_packages(profile: ProfileData, live_results: dict[str, Any]) -> list[dict[str, Any]]:
+def compare_packages(
+    profile: ProfileData, live_results: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Compare self-asserted package roles against PyPI live data."""
     pypi_username = profile.identity.pypi_username
     package_meta = live_results.get("package_meta", {})

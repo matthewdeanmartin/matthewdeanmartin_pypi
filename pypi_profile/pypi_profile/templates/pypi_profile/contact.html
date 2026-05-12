@@ -19,9 +19,9 @@
     <div class="project-layout">
       <aside class="project-layout__navigation">
         {{ navigation.vertical_tabs([
-          {"id": "overview", "label": "Overview", "href": "/"},
-          {"id": "contact", "label": "Contact", "href": "/contact"},
-          {"id": "hiring", "label": "Hiring", "href": "/hiring"}
+          {"id": "overview", "label": "Overview", "href": _base ~ "/"},
+          {"id": "contact", "label": "Contact", "href": _base ~ "/contact"},
+          {"id": "hiring", "label": "Hiring", "href": _base ~ "/hiring"}
         ], active_id="contact", aria_label="Profile navigation") }}
       </aside>
       <div class="project-layout__content">

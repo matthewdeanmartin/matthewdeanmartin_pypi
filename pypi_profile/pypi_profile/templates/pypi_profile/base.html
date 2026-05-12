@@ -1,21 +1,23 @@
 {% extends "pypi_ds/base.html" %}
 {% import "pypi_ds/components/layout.html" as layout %}
+{% set _base = base_url | default("") %}
 {% block title %}{% block profile_title %}{% endblock %} · PyPI Profile{% endblock %}
 {% block body %}
   {{ layout.site_header(
     brand_name="PyPI Profile",
-    brand_href="/",
+    brand_href=_base ~ "/",
     search_action=None,
     nav_items=[
-      {"label": "Packages", "href": "/packages"},
-      {"label": "Projects", "href": "/projects"},
-      {"label": "Resume", "href": "/resume"},
-      {"label": "Hiring", "href": "/hiring"},
-      {"label": "Contact", "href": "/contact"},
-      {"label": "Verification", "href": "/verification"},
-      {"label": "Succession", "href": "/succession"}
+      {"label": "Packages", "href": _base ~ "/packages"},
+      {"label": "Projects", "href": _base ~ "/projects"},
+      {"label": "Resume", "href": _base ~ "/resume"},
+      {"label": "Hiring", "href": _base ~ "/hiring"},
+      {"label": "Contact", "href": _base ~ "/contact"},
+      {"label": "Verification", "href": _base ~ "/verification"},
+      {"label": "Succession", "href": _base ~ "/succession"}
     ],
-    secondary_items=[]
+    secondary_items=[],
+    asset_base=_base ~ "/static/pypi_ds"
   ) }}
   {% block content %}{% endblock %}
   {{ layout.site_footer(

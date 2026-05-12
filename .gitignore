@@ -207,3 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 .idea
+
+# pypi-profile fetch cache
+.pypi_profile_cache/
+/minisign_src/

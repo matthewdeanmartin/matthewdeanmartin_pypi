@@ -405,7 +405,9 @@ class PypiProfileGui(tk.Tk):
 
         # ── Key settings (bottom of left panel) ──────────────────────────
         sep_row = len(COMMANDS) + 1
-        tk.Frame(left, bg="#555555", height=1).grid(row=sep_row, column=0, sticky="ew", padx=6, pady=(8, 4))
+        tk.Frame(left, bg="#555555", height=1).grid(
+            row=sep_row, column=0, sticky="ew", padx=6, pady=(8, 4)
+        )
 
         key_frame = tk.Frame(left, bg="#2b2b2b")
         key_frame.grid(row=sep_row + 1, column=0, sticky="ew", padx=6, pady=(0, 6))
@@ -498,10 +500,14 @@ class PypiProfileGui(tk.Tk):
         self._args_frame = args_outer
 
         # Output
-        out_label = tk.Label(center, text="Output", anchor="w", font=("Helvetica", 10, "bold"))
+        out_label = tk.Label(
+            center, text="Output", anchor="w", font=("Helvetica", 10, "bold")
+        )
         out_label.grid(row=2, column=0, sticky="w")
 
-        self._output = scrolledtext.ScrolledText(center, font=mono, bg="#1e1e1e", fg="#d4d4d4", wrap=tk.WORD)
+        self._output = scrolledtext.ScrolledText(
+            center, font=mono, bg="#1e1e1e", fg="#d4d4d4", wrap=tk.WORD
+        )
         self._output.grid(row=3, column=0, sticky="nsew")
         center.rowconfigure(3, weight=1)
 
@@ -528,7 +534,9 @@ class PypiProfileGui(tk.Tk):
         )
         self._stop_btn.pack(side=tk.LEFT)
         self._status_var = tk.StringVar(value="")
-        self._status_label = tk.Label(btn_bar, textvariable=self._status_var, fg="#888888")
+        self._status_label = tk.Label(
+            btn_bar, textvariable=self._status_var, fg="#888888"
+        )
         self._status_label.pack(side=tk.LEFT, padx=8)
 
         # ── RIGHT panel ──────────────────────────────────────────────────
@@ -537,9 +545,9 @@ class PypiProfileGui(tk.Tk):
         right.rowconfigure(1, weight=1)
         right.columnconfigure(0, weight=1)
 
-        tk.Label(right, text="Help", font=("Helvetica", 11, "bold"), anchor="w", pady=4).grid(
-            row=0, column=0, sticky="ew", padx=6
-        )
+        tk.Label(
+            right, text="Help", font=("Helvetica", 11, "bold"), anchor="w", pady=4
+        ).grid(row=0, column=0, sticky="ew", padx=6)
         self._help_text = scrolledtext.ScrolledText(
             right,
             font=("Helvetica", 10),
@@ -587,9 +595,9 @@ class PypiProfileGui(tk.Tk):
         self._arg_widgets.clear()
 
         if not cmd["args"]:
-            tk.Label(self._args_frame, text="No arguments needed.", fg="#888888", pady=4).grid(
-                row=0, column=0, columnspan=3, padx=8
-            )
+            tk.Label(
+                self._args_frame, text="No arguments needed.", fg="#888888", pady=4
+            ).grid(row=0, column=0, columnspan=3, padx=8)
             return
 
         self._args_frame.columnconfigure(1, weight=1)
@@ -605,7 +613,9 @@ class PypiProfileGui(tk.Tk):
 
             if kind == "bool":
                 var: tk.Variable = tk.BooleanVar(value=bool(default))
-                tk.Checkbutton(self._args_frame, variable=var).grid(row=row_i, column=1, sticky="w", pady=3)
+                tk.Checkbutton(self._args_frame, variable=var).grid(
+                    row=row_i, column=1, sticky="w", pady=3
+                )
                 self._arg_widgets[flag] = var
 
             elif kind == "choice":
@@ -644,9 +654,9 @@ class PypiProfileGui(tk.Tk):
                         if selected_path := filedialog.askdirectory():
                             value_var.set(selected_path)
 
-                tk.Button(self._args_frame, text="Browse", command=browse_for_path).grid(
-                    row=row_i, column=2, padx=(4, 8), pady=3
-                )
+                tk.Button(
+                    self._args_frame, text="Browse", command=browse_for_path
+                ).grid(row=row_i, column=2, padx=(4, 8), pady=3)
                 self._arg_widgets[flag] = var
 
             else:

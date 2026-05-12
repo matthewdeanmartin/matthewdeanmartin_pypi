@@ -1,5 +1,0 @@
-{
-    "include_paths": ["{{ cookiecutter.project_slug }}/**/*.py"],
-    "fail_on_missing_docstring": false,
-    "parser": "google"
-}
