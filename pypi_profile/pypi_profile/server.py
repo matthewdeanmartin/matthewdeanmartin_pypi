@@ -79,6 +79,46 @@ def generate_proofs(
     return results
 
 
+def _get_claim_results(
+    profile: ProfileData,
+    profile_package: str,
+    static_mode: bool,
+) -> list[ClaimResult]:
+    """Return claim results for the verification page/API.
+
+    In static_mode we never make live HTTP requests — instead we derive status
+    from stored_proof entries already baked into the TOML, which avoids network
+    calls during the build and works correctly when served as flat files.
+    """
+    if static_mode:
+        results = []
+        for link in profile.profiles:
+            if link.stored_proof:
+                status = "verified"
+            elif link.verification in ("self_asserted", "verified", "unverified", "invalid", "expired"):
+                status = link.verification
+            else:
+                status = "unverified"
+            results.append(
+                {
+                    "kind": link.kind,
+                    "label": link.label,
+                    "url": link.url,
+                    "status": status,
+                    "has_stored_proof": bool(link.stored_proof),
+                }
+            )
+        return results
+
+    from pypi_profile.verifier import verify_all_profiles
+
+    try:
+        return verify_all_profiles(profile, profile_package=profile_package)
+    except (ImportError, OSError, ValueError):
+        logger.warning("Verification failed", exc_info=True)
+        return []
+
+
 def build_app(
     profile: ProfileData,
     allow_code: bool = False,
@@ -165,16 +205,7 @@ def build_app(
 
     @app.get("/verification", response_class=HTMLResponse)
     async def verification(request: Request) -> HTMLResponse:
-        from pypi_profile.verifier import verify_all_profiles
-
-        try:
-            claim_results = verify_all_profiles(
-                profile, profile_package=profile_package
-            )
-        except (ImportError, OSError, ValueError):
-            logger.warning("Verification failed during /verification render", exc_info=True)
-            claim_results = []
-
+        claim_results = _get_claim_results(profile, profile_package, static_mode)
         proofs = generate_proofs(profile, profile_package, claim_results)
 
         return render(
@@ -184,6 +215,7 @@ def build_app(
                 "profile": profile,
                 "claim_results": claim_results,
                 "proofs": proofs,
+                "static_mode": static_mode,
             },
         )
 
@@ -211,18 +243,11 @@ def build_app(
 
     @app.get("/api/verification.json")
     async def api_verification() -> JSONResponse:
-        from pypi_profile.verifier import verify_all_profiles
-
-        try:
-            claim_results = verify_all_profiles(
-                profile, profile_package=profile_package
-            )
-        except (ImportError, OSError, ValueError):
-            logger.warning("Verification failed during /api/verification.json", exc_info=True)
-            claim_results = []
+        claim_results = _get_claim_results(profile, profile_package, static_mode)
         return JSONResponse(
             {
                 **profile.verification.model_dump(),
+                "static_mode": static_mode,
                 "claim_results": claim_results,
             }
         )

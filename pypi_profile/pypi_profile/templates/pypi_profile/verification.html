@@ -50,13 +50,19 @@
         {% endcall %}
 
         {% call layout.card("External profile claims", "project-panel") %}
+          {% if static_mode %}
+            {{ feedback.notification(
+              "This is a static build. Verification status is derived from stored_proof values baked into the TOML — no live HTTP requests are made at serve time. Open the browser console for diagnostics.",
+              tone="info", title="Static build"
+            ) }}
+          {% endif %}
           {% if claim_results %}
             <table class="table table--light">
               <thead>
                 <tr>
                   <th>Profile</th>
                   <th>URL</th>
-                  <th>Live status</th>
+                  <th>{% if static_mode %}Status (stored){% else %}Live status{% endif %}</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,8 +136,84 @@
           <p class="sidebar-copy">
             <strong>Verified:</strong> Signature confirmed on the external site.
           </p>
+          <p class="sidebar-copy">
+            <strong>Troubleshooting:</strong> Open the browser console (F12) for detailed diagnostics on claim status and proof discovery.
+          </p>
         {% endcall %}
       </aside>
     </div>
   {% endcall %}
+
+<script>
+(function () {
+  'use strict';
+  var base = {{ (_base ~ '') | tojson }};
+  var apiUrl = (base || '') + '/api/verification.json';
+
+  function statusEmoji(s) {
+    return {verified:'✅', self_asserted:'🔵', unverified:'❓', invalid:'❌', expired:'⚠️'}[s] || '❓';
+  }
+
+  console.group('pypi-profile · verification diagnostics');
+  console.info('Fetching', apiUrl);
+
+  fetch(apiUrl)
+    .then(function (r) {
+      if (!r.ok) { throw new Error('HTTP ' + r.status + ' from ' + apiUrl); }
+      return r.json();
+    })
+    .then(function (data) {
+      var results = data.claim_results || [];
+      console.info('Public key present:', !!data.public_key);
+      console.info('Signature backend :', data.preferred_signature_backend || '(not set)');
+      console.info('Static build      :', !!data.static_mode);
+      console.info('Claims found      :', results.length);
+
+      if (results.length === 0) {
+        console.warn('No claim results returned. Possible causes:');
+        console.warn('  • No [[profiles]] entries in your pypi_profile.toml');
+        console.warn('  • No public_key in [verification] and no stored_proof on any entry');
+        console.warn('  • Verification threw an exception during build (check builder output)');
+      }
+
+      results.forEach(function (item) {
+        var label = statusEmoji(item.status) + ' ' + item.label + ' — ' + item.status.toUpperCase();
+        if (item.status === 'verified' || item.status === 'self_asserted') {
+          console.info(label, item.url);
+        } else {
+          console.warn(label, item.url);
+          if (item.status === 'unverified') {
+            if (data.static_mode && !item.has_stored_proof) {
+              console.warn('    → No stored_proof in TOML. Run: pypi-profile update-proofs <source>');
+            } else if (!data.static_mode) {
+              console.warn('    → Live fetch found no matching proof token at this URL.');
+              console.warn('    → Expected pattern: pypi-profile-proof: <base64>');
+            }
+          }
+          if (item.status === 'invalid') {
+            console.error('    → Proof token found but signature verification FAILED.');
+            console.error('    → Check that the public_key in your TOML matches the secret key used to sign.');
+          }
+          if (item.status === 'expired') {
+            console.warn('    → Proof token found but the claim has expired. Re-run update-proofs.');
+          }
+        }
+        if (data.static_mode && item.has_stored_proof) {
+          console.debug('    stored_proof present in TOML for', item.url);
+        }
+      });
+
+      if (!data.public_key) {
+        console.warn('No public_key in [verification]. Run: pypi-profile keygen');
+      }
+    })
+    .catch(function (err) {
+      console.error('Failed to load verification data:', err);
+      console.error('URL attempted:', apiUrl);
+    })
+    .finally(function () {
+      console.groupEnd();
+    });
+}());
+</script>
 {% endblock %}
