@@ -73,9 +73,7 @@ def is_expired(claim: dict[str, Any]) -> bool:
     if not expires_str:
         return False
     try:
-        expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%SZ").replace(
-            tzinfo=timezone.utc
-        )
+        expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
         return datetime.now(tz=timezone.utc) > expires
     except ValueError:
         logger.debug("Could not parse expires_at %r in claim", expires_str, exc_info=True)

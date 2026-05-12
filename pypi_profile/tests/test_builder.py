@@ -10,16 +10,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-JOHN_DOE_TOML = (
-    Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
-)
+JOHN_DOE_TOML = Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
 JOHN_DOE_RESUME = Path(__file__).parent.parent.parent / "john_doe" / "resume.json"
-MDM_TOML = (
-    Path(__file__).parent.parent.parent
-    / "matthewdeanmartin"
-    / "matthewdeanmartin"
-    / "pypi_profile.toml"
-)
+MDM_TOML = Path(__file__).parent.parent.parent / "matthewdeanmartin" / "matthewdeanmartin" / "pypi_profile.toml"
 MDM_RESUME = Path(__file__).parent.parent.parent / "matthewdeanmartin" / "resume.json"
 
 
@@ -81,15 +74,11 @@ def test_build_profile_json_valid(built_site: Path) -> None:
     assert "identity" in data
 
 
-@pytest.mark.skipif(
-    not JOHN_DOE_RESUME.exists(), reason="john_doe/resume.json not present"
-)
+@pytest.mark.skipif(not JOHN_DOE_RESUME.exists(), reason="john_doe/resume.json not present")
 def test_build_resume_json_copied(tmp_path: Path) -> None:
     from pypi_profile.builder import build_static_site
 
-    build_static_site(
-        str(JOHN_DOE_TOML), output=tmp_path, resume_file=JOHN_DOE_RESUME, verbose=False
-    )
+    build_static_site(str(JOHN_DOE_TOML), output=tmp_path, resume_file=JOHN_DOE_RESUME, verbose=False)
     dest = tmp_path / "api" / "resume.json"
     assert dest.exists()
     data = json.loads(dest.read_text())
@@ -112,9 +101,7 @@ def test_build_resume_json_skipped_when_absent(tmp_path: Path) -> None:
 def test_build_base_url_prefix(tmp_path: Path) -> None:
     from pypi_profile.builder import build_static_site
 
-    build_static_site(
-        str(JOHN_DOE_TOML), output=tmp_path, base_url="/myuser", verbose=False
-    )
+    build_static_site(str(JOHN_DOE_TOML), output=tmp_path, base_url="/myuser", verbose=False)
     index = (tmp_path / "index.html").read_text()
     assert "/myuser/static/pypi_ds" in index
     assert "/myuser/packages" in index
@@ -129,9 +116,7 @@ def test_build_returns_summary(tmp_path: Path) -> None:
     assert result["output"] == str(tmp_path)
 
 
-@pytest.mark.skipif(
-    not MDM_TOML.exists(), reason="matthewdeanmartin profile not present"
-)
+@pytest.mark.skipif(not MDM_TOML.exists(), reason="matthewdeanmartin profile not present")
 def test_build_mdm_profile(tmp_path: Path) -> None:
     from pypi_profile.builder import build_static_site
 
@@ -140,9 +125,7 @@ def test_build_mdm_profile(tmp_path: Path) -> None:
     assert result["html_pages"] >= 8
 
 
-@pytest.mark.skipif(
-    not MDM_RESUME.exists(), reason="matthewdeanmartin/resume.json not present"
-)
+@pytest.mark.skipif(not MDM_RESUME.exists(), reason="matthewdeanmartin/resume.json not present")
 def test_build_mdm_resume_auto_discovered(tmp_path: Path) -> None:
     from pypi_profile.builder import build_static_site
 

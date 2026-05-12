@@ -23,9 +23,7 @@ def open_http_url(request: urllib.request.Request) -> Any:
 
 
 def get_json(url: str, accept: str = "application/json") -> Any:
-    req = urllib.request.Request(
-        url, headers={"Accept": accept, "User-Agent": "pypi-profile/0.1"}
-    )
+    req = urllib.request.Request(url, headers={"Accept": accept, "User-Agent": "pypi-profile/0.1"})
     with open_http_url(req) as resp:
         return json.loads(cast(bytes, resp.read()).decode())
 
@@ -44,8 +42,7 @@ def get_text(url: str) -> str:
 def validate_json_resume(raw: dict[str, Any]) -> None:
     """Warn if raw dict does not conform to the JSON Resume schema."""
     try:
-        from schema_resume import \
-            validate_resume  # type: ignore[import-untyped]
+        from schema_resume import validate_resume  # type: ignore[import-untyped]
     except ModuleNotFoundError:
         logger.debug("schema_resume not installed; skipping JSON Resume validation")
         return
@@ -304,8 +301,7 @@ def fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
                     "role": role.lower(),
                     "state": "active",
                     "summary": (info.get("summary") or "")[:200],
-                    "url": info.get("project_url")
-                    or f"https://pypi.org/project/{name}/",
+                    "url": info.get("project_url") or f"https://pypi.org/project/{name}/",
                 }
             )
         except (
@@ -343,9 +339,7 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
             "author_email": info.get("author_email", ""),
             "home_page": info.get("home_page", ""),
             "project_url": info.get("project_url", ""),
-            "maintainers": [
-                m.get("username", "") for m in (info.get("maintainers") or [])
-            ],
+            "maintainers": [m.get("username", "") for m in (info.get("maintainers") or [])],
             "classifiers": info.get("classifiers", []),
             "requires_python": info.get("requires_python", ""),
         }
@@ -450,24 +444,14 @@ def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str
     return results
 
 
-def fetch_github_funding(
-    username: str, repo: str = "", token: str | None = None
-) -> dict[str, Any]:
+def fetch_github_funding(username: str, repo: str = "", token: str | None = None) -> dict[str, Any]:
     """Fetch FUNDING.yml from a GitHub user's .github or specified repo."""
     targets = []
     if repo:
-        targets.append(
-            f"https://raw.githubusercontent.com/{username}/{repo}/main/.github/FUNDING.yml"
-        )
-        targets.append(
-            f"https://raw.githubusercontent.com/{username}/{repo}/master/.github/FUNDING.yml"
-        )
-    targets.append(
-        f"https://raw.githubusercontent.com/{username}/.github/main/FUNDING.yml"
-    )
-    targets.append(
-        f"https://raw.githubusercontent.com/{username}/.github/master/FUNDING.yml"
-    )
+        targets.append(f"https://raw.githubusercontent.com/{username}/{repo}/main/.github/FUNDING.yml")
+        targets.append(f"https://raw.githubusercontent.com/{username}/{repo}/master/.github/FUNDING.yml")
+    targets.append(f"https://raw.githubusercontent.com/{username}/.github/main/FUNDING.yml")
+    targets.append(f"https://raw.githubusercontent.com/{username}/.github/master/FUNDING.yml")
 
     for url in targets:
         try:
@@ -608,9 +592,7 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def merge_live_data_into_profile(
-    profile_data: dict[str, Any], live: dict[str, Any]
-) -> dict[str, Any]:
+def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, Any]) -> dict[str, Any]:
     """Merge fetched live data into a profile dict, preferring existing non-empty values."""
 
     def fill(section: str, field: str, value: Any) -> None:
@@ -623,9 +605,7 @@ def merge_live_data_into_profile(
     pypi_packages = live.get("pypi_packages", [])
 
     # Fill identity from GitHub
-    fill(
-        "identity", "location", github.get("location", "") or gitlab.get("location", "")
-    )
+    fill("identity", "location", github.get("location", "") or gitlab.get("location", ""))
     fill(
         "profile",
         "summary",
@@ -637,11 +617,7 @@ def merge_live_data_into_profile(
 
     # Email from GitHub
     if github.get("email"):
-        existing_emails = [
-            c["value"]
-            for c in profile_data.get("contact_methods", [])
-            if c.get("kind") == "email"
-        ]
+        existing_emails = [c["value"] for c in profile_data.get("contact_methods", []) if c.get("kind") == "email"]
         if github["email"] not in existing_emails:
             profile_data.setdefault("contact_methods", []).append(
                 {

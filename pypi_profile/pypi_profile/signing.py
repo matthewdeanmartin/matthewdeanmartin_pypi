@@ -84,9 +84,7 @@ def generate_keypair(
     pk_path = key_dir / DEFAULT_PK_NAME
 
     if sk_path.exists() and not force:
-        raise FileExistsError(
-            f"Secret key already exists at {sk_path}. Use force=True to overwrite."
-        )
+        raise FileExistsError(f"Secret key already exists at {sk_path}. Use force=True to overwrite.")
 
     logger.debug("Generating minisign keypair in %s", key_dir)
     kp = minisign.KeyPair.generate()
@@ -99,9 +97,8 @@ def generate_keypair(
     pk_path.write_bytes(bytes(kp.public_key) + b"\n")
     logger.info("Keypair written: sk=%s pk=%s", sk_path, pk_path)
 
-    if keyring_is_usable():
-        if store_key_in_keyring(sk_bytes):
-            logger.info("Secret key also stored in system keyring")
+    if keyring_is_usable() and store_key_in_keyring(sk_bytes):
+        logger.info("Secret key also stored in system keyring")
 
     public_key_b64 = kp.public_key.to_base64().decode()
     return sk_path, pk_path, public_key_b64
@@ -122,9 +119,7 @@ def load_secret_key(sk_path: Path | None = None, password: str | None = None) ->
     # Explicit path — load directly from disk, no keyring.
     if sk_path is not None:
         if not sk_path.exists():
-            raise FileNotFoundError(
-                f"Secret key not found at {sk_path}. Run: pypi-profile keygen"
-            )
+            raise FileNotFoundError(f"Secret key not found at {sk_path}. Run: pypi-profile keygen")
         logger.debug("Loading secret key from explicit path %s", sk_path)
         sk = minisign.SecretKey.from_file(sk_path)
         if password:
@@ -135,9 +130,7 @@ def load_secret_key(sk_path: Path | None = None, password: str | None = None) ->
     if env_path:
         disk_path = Path(env_path).expanduser()
         if not disk_path.exists():
-            raise FileNotFoundError(
-                f"Secret key not found at {disk_path} (from PYPI_PROFILE_KEY_PATH)."
-            )
+            raise FileNotFoundError(f"Secret key not found at {disk_path} (from PYPI_PROFILE_KEY_PATH).")
         logger.debug("Loading secret key from PYPI_PROFILE_KEY_PATH=%s", disk_path)
         sk = minisign.SecretKey.from_file(disk_path)
         if password:
@@ -158,9 +151,7 @@ def load_secret_key(sk_path: Path | None = None, password: str | None = None) ->
     disk_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
     if not disk_path.exists():
         logger.error("Secret key not found at %s", disk_path)
-        raise FileNotFoundError(
-            f"Secret key not found at {disk_path}. Run: pypi-profile keygen"
-        )
+        raise FileNotFoundError(f"Secret key not found at {disk_path}. Run: pypi-profile keygen")
     logger.debug("Loading secret key from disk fallback %s", disk_path)
     sk = minisign.SecretKey.from_file(disk_path)
     if password:
@@ -194,7 +185,10 @@ def sign_controls_url(
 
     claim_json_bytes = claim_to_bytes(claim)
     sig = sk.sign(claim_json_bytes, prehash=True)
-    sig_b64 = base64.standard_b64encode(bytes(sig)).decode()
+    # Store only the 74-byte binary (algo + key_id + ed25519_sig), not the armored text format.
+    sig_b64 = base64.standard_b64encode(
+        sig._signature_algorithm.value + sig._key_id + sig._signature
+    ).decode()
 
     claim["signature"] = sig_b64
     return encode_claim(claim)
@@ -204,11 +198,7 @@ def read_public_key_b64(pk_path: Path | None = None) -> str | None:
     """Return the base64-encoded public key from disk, or None if unavailable."""
     if pk_path is None:
         env_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
-        pk_path = (
-            Path(env_path).expanduser().with_suffix(".pub")
-            if env_path
-            else DEFAULT_KEY_DIR / DEFAULT_PK_NAME
-        )
+        pk_path = Path(env_path).expanduser().with_suffix(".pub") if env_path else DEFAULT_KEY_DIR / DEFAULT_PK_NAME
     if not pk_path.exists():
         logger.debug("Public key not found at %s", pk_path)
         return None
@@ -255,6 +245,25 @@ def patch_public_key_in_toml(toml_path: Path, pk_path: Path | None = None) -> st
         return None
 
     return pub_b64
+
+
+def _make_proof_replacer(proof: str, escaped_url: str) -> Any:
+    """Return a re.sub replacement function with proof and escaped_url bound at definition time."""
+
+    def replace_or_insert(m: re.Match[str]) -> str:
+        block = m.group(0)
+        proof_line = f'stored_proof = "{proof}"'
+        if re.search(r"(?m)^stored_proof\s*=", block):
+            block = re.sub(r"(?m)^stored_proof\s*=.*$", proof_line, block)
+        else:
+            block = re.sub(
+                rf'(?m)^(url\s*=\s*"{escaped_url}"\s*)$',
+                r"\1\n" + proof_line,
+                block,
+            )
+        return block
+
+    return replace_or_insert
 
 
 def patch_proofs_in_toml(
@@ -314,22 +323,9 @@ def patch_proofs_in_toml(
             continue
 
         escaped_url = re.escape(url)
-
-        def replace_or_insert(m: re.Match[str]) -> str:
-            block = m.group(0)
-            proof_line = f'stored_proof = "{proof}"'
-            if re.search(r'(?m)^stored_proof\s*=', block):
-                block = re.sub(r'(?m)^stored_proof\s*=.*$', proof_line, block)
-            else:
-                block = re.sub(
-                    rf'(?m)^(url\s*=\s*"{escaped_url}"\s*)$',
-                    r'\1\n' + proof_line,
-                    block,
-                )
-            return block
-
+        replacer = _make_proof_replacer(proof, escaped_url)
         pattern = rf'(\[\[profiles\]\][\s\S]*?url\s*=\s*"{escaped_url}"[\s\S]*?)(?=\[\[|\[(?!\[)|\Z)'
-        new_text, n = re.subn(pattern, replace_or_insert, text, flags=re.DOTALL)
+        new_text, n = re.subn(pattern, replacer, text, flags=re.DOTALL)
         if n:
             text = new_text
             updated.append(url)
@@ -349,15 +345,12 @@ def patch_proofs_in_toml(
             with open(toml_path, "rb") as fh:
                 tomllib.load(fh)
         except Exception as exc:
-            logger.error(
-                "Patched TOML is invalid (%s); rolling back to original content", exc
-            )
+            logger.error("Patched TOML is invalid (%s); rolling back to original content", exc)
             try:
                 toml_path.write_text(original_text, encoding="utf-8")
             except OSError:
                 logger.error(
-                    "Rollback also failed for %s — file may be corrupt; "
-                    "original content: %r",
+                    "Rollback also failed for %s — file may be corrupt; " "original content: %r",
                     toml_path,
                     original_text,
                 )

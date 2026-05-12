@@ -9,14 +9,21 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pypi_profile.importers import (fetch_github_funding, fetch_github_profile,
-                                    fetch_github_repos, fetch_gitlab_profile,
-                                    fetch_mastodon_profile,
-                                    fetch_pypi_package_info,
-                                    fetch_pypi_packages, from_json_resume_dict,
-                                    get_json, get_text,
-                                    merge_live_data_into_profile,
-                                    normalize_date, open_http_url)
+from pypi_profile.importers import (
+    fetch_github_funding,
+    fetch_github_profile,
+    fetch_github_repos,
+    fetch_gitlab_profile,
+    fetch_mastodon_profile,
+    fetch_pypi_package_info,
+    fetch_pypi_packages,
+    from_json_resume_dict,
+    get_json,
+    get_text,
+    merge_live_data_into_profile,
+    normalize_date,
+    open_http_url,
+)
 
 
 @pytest.fixture
@@ -182,9 +189,7 @@ def test_fetch_gitlab_profile_no_users(mock_urlopen: MagicMock) -> None:
 
 
 def test_merge_live_data_existing_blog() -> None:
-    profile_data = {
-        "contact_methods": [{"kind": "website", "value": "https://alice.dev"}]
-    }
+    profile_data = {"contact_methods": [{"kind": "website", "value": "https://alice.dev"}]}
     live = {"github": {"blog": "alice.dev"}}
     res = merge_live_data_into_profile(profile_data, live)
     assert len(res["contact_methods"]) == 1
@@ -219,9 +224,7 @@ def test_fetch_pypi_package_info(mock_urlopen: MagicMock) -> None:
 
 def test_fetch_github_profile(mock_urlopen: MagicMock) -> None:
     mock_resp = MagicMock()
-    mock_resp.read.return_value = json.dumps(
-        {"name": "Alice GH", "login": "alice", "bio": "Developer"}
-    ).encode()
+    mock_resp.read.return_value = json.dumps({"name": "Alice GH", "login": "alice", "bio": "Developer"}).encode()
     mock_resp.__enter__.return_value = mock_resp
     mock_urlopen.return_value = mock_resp
 
@@ -234,17 +237,13 @@ def test_fetch_github_profile(mock_urlopen: MagicMock) -> None:
 def test_fetch_github_repos(mock_urlopen: MagicMock) -> None:
     # Page 1
     mock_resp1 = MagicMock()
-    mock_resp1.read.return_value = json.dumps(
-        [{"name": "repo1", "fork": False}]
-    ).encode()
+    mock_resp1.read.return_value = json.dumps([{"name": "repo1", "fork": False}]).encode()
     mock_resp1.headers = {"Link": '<https://api.github.com/...>; rel="next"'}
     mock_resp1.__enter__.return_value = mock_resp1
 
     # Page 2
     mock_resp2 = MagicMock()
-    mock_resp2.read.return_value = json.dumps(
-        [{"name": "repo2", "fork": False}]
-    ).encode()
+    mock_resp2.read.return_value = json.dumps([{"name": "repo2", "fork": False}]).encode()
     mock_resp2.headers = {}
     mock_resp2.__enter__.return_value = mock_resp2
 
@@ -268,9 +267,7 @@ def test_fetch_github_funding(mocker: Any) -> None:
 
 def test_fetch_gitlab_profile(mock_urlopen: MagicMock) -> None:
     mock_resp = MagicMock()
-    mock_resp.read.return_value = json.dumps(
-        [{"name": "Alice GL", "username": "alice"}]
-    ).encode()
+    mock_resp.read.return_value = json.dumps([{"name": "Alice GL", "username": "alice"}]).encode()
     mock_resp.__enter__.return_value = mock_resp
     mock_urlopen.return_value = mock_resp
 

@@ -10,8 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pypi_profile.claims import decode_claim, is_expired
-from pypi_profile.ds.paths import (package_root_path, static_root_path,
-                                   template_root_path)
+from pypi_profile.ds.paths import package_root_path, static_root_path, template_root_path
 from pypi_profile.loader import find_profile
 from pypi_profile.signing import generate_keypair, load_secret_key
 
@@ -22,7 +21,7 @@ def test_claims_is_expired_invalid():
 
 def test_claims_decode_padding_error():
     # Trigger possible issues in decode_claim if any
-    with pytest.raises(Exception):
+    with pytest.raises((ValueError, Exception)):
         decode_claim("!!!")
 
 
@@ -57,7 +56,7 @@ def test_signing_generate_keypair_exists(tmp_path: Path):
 def test_signing_generate_keypair_with_password(tmp_path: Path):
     # This requires minisign
     pytest.importorskip("minisign")
-    sk, pk, pub = generate_keypair(key_dir=tmp_path, password="secret")
+    sk, _pk, _pub = generate_keypair(key_dir=tmp_path, password="secret")
     assert sk.exists()
 
 

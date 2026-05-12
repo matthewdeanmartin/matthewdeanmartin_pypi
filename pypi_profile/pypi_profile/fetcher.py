@@ -10,14 +10,18 @@ import urllib.error
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
-from pypi_profile.importers import (fetch_github_funding, fetch_github_profile,
-                                    fetch_github_repos, fetch_gitlab_profile,
-                                    fetch_mastodon_profile,
-                                    fetch_pypi_package_info,
-                                    fetch_pypi_user_packages)
+from pypi_profile.importers import (
+    fetch_github_funding,
+    fetch_github_profile,
+    fetch_github_repos,
+    fetch_gitlab_profile,
+    fetch_mastodon_profile,
+    fetch_pypi_package_info,
+    fetch_pypi_user_packages,
+)
 from pypi_profile.models import ProfileData
+
+logger = logging.getLogger(__name__)
 
 CACHE_DIR = Path(".pypi_profile_cache")
 CACHE_TTL = 3600  # seconds
@@ -186,9 +190,7 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
     return results
 
 
-def compare_packages(
-    profile: ProfileData, live_results: dict[str, Any]
-) -> list[dict[str, Any]]:
+def compare_packages(profile: ProfileData, live_results: dict[str, Any]) -> list[dict[str, Any]]:
     """Compare self-asserted package roles against PyPI live data."""
     pypi_username = profile.identity.pypi_username
     package_meta = live_results.get("package_meta", {})

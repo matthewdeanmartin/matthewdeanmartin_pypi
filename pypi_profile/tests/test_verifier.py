@@ -7,10 +7,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pypi_profile.models import (IdentitySection, ProfileData, ProfileLink,
-                                 VerificationSection)
-from pypi_profile.verifier import (fetch_page, verify_all_profiles,
-                                   verify_profile_link)
+from pypi_profile.models import IdentitySection, ProfileData, ProfileLink, VerificationSection
+from pypi_profile.verifier import fetch_page, verify_all_profiles, verify_profile_link
 
 
 def test_fetch_page_httpx_success(mocker: Any) -> None:
@@ -38,16 +36,12 @@ def test_fetch_page_urllib_fallback(mocker: Any) -> None:
     mocker.patch(
         "builtins.__import__",
         side_effect=lambda name, *args, **kwargs: (
-            exec('raise ImportError("no httpx")')
-            if name == "httpx"
-            else __import__(name, *args, **kwargs)
+            exec('raise ImportError("no httpx")') if name == "httpx" else __import__(name, *args, **kwargs)
         ),
     )
     # Wait, the above might be too complex and break other things.
     # Simpler: mock httpx to raise ImportError when imported in fetch_page
-    mocker.patch(
-        "pypi_profile.verifier.import_httpx", side_effect=ImportError, create=True
-    )
+    mocker.patch("pypi_profile.verifier.import_httpx", side_effect=ImportError, create=True)
     # But wait, verifier.py doesn't have import_httpx. It does 'import httpx' inside the try block.
 
     # Let's try mocking the httpx module itself to be None or something?
@@ -148,9 +142,7 @@ def test_verify_profile_link_no_tokens(mocker: Any) -> None:
 
 
 def test_verify_profile_link_expired(mocker: Any) -> None:
-    mocker.patch(
-        "pypi_profile.verifier.fetch_page", return_value="pypi-profile-proof: token"
-    )
+    mocker.patch("pypi_profile.verifier.fetch_page", return_value="pypi-profile-proof: token")
     mocker.patch(
         "pypi_profile.verifier.decode_claim",
         return_value={

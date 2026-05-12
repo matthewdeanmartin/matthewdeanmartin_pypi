@@ -63,19 +63,13 @@ def generate_proofs(
                 pypi_username=profile.identity.pypi_username,
                 subject_url=link.url,
             )
-            results.append(
-                {"label": link.label, "url": link.url, "proof": proof, "error": None}
-            )
+            results.append({"label": link.label, "url": link.url, "proof": proof, "error": None})
         except FileNotFoundError:
             logger.debug("No signing key available for %s", link.url)
-            results.append(
-                {"label": link.label, "url": link.url, "proof": None, "error": "no-key"}
-            )
+            results.append({"label": link.label, "url": link.url, "proof": None, "error": "no-key"})
         except (OSError, ValueError) as exc:
             logger.warning("Failed to generate proof for %s: %s", link.url, exc)
-            results.append(
-                {"label": link.label, "url": link.url, "proof": None, "error": str(exc)}
-            )
+            results.append({"label": link.label, "url": link.url, "proof": None, "error": str(exc)})
     return results
 
 
@@ -134,6 +128,7 @@ def build_app(
     # If the toml has no public key, try loading it from the key file on disk.
     if not profile.verification.public_key:
         from pypi_profile.signing import read_public_key_b64
+
         pub_b64 = read_public_key_b64()
         if pub_b64:
             profile.verification.public_key = pub_b64
@@ -147,9 +142,7 @@ def build_app(
             str(ds_template_root),
         ]
     )
-    env = jinja2.Environment(
-        loader=loader, autoescape=jinja2.select_autoescape(["html"])
-    )
+    env = jinja2.Environment(loader=loader, autoescape=jinja2.select_autoescape(["html"]))
 
     static_base = base_url.rstrip("/")
 
@@ -175,33 +168,23 @@ def build_app(
 
     @app.get("/packages", response_class=HTMLResponse)
     async def packages(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/packages.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/packages.html", {"request": request, "profile": profile})
 
     @app.get("/projects", response_class=HTMLResponse)
     async def projects(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/projects.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/projects.html", {"request": request, "profile": profile})
 
     @app.get("/resume", response_class=HTMLResponse)
     async def resume(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/resume.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/resume.html", {"request": request, "profile": profile})
 
     @app.get("/hiring", response_class=HTMLResponse)
     async def hiring(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/hiring.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/hiring.html", {"request": request, "profile": profile})
 
     @app.get("/contact", response_class=HTMLResponse)
     async def contact(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/contact.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/contact.html", {"request": request, "profile": profile})
 
     @app.get("/verification", response_class=HTMLResponse)
     async def verification(request: Request) -> HTMLResponse:
@@ -221,9 +204,7 @@ def build_app(
 
     @app.get("/succession", response_class=HTMLResponse)
     async def succession(request: Request) -> HTMLResponse:
-        return render(
-            "pypi_profile/succession.html", {"request": request, "profile": profile}
-        )
+        return render("pypi_profile/succession.html", {"request": request, "profile": profile})
 
     @app.get("/api/profile.json")
     async def api_profile() -> JSONResponse:

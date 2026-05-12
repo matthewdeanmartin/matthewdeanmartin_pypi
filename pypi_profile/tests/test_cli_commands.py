@@ -68,15 +68,13 @@ def test_cmd_serve_mock(mocker: Any, tmp_path: Path) -> None:
     from pypi_profile.cli import cmd_serve
 
     mock_uvicorn = mocker.patch("uvicorn.run")
-    mock_load = mocker.patch("pypi_profile.loader.load_profile")
-    mock_build = mocker.patch("pypi_profile.server.build_app")
+    mocker.patch("pypi_profile.loader.load_profile")
+    mocker.patch("pypi_profile.server.build_app")
 
     toml = tmp_path / "pypi_profile.toml"
     toml.touch()
 
-    args = argparse.Namespace(
-        source=str(toml), host="127.0.0.1", port=8000, allow_code=False
-    )
+    args = argparse.Namespace(source=str(toml), host="127.0.0.1", port=8000, allow_code=False)
 
     cmd_serve(args)
 
@@ -87,16 +85,10 @@ def test_cmd_serve_mock(mocker: Any, tmp_path: Path) -> None:
 def test_cmd_fetch_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_fetch
 
-    mock_fetch_all = mocker.patch(
-        "pypi_profile.fetcher.fetch_all", return_value={"pypi_packages": []}
-    )
-    mock_compare = mocker.patch(
-        "pypi_profile.fetcher.compare_packages", return_value=[]
-    )
+    mock_fetch_all = mocker.patch("pypi_profile.fetcher.fetch_all", return_value={"pypi_packages": []})
+    mocker.patch("pypi_profile.fetcher.compare_packages", return_value=[])
     mocker.patch("pypi_profile.loader.load_profile")
-    mocker.patch(
-        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
-    )
+    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
 
     toml = tmp_path / "pypi_profile.toml"
     toml.touch()
@@ -114,9 +106,7 @@ def test_cmd_doctor(capsys: Any, tmp_path: Path, mocker: Any) -> None:
     from pypi_profile.cli import cmd_doctor
 
     mocker.patch("importlib.import_module")
-    mocker.patch(
-        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
-    )
+    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
     mocker.patch("pypi_profile.loader.load_profile")
 
     toml = tmp_path / "pypi_profile.toml"
@@ -150,9 +140,7 @@ def test_cmd_keygen_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
 def test_cmd_sign_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_sign
 
-    mocker.patch(
-        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
-    )
+    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
     mocker.patch("pypi_profile.loader.load_profile")
     mock_sign = mocker.patch(
         "pypi_profile.signing.sign_controls_url",
@@ -177,18 +165,14 @@ def test_cmd_sign_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
 def test_cmd_verify_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_verify
 
-    mocker.patch(
-        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
-    )
+    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
     mocker.patch("pypi_profile.loader.load_profile")
     mock_verify = mocker.patch(
         "pypi_profile.verifier.verify_all_profiles",
         return_value=[{"label": "GH", "url": "url", "status": "verified"}],
     )
 
-    args = argparse.Namespace(
-        source=str(tmp_path / "pypi_profile.toml"), verbose=False, profile_package=None
-    )
+    args = argparse.Namespace(source=str(tmp_path / "pypi_profile.toml"), verbose=False, profile_package=None)
 
     cmd_verify(args)
 

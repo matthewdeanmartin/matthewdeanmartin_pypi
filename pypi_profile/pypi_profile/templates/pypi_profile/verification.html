@@ -52,7 +52,7 @@
         {% call layout.card("External profile claims", "project-panel") %}
           {% if static_mode %}
             {{ feedback.notification(
-              "This is a static build. Verification status is derived from stored_proof values baked into the TOML — no live HTTP requests are made at serve time. Open the browser console for diagnostics.",
+              "This is a static build. Verification status is derived from stored_proof values baked into the TOML. Live checks run in the browser and update the table below.",
               tone="info", title="Static build"
             ) }}
           {% endif %}
@@ -62,15 +62,17 @@
                 <tr>
                   <th>Profile</th>
                   <th>URL</th>
-                  <th>{% if static_mode %}Status (stored){% else %}Live status{% endif %}</th>
+                  <th>{% if static_mode %}Status (stored){% else %}Status{% endif %}</th>
+                  {% if static_mode %}<th>Live check</th>{% endif %}
                 </tr>
               </thead>
               <tbody>
                 {% for item in claim_results %}
-                  <tr>
+                  <tr data-profile-url="{{ item.url }}">
                     <td>{{ item.label }}</td>
                     <td><a href="{{ item.url }}">{{ item.url }}</a></td>
                     <td>{{ pc.claim_badge(item.status) }}</td>
+                    {% if static_mode %}<td class="live-status" data-url="{{ item.url }}"><span class="badge">—</span></td>{% endif %}
                   </tr>
                 {% endfor %}
               </tbody>
@@ -137,7 +139,7 @@
             <strong>Verified:</strong> Signature confirmed on the external site.
           </p>
           <p class="sidebar-copy">
-            <strong>Troubleshooting:</strong> Open the browser console (F12) for detailed diagnostics on claim status and proof discovery.
+            <strong>Live check:</strong> For GitHub profiles the browser fetches the README and cryptographically verifies the proof token. Results appear in the "Live check" column. Open the browser console (F12) for detailed diagnostics.
           </p>
         {% endcall %}
       </aside>
@@ -253,6 +255,13 @@ async function verifySignature(publicKeyB64, claim) {
   return crypto.subtle.verify({ name: 'Ed25519' }, cryptoKey, rawSig, msgHash);
 }
 
+// ── DOM helpers ────────────────────────────────────────────────────────────
+
+function setLiveStatus(url, html) {
+  const cell = document.querySelector(`.live-status[data-url="${CSS.escape(url)}"]`);
+  if (cell) cell.innerHTML = html;
+}
+
 // ── per-URL live GitHub check ───────────────────────────────────────────────
 
 async function checkGithub(item, publicKeyB64) {
@@ -260,6 +269,7 @@ async function checkGithub(item, publicKeyB64) {
   if (!user) return;
 
   const readmeUrl = githubReadmeUrl(user);
+  setLiveStatus(item.url, '<span class="badge">checking…</span>');
   console.group(`  🔍 Live GitHub check for ${item.label} (${item.url})`);
   console.info('Fetching', readmeUrl);
 
@@ -268,9 +278,12 @@ async function checkGithub(item, publicKeyB64) {
     const r = await fetch(readmeUrl);
     if (!r.ok) {
       if (r.status === 404) {
-        console.warn('README not found — create a profile README repo:', `https://github.com/new (name it "${user}")`);
+        const msg = `README not found — create a profile README repo at github.com/new named "${user}"`;
+        console.warn(msg);
+        setLiveStatus(item.url, `<span class="badge badge--warning" title="${msg}">❓ no README</span>`);
       } else {
         console.warn(`HTTP ${r.status} fetching README`);
+        setLiveStatus(item.url, `<span class="badge badge--warning">HTTP ${r.status}</span>`);
       }
       console.groupEnd();
       return;
@@ -278,6 +291,7 @@ async function checkGithub(item, publicKeyB64) {
     text = await r.text();
   } catch (err) {
     console.error('Fetch failed:', err.message);
+    setLiveStatus(item.url, `<span class="badge badge--bad" title="${err.message}">❌ fetch error</span>`);
     console.groupEnd();
     return;
   }
@@ -288,6 +302,7 @@ async function checkGithub(item, publicKeyB64) {
   if (tokens.length === 0) {
     console.warn('No pypi-profile-proof token found in README.');
     console.warn('Paste the proof string from "Add proof-of-control" section into your profile README.');
+    setLiveStatus(item.url, '<span class="badge badge--warning">❓ no proof token</span>');
     console.groupEnd();
     return;
   }
@@ -315,12 +330,14 @@ async function checkGithub(item, publicKeyB64) {
     if (isExpired(claim)) {
       console.warn('⚠️  Claim is EXPIRED (expires_at:', claim.expires_at, ')');
       console.warn('    Re-run: pypi-profile update-proofs <source>');
+      setLiveStatus(item.url, `<span class="badge badge--warning" title="expired ${claim.expires_at}">⚠️ expired</span>`);
       break;
     }
 
     if (!publicKeyB64) {
       console.warn('❓  Token found but no public_key in TOML — cannot verify signature.');
       console.warn('    Run: pypi-profile keygen  then add the public key to [verification].');
+      setLiveStatus(item.url, '<span class="badge">❓ no key</span>');
       break;
     }
 
@@ -333,15 +350,18 @@ async function checkGithub(item, publicKeyB64) {
         console.info('    pypi_username  :', claim.pypi_username);
         console.info('    issued_at      :', claim.issued_at);
         console.info('    expires_at     :', claim.expires_at);
+        setLiveStatus(item.url, `<span class="badge badge--good" title="expires ${claim.expires_at}">✅ verified</span>`);
       } else {
         console.error('❌  Signature INVALID — proof token found but signature does not verify.');
         console.error('    Check that public_key in [verification] matches the key used to sign.');
+        setLiveStatus(item.url, '<span class="badge badge--bad" title="Signature does not verify — check public_key in TOML">❌ invalid sig</span>');
       }
     } catch (err) {
       console.error('❌  Verification error:', err.message);
       if (err.message.includes('Ed25519')) {
         console.warn('    Your browser may not support Ed25519 in Web Crypto. Try Chrome 137+ or Firefox 129+.');
       }
+      setLiveStatus(item.url, `<span class="badge badge--bad" title="${err.message}">❌ error</span>`);
     }
     break;
   }
@@ -349,6 +369,7 @@ async function checkGithub(item, publicKeyB64) {
   if (!matched) {
     console.warn('No token with subject =', item.url, 'found (subject mismatch).');
     console.warn('Expected subject in claim to equal the URL exactly:', item.url);
+    setLiveStatus(item.url, '<span class="badge badge--warning" title="No token found with matching subject URL">❓ subject mismatch</span>');
   }
 
   console.groupEnd();

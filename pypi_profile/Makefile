@@ -13,6 +13,7 @@ AUDIT_IGNORE := PYSEC-2022-42969
 
 .PHONY: \
 	sync pre-commit-install \
+	fix \
 	format format-python format-yaml format-markdown \
 	format-check format-check-python format-check-yaml format-check-markdown \
 	lint lint-check ruff-fix ruff-check pylint pylint-tests pylint-spelling \
@@ -42,6 +43,12 @@ sync:
 
 pre-commit-install:
 	@$(UV) run pre-commit install
+
+fix:
+	@$(UV) run isort $(PYTHON_TARGETS)
+	@$(UV) run black $(PYTHON_TARGETS)
+	@$(UV) run ruff check --fix --quiet $(PYTHON_TARGETS)
+	@$(UV) run black $(PYTHON_TARGETS)
 
 format: format-python format-yaml format-markdown
 

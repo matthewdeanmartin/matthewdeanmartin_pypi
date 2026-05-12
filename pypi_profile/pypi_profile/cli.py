@@ -38,9 +38,13 @@ def key_status() -> str:
     """Return a one-line summary of where the signing key was found."""
     import os
 
-    from pypi_profile.signing import (DEFAULT_KEY_DIR, DEFAULT_SK_NAME,
-                                      keyring_is_usable, keyring_username,
-                                      load_key_bytes_from_keyring)
+    from pypi_profile.signing import (
+        DEFAULT_KEY_DIR,
+        DEFAULT_SK_NAME,
+        keyring_is_usable,
+        keyring_username,
+        load_key_bytes_from_keyring,
+    )
 
     env_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
     if env_path:
@@ -72,9 +76,7 @@ def cmd_validate(args: argparse.Namespace) -> None:
         print(f"  packages:  {len(profile.packages)}")
         print(f"  projects:  {len(profile.projects)}")
         print(f"  humans:    {len(profile.humans)}")
-        print(
-            f"  public key in toml: {'yes' if profile.verification.public_key else 'no'}"
-        )
+        print(f"  public key in toml: {'yes' if profile.verification.public_key else 'no'}")
         print(f"  signing key on disk: {key_status()}")
     except ValidationError as exc:
         logger.error("Profile validation failed: %s", exc)
@@ -115,9 +117,7 @@ def cmd_init(args: argparse.Namespace) -> None:
     # Non-interactive / scripted path (unchanged behaviour)
     if dest.exists() and not args.force:
         logger.error("Output file %s already exists (use --force to overwrite)", dest)
-        print(
-            f"ERROR: {dest} already exists. Use --force to overwrite.", file=sys.stderr
-        )
+        print(f"ERROR: {dest} already exists. Use --force to overwrite.", file=sys.stderr)
         sys.exit(1)
 
     username = args.username or ""
@@ -152,26 +152,24 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     # Optionally fetch live data
     if args.fetch:
-        pypi_username = (
-            profile_data.get("identity", {}).get("pypi_username", "") or username
-        )
+        pypi_username = profile_data.get("identity", {}).get("pypi_username", "") or username
         github_url = ""
         for p in profile_data.get("profiles", []):
             if p.get("kind") == "github":
                 github_url = p.get("url", "")
                 break
         if not pypi_username and not github_url:
-            print(
-                "WARNING: --fetch requires --username or a GitHub profile in JSON Resume. Skipping live fetch."
-            )
+            print("WARNING: --fetch requires --username or a GitHub profile in JSON Resume. Skipping live fetch.")
         else:
             import re
 
-            from pypi_profile.importers import (fetch_github_funding,
-                                                fetch_github_profile,
-                                                fetch_github_repos,
-                                                fetch_pypi_user_packages,
-                                                merge_live_data_into_profile)
+            from pypi_profile.importers import (
+                fetch_github_funding,
+                fetch_github_profile,
+                fetch_github_repos,
+                fetch_pypi_user_packages,
+                merge_live_data_into_profile,
+            )
 
             live: dict[str, Any] = {}
             if pypi_username:
@@ -186,9 +184,7 @@ def cmd_init(args: argparse.Namespace) -> None:
                     live["github"] = fetch_github_profile(gh_user)
                     print(f"Fetching GitHub repos for {gh_user!r} ...")
                     live["github_repos"] = fetch_github_repos(gh_user)
-                    print(
-                        f"  Found {len(live.get('github_repos', []))} repos on GitHub."
-                    )
+                    print(f"  Found {len(live.get('github_repos', []))} repos on GitHub.")
                     print(f"Fetching FUNDING.yml from GitHub for {gh_user!r} ...")
                     gh_funding = fetch_github_funding(gh_user)
                     if gh_funding:
@@ -204,14 +200,10 @@ def cmd_init(args: argparse.Namespace) -> None:
     write_toml_from_data(dest, profile_data, username=username, kind=kind)
     print(f"Created {dest}")
     if not args.fetch:
-        print(
-            "Tip: run with --fetch to pre-fill data from PyPI/GitHub/GitLab/Mastodon."
-        )
+        print("Tip: run with --fetch to pre-fill data from PyPI/GitHub/GitLab/Mastodon.")
 
 
-def write_toml_from_data(
-    dest: Path, data: dict[str, Any], username: str = "", kind: str = "individual"
-) -> None:
+def write_toml_from_data(dest: Path, data: dict[str, Any], username: str = "", kind: str = "individual") -> None:
     """Write a pypi_profile.toml from a merged data dict."""
 
     profile_sec = data.get("profile", {})
@@ -229,18 +221,10 @@ def write_toml_from_data(
     verification = data.get("verification", {})
     funding = data.get("funding", {})
 
-    display_name = (
-        profile_sec.get("display_name", "")
-        or identity_sec.get("display_name", "")
-        or "Your Name"
-    )
-    summary = (
-        profile_sec.get("summary", "") or "Python developer and package publisher."
-    )
+    display_name = profile_sec.get("display_name", "") or identity_sec.get("display_name", "") or "Your Name"
+    summary = profile_sec.get("summary", "") or "Python developer and package publisher."
     legal_name = identity_sec.get("legal_name", "") or display_name
-    pypi_username = (
-        identity_sec.get("pypi_username", "") or username or "your-pypi-username"
-    )
+    pypi_username = identity_sec.get("pypi_username", "") or username or "your-pypi-username"
     timezone = identity_sec.get("timezone", "") or "UTC"
     location = identity_sec.get("location", "") or ""
 
@@ -356,9 +340,7 @@ def write_toml_from_data(
 
     # Hiring
     lines.append("[hiring]")
-    lines.append(
-        f'open_to_work_since = {toml_str(hiring.get("open_to_work_since", ""))}'
-    )
+    lines.append(f'open_to_work_since = {toml_str(hiring.get("open_to_work_since", ""))}')
     et = hiring.get("employment_types", [])
     lines.append(f"employment_types = {json.dumps(et)}")
     wm = hiring.get("work_model", [])
@@ -398,9 +380,7 @@ def write_toml_from_data(
 
     # Verification
     lines.append("[verification]")
-    lines.append(
-        f'public_key = {toml_str(verification.get("public_key", "") if verification else "")}'
-    )
+    lines.append(f'public_key = {toml_str(verification.get("public_key", "") if verification else "")}')
     lines.append('preferred_signature_backend = "minisign"')
     lines.append("")
 
@@ -488,12 +468,17 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     check_optional("pyyaml (FUNDING.yml)", "yaml")
     print()
     print("Signing setup:")
-    from pypi_profile.signing import (DEFAULT_KEY_DIR, DEFAULT_SK_NAME,
-                                      keyring_is_usable, keyring_username,
-                                      load_key_bytes_from_keyring)
+    from pypi_profile.signing import (
+        DEFAULT_KEY_DIR,
+        DEFAULT_SK_NAME,
+        keyring_is_usable,
+        keyring_username,
+        load_key_bytes_from_keyring,
+    )
 
     if keyring_is_usable():
         import keyring as kr  # type: ignore[import-untyped]
+
         backend_name = type(kr.get_keyring()).__name__
         print(f"  OK  Keyring backend: {backend_name} (username={keyring_username()!r})")
         if load_key_bytes_from_keyring() is not None:
@@ -543,13 +528,9 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             "no_data": "❓",
             "unverified": "❓",
         }.get(item["status"], "❓")
-        print(
-            f"  {status_icon} {item['name']!r} (asserted: {item['asserted_role']}) — {item['note']}"
-        )
+        print(f"  {status_icon} {item['name']!r} (asserted: {item['asserted_role']}) — {item['note']}")
         if item.get("pypi_version"):
-            print(
-                f"      latest version: {item['pypi_version']}  {item.get('pypi_summary', '')[:80]}"
-            )
+            print(f"      latest version: {item['pypi_version']}  {item.get('pypi_summary', '')[:80]}")
 
     if live.get("github"):
         gh = live["github"]
@@ -620,6 +601,7 @@ def cmd_keygen(args: argparse.Namespace) -> None:
     print(f"Secret key: {sk_path}")
     print(f"Public key: {pk_path}")
     from pypi_profile.signing import keyring_is_usable, keyring_username
+
     if keyring_is_usable():
         print(f"Key storage: system keyring (username={keyring_username()!r})")
         print(f"  Disk copy also kept at {sk_path} as a fallback.")
@@ -715,6 +697,7 @@ def cmd_verify(args: argparse.Namespace) -> None:
     # If the toml has no public key, try loading it from disk.
     if not profile.verification.public_key:
         from pypi_profile.signing import read_public_key_b64
+
         pub_b64 = read_public_key_b64()
         if pub_b64:
             profile.verification.public_key = pub_b64
@@ -727,9 +710,7 @@ def cmd_verify(args: argparse.Namespace) -> None:
                 file=sys.stderr,
             )
 
-    profile_package = (
-        args.profile_package or f"pypi-profile-{profile.identity.pypi_username}"
-    )
+    profile_package = args.profile_package or f"pypi-profile-{profile.identity.pypi_username}"
 
     try:
         results = verify_all_profiles(profile, profile_package=profile_package)
@@ -843,9 +824,7 @@ def main() -> None:
         prog="pypi-profile",
         description="The missing PyPI profile page.",
     )
-    parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
-    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "--log-level",
         default="WARNING",
@@ -862,14 +841,10 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", metavar="command")
 
     serve_p = subparsers.add_parser("serve", help="Start the profile web server")
-    serve_p.add_argument(
-        "source", help="Profile package name, directory, or .toml path"
-    )
+    serve_p.add_argument("source", help="Profile package name, directory, or .toml path")
     serve_p.add_argument("--host", default="127.0.0.1")
     serve_p.add_argument("--port", type=int, default=8000)
-    serve_p.add_argument(
-        "--allow-code", action="store_true", help="Enable plugin code execution"
-    )
+    serve_p.add_argument("--allow-code", action="store_true", help="Enable plugin code execution")
     serve_p.set_defaults(func=cmd_serve)
 
     validate_p = subparsers.add_parser("validate", help="Validate a pypi_profile.toml")
@@ -892,9 +867,7 @@ def main() -> None:
         ],
     )
     init_p.add_argument("--username", default="", help="PyPI username")
-    init_p.add_argument(
-        "--output", default="", help="Output path (default: pypi_profile.toml)"
-    )
+    init_p.add_argument("--output", default="", help="Output path (default: pypi_profile.toml)")
     init_p.add_argument("--force", action="store_true", help="Overwrite existing file")
     init_p.add_argument(
         "--from-json-resume",
@@ -915,35 +888,23 @@ def main() -> None:
     )
     init_p.set_defaults(func=cmd_init)
 
-    inspect_p = subparsers.add_parser(
-        "inspect", help="Inspect a profile without executing code"
-    )
-    inspect_p.add_argument(
-        "source", help="Profile package name, directory, or .toml path"
-    )
+    inspect_p = subparsers.add_parser("inspect", help="Inspect a profile without executing code")
+    inspect_p.add_argument("source", help="Profile package name, directory, or .toml path")
     inspect_p.set_defaults(func=cmd_inspect)
 
     doctor_p = subparsers.add_parser("doctor", help="Diagnose local setup")
     doctor_p.set_defaults(func=cmd_doctor)
 
-    fetch_p = subparsers.add_parser(
-        "fetch", help="Fetch live metadata from PyPI, GitHub, GitLab, Mastodon"
-    )
-    fetch_p.add_argument(
-        "source", help="Profile package name, directory, or .toml path"
-    )
-    fetch_p.add_argument(
-        "--json", action="store_true", help="Also print raw JSON results"
-    )
+    fetch_p = subparsers.add_parser("fetch", help="Fetch live metadata from PyPI, GitHub, GitLab, Mastodon")
+    fetch_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    fetch_p.add_argument("--json", action="store_true", help="Also print raw JSON results")
     fetch_p.set_defaults(func=cmd_fetch)
 
     dump_p = subparsers.add_parser("dump", help="Dump profile data as JSON")
     dump_p.add_argument("source", help="Profile package name, directory, or .toml path")
     dump_p.set_defaults(func=cmd_api_dump)
 
-    keygen_p = subparsers.add_parser(
-        "keygen", help="Generate a minisign keypair for signing claims"
-    )
+    keygen_p = subparsers.add_parser("keygen", help="Generate a minisign keypair for signing claims")
     keygen_p.add_argument(
         "--key-dir",
         default="",
@@ -954,17 +915,11 @@ def main() -> None:
         default="",
         help="Password to encrypt the secret key (default: none)",
     )
-    keygen_p.add_argument(
-        "--force", action="store_true", help="Overwrite existing key files"
-    )
+    keygen_p.add_argument("--force", action="store_true", help="Overwrite existing key files")
     keygen_p.set_defaults(func=cmd_keygen)
 
-    sign_p = subparsers.add_parser(
-        "sign", help="Sign a proof-of-control claim for an external URL"
-    )
-    sign_p.add_argument(
-        "claim_type", choices=["controls-url"], help="Claim type to sign"
-    )
+    sign_p = subparsers.add_parser("sign", help="Sign a proof-of-control claim for an external URL")
+    sign_p.add_argument("claim_type", choices=["controls-url"], help="Claim type to sign")
     sign_p.add_argument("source", help="Profile package name, directory, or .toml path")
     sign_p.add_argument("--url", required=True, help="URL to assert control over")
     sign_p.add_argument(
@@ -973,40 +928,26 @@ def main() -> None:
         help="Path to secret key file (default: ~/.pypi_profile/minisign.key)",
     )
     sign_p.add_argument("--password", default="", help="Password for the secret key")
-    sign_p.add_argument(
-        "--profile-package", default="", help="Profile package name override"
-    )
+    sign_p.add_argument("--profile-package", default="", help="Profile package name override")
     sign_p.set_defaults(func=cmd_sign)
 
-    verify_p = subparsers.add_parser(
-        "verify", help="Verify proof-of-control claims for declared profile URLs"
-    )
-    verify_p.add_argument(
-        "source", help="Profile package name, directory, or .toml path"
-    )
-    verify_p.add_argument(
-        "--profile-package", default="", help="Profile package name override"
-    )
+    verify_p = subparsers.add_parser("verify", help="Verify proof-of-control claims for declared profile URLs")
+    verify_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    verify_p.add_argument("--profile-package", default="", help="Profile package name override")
     verify_p.set_defaults(func=cmd_verify)
 
     update_proofs_p = subparsers.add_parser(
         "update-proofs",
         help="Sign all [[profiles]] URLs and write stored_proof values into the TOML",
     )
-    update_proofs_p.add_argument(
-        "source", help="Profile package name, directory, or .toml path"
-    )
+    update_proofs_p.add_argument("source", help="Profile package name, directory, or .toml path")
     update_proofs_p.add_argument(
         "--key",
         default="",
         help="Path to secret key file (default: ~/.pypi_profile/minisign.key)",
     )
-    update_proofs_p.add_argument(
-        "--password", default="", help="Password for the secret key"
-    )
-    update_proofs_p.add_argument(
-        "--profile-package", default="", help="Profile package name override"
-    )
+    update_proofs_p.add_argument("--password", default="", help="Password for the secret key")
+    update_proofs_p.add_argument("--profile-package", default="", help="Profile package name override")
     update_proofs_p.add_argument(
         "--force",
         action="store_true",
@@ -1014,15 +955,9 @@ def main() -> None:
     )
     update_proofs_p.set_defaults(func=cmd_update_proofs)
 
-    build_p = subparsers.add_parser(
-        "build", help="Generate a static site from a profile"
-    )
-    build_p.add_argument(
-        "source", help="Profile package name, directory, or .toml path"
-    )
-    build_p.add_argument(
-        "--output", default="dist", help="Output directory (default: dist/)"
-    )
+    build_p = subparsers.add_parser("build", help="Generate a static site from a profile")
+    build_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    build_p.add_argument("--output", default="dist", help="Output directory (default: dist/)")
     build_p.add_argument(
         "--base-url",
         default="",
@@ -1043,6 +978,7 @@ def main() -> None:
     args = parser.parse_args()
 
     from pypi_profile.log import configure_logging
+
     configure_logging("DEBUG" if args.verbose else args.log_level)
 
     if not args.command:

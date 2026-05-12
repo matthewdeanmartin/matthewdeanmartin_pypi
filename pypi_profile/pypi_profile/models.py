@@ -6,9 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-ClaimStatus = Literal[
-    "self_asserted", "verified", "unverified", "invalid", "expired", "unknown"
-]
+ClaimStatus = Literal["self_asserted", "verified", "unverified", "invalid", "expired", "unknown"]
 
 PrincipalKind = Literal[
     "individual",

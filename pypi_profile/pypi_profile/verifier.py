@@ -29,9 +29,7 @@ def import_minisign() -> Any:
         return minisign
     except ImportError as exc:
         logger.debug("py-minisign not installed; verification unavailable")
-        raise ImportError(
-            "py-minisign is required for verification. Install it with: uv add py-minisign"
-        ) from exc
+        raise ImportError("py-minisign is required for verification. Install it with: uv add py-minisign") from exc
 
 
 def fetch_page(url: str) -> str:
@@ -63,30 +61,42 @@ def find_proof_tokens(text: str) -> list[str]:
 
 
 def verify_claim_signature(claim: dict[str, Any], public_key_b64: str) -> bool:
-    """Verify the minisign signature on a decoded claim dict.
+    """Verify the Ed25519 signature on a decoded claim dict.
 
-    Returns True if valid, False otherwise.
+    The signature field is a standard-base64-encoded 74-byte minisign binary
+    (2-byte algo + 8-byte key_id + 64-byte Ed25519 sig), matching what the
+    browser-side Web Crypto verifier expects.  Returns True if valid.
     """
-    ms = import_minisign()
-
     sig_b64 = claim.get("signature", "")
     if not sig_b64:
         return False
 
     try:
-        pk = ms.PublicKey.from_base64(public_key_b64)
-        sig = ms.Signature.from_bytes(base64.standard_b64decode(sig_b64))
-    except (TypeError, ValueError, OSError, binascii.Error):
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+        from cryptography.exceptions import InvalidSignature
+
+        pk_full = base64.standard_b64decode(public_key_b64)
+        sig_full = base64.standard_b64decode(sig_b64)
+        if len(pk_full) != 42 or len(sig_full) != 74:
+            logger.debug("Unexpected key/sig lengths: pk=%d sig=%d", len(pk_full), len(sig_full))
+            return False
+
+        raw_pk = pk_full[10:]
+        raw_sig = sig_full[10:]
+    except (TypeError, ValueError, binascii.Error):
         logger.debug("Failed to parse public key or signature during claim verification", exc_info=True)
         return False
 
     from pypi_profile.signing import claim_to_bytes
+    import hashlib
 
     claim_bytes = claim_to_bytes(claim)
+    msg_hash = hashlib.blake2b(claim_bytes, digest_size=64).digest()
     try:
-        pk.verify(claim_bytes, sig)
+        ed_pk = Ed25519PublicKey.from_public_bytes(raw_pk)
+        ed_pk.verify(raw_sig, msg_hash)
         return True
-    except (TypeError, ValueError, OSError):
+    except (InvalidSignature, ValueError):
         logger.debug("Claim signature verification failed", exc_info=True)
         return False
 

@@ -31,6 +31,7 @@ def load_profile(path: Path) -> ProfileData:
     if not profile.verification.public_key and path.name == "pypi_profile.toml":
         try:
             from pypi_profile.signing import patch_public_key_in_toml
+
             pub_b64 = patch_public_key_in_toml(path)
             if pub_b64:
                 profile.verification.public_key = pub_b64
