@@ -573,7 +573,7 @@ def cmd_keygen(args: argparse.Namespace) -> None:
     """Generate a minisign keypair for signing profile claims."""
     import os
 
-    from pypi_profile.signing import generate_keypair
+    from pypi_profile.signing import generate_keypair, keyring_is_usable, keyring_username
 
     env_key_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
     if args.key_dir:
@@ -583,11 +583,25 @@ def cmd_keygen(args: argparse.Namespace) -> None:
     else:
         key_dir = None
     password = args.password or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "")
+
+    keyring_identity: str | None = args.keyring_identity or None
+    store_in_keyring: bool = not args.no_keyring
+
+    if store_in_keyring and not keyring_is_usable():
+        print(
+            "Note: no usable keyring backend found — secret key will be stored on disk only.\n"
+            "      Install a keyring backend (e.g. 'pip install keyring') to enable keyring storage.",
+            file=sys.stderr,
+        )
+        store_in_keyring = False
+
     try:
         sk_path, pk_path, pub_b64 = generate_keypair(
             key_dir=key_dir,
             password=password,
             force=args.force,
+            keyring_identity=keyring_identity,
+            store_in_keyring=store_in_keyring,
         )
     except FileExistsError as exc:
         logger.error("Key already exists: %s", exc)
@@ -600,14 +614,19 @@ def cmd_keygen(args: argparse.Namespace) -> None:
 
     print(f"Secret key: {sk_path}")
     print(f"Public key: {pk_path}")
-    from pypi_profile.signing import keyring_is_usable, keyring_username
 
-    if keyring_is_usable():
-        print(f"Key storage: system keyring (username={keyring_username()!r})")
+    if store_in_keyring and keyring_is_usable():
+        username = keyring_username(keyring_identity)
+        print(f"Key storage: system keyring (service='pypi-profile', username={username!r})")
         print(f"  Disk copy also kept at {sk_path} as a fallback.")
+        if not keyring_identity:
+            print(
+                "  Tip: use --keyring-identity to give this key a name (e.g. 'work' or 'personal')\n"
+                "  so you can store multiple keys for different PyPI accounts."
+            )
     else:
         print(f"Key storage: disk only ({sk_path})")
-        print("  Install the 'keyring' package to store the secret key in your system keyring.")
+        print("  Tip: use a keyring backend to avoid keeping the secret key as a plaintext file.")
     print()
 
     # Auto-patch public_key into any pypi_profile.toml found in the cwd.
@@ -749,6 +768,19 @@ def cmd_api_dump(args: argparse.Namespace) -> None:
     toml_path = find_profile(args.source)
     profile = load_profile(toml_path)
     print(json.dumps(profile.model_dump(), indent=2, default=str))
+
+
+def cmd_find_profiles(args: argparse.Namespace) -> None:
+    """Scan for pypi_profile.toml files and pyproject.toml with [tool.pypi-profile]."""
+    from pypi_profile.finder import find_profile_files
+
+    root = Path(args.root).expanduser().resolve() if args.root else None
+    found = find_profile_files(root=root)
+    if not found:
+        print("No profile files found.")
+        return
+    for p in found:
+        print(p)
 
 
 def cmd_update_proofs(args: argparse.Namespace) -> None:
@@ -918,6 +950,21 @@ def main() -> None:
         default="",
         help="Password to encrypt the secret key (default: none)",
     )
+    keygen_p.add_argument(
+        "--keyring-identity",
+        default="",
+        metavar="NAME",
+        help=(
+            "Name for this key in the system keyring (default: 'default'). "
+            "Use distinct names for multiple PyPI identities, e.g. 'work' or 'personal'."
+        ),
+    )
+    keygen_p.add_argument(
+        "--no-keyring",
+        action="store_true",
+        default=False,
+        help="Skip storing the secret key in the system keyring; write to disk only.",
+    )
     keygen_p.add_argument("--force", action="store_true", help="Overwrite existing key files")
     keygen_p.set_defaults(func=cmd_keygen)
 
@@ -980,6 +1027,18 @@ def main() -> None:
         help="Path to JSON Resume file (auto-discovered if not given)",
     )
     build_p.set_defaults(func=cmd_build)
+
+    find_profiles_p = subparsers.add_parser(
+        "find-profiles",
+        help="Scan for pypi_profile.toml files and pyproject.toml with [tool.pypi-profile]",
+    )
+    find_profiles_p.add_argument(
+        "root",
+        nargs="?",
+        default="",
+        help="Root directory to scan (default: current directory)",
+    )
+    find_profiles_p.set_defaults(func=cmd_find_profiles)
 
     gui_p = subparsers.add_parser("gui", help="Launch the Tkinter GUI")
     gui_p.set_defaults(func=lambda _: launch_gui())

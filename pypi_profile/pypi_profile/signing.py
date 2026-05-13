@@ -25,9 +25,23 @@ DEFAULT_PK_NAME = "minisign.pub"
 
 KEYRING_SERVICE = "pypi-profile"
 
+# Sentinel used when the caller wants the env-var / "default" fallback.
+_ENV_DEFAULT = object()
 
-def keyring_username() -> str:
-    """Return the keyring username for the secret key entry."""
+
+def keyring_username(identity: str | None = None) -> str:
+    """Return the keyring username for a given identity name.
+
+    Resolution order:
+    1. Explicit *identity* argument (non-empty string).
+    2. ``PYPI_PROFILE_KEYRING_USERNAME`` environment variable.
+    3. ``"default"`` — the legacy single-identity name.
+
+    Two PyPI accounts can coexist in the keyring by using distinct names,
+    e.g. ``"work"`` and ``"personal"``.
+    """
+    if identity:
+        return identity
     return os.environ.get("PYPI_PROFILE_KEYRING_USERNAME", "default")
 
 
@@ -40,15 +54,16 @@ def keyring_is_usable() -> bool:
     return True
 
 
-def store_key_in_keyring(sk_bytes: bytes) -> bool:
-    """Store raw secret key bytes in keyring. Returns True on success."""
+def store_key_in_keyring(sk_bytes: bytes, identity: str | None = None) -> bool:
+    """Store raw secret key bytes in keyring under *identity*. Returns True on success."""
+    username = keyring_username(identity)
     try:
         encoded = base64.b64encode(sk_bytes).decode()
-        keyring.set_password(KEYRING_SERVICE, keyring_username(), encoded)
+        keyring.set_password(KEYRING_SERVICE, username, encoded)
         logger.info(
             "Secret key stored in keyring (service=%r, username=%r)",
             KEYRING_SERVICE,
-            keyring_username(),
+            username,
         )
         return True
     except Exception:
@@ -56,15 +71,16 @@ def store_key_in_keyring(sk_bytes: bytes) -> bool:
         return False
 
 
-def load_key_bytes_from_keyring() -> bytes | None:
-    """Retrieve raw secret key bytes from keyring, or None if unavailable."""
+def load_key_bytes_from_keyring(identity: str | None = None) -> bytes | None:
+    """Retrieve raw secret key bytes from keyring for *identity*, or None if unavailable."""
+    username = keyring_username(identity)
     try:
-        encoded = keyring.get_password(KEYRING_SERVICE, keyring_username())
+        encoded = keyring.get_password(KEYRING_SERVICE, username)
         if encoded is None:
             logger.debug(
                 "No key found in keyring for service=%r username=%r",
                 KEYRING_SERVICE,
-                keyring_username(),
+                username,
             )
             return None
         return base64.b64decode(encoded)
@@ -77,12 +93,19 @@ def generate_keypair(
     key_dir: Path | None = None,
     password: str | None = None,
     force: bool = False,
+    keyring_identity: str | None = None,
+    store_in_keyring: bool = True,
 ) -> tuple[Path, Path, str]:
     """Generate a minisign keypair.
 
-    The secret key is stored in the system keyring when a usable backend is
-    available, and always written to disk as a fallback.  Returns
-    (sk_path, pk_path, public_key_b64).
+    The secret key is always written to *key_dir* on disk.  When a usable
+    keyring backend is present and *store_in_keyring* is True it is also
+    stored under *keyring_identity* (defaults to ``"default"`` or the
+    ``PYPI_PROFILE_KEYRING_USERNAME`` env var).  Use a distinct
+    *keyring_identity* for each PyPI account so multiple keys can coexist
+    (e.g. ``"work"`` and ``"personal"``).
+
+    Returns (sk_path, pk_path, public_key_b64).
     """
     if key_dir is None:
         key_dir = DEFAULT_KEY_DIR
@@ -105,20 +128,27 @@ def generate_keypair(
     pk_path.write_bytes(bytes(kp.public_key) + b"\n")
     logger.info("Keypair written: sk=%s pk=%s", sk_path, pk_path)
 
-    if keyring_is_usable() and store_key_in_keyring(sk_bytes):
-        logger.info("Secret key also stored in system keyring")
+    if store_in_keyring and keyring_is_usable() and store_key_in_keyring(sk_bytes, keyring_identity):
+        logger.info(
+            "Secret key also stored in system keyring (username=%r)",
+            keyring_username(keyring_identity),
+        )
 
     public_key_b64 = kp.public_key.to_base64().decode()
     return sk_path, pk_path, public_key_b64
 
 
-def load_secret_key(sk_path: Path | None = None, password: str | None = None) -> Any:
+def load_secret_key(
+    sk_path: Path | None = None,
+    password: str | None = None,
+    keyring_identity: str | None = None,
+) -> Any:
     """Load a minisign SecretKey, preferring the system keyring over disk.
 
     Resolution order:
     1. Explicit sk_path argument (bypasses keyring).
     2. PYPI_PROFILE_KEY_PATH environment variable (bypasses keyring).
-    3. System keyring (if a usable backend is active).
+    3. System keyring under *keyring_identity* (falls back to env/default).
     4. Default disk path (~/.pypi_profile/minisign.key).
     """
     if not password:
@@ -145,11 +175,12 @@ def load_secret_key(sk_path: Path | None = None, password: str | None = None) ->
             sk.decrypt(password)
         return sk
 
-    # Try keyring first.
+    # Try keyring (with optional named identity).
     if keyring_is_usable():
-        sk_bytes = load_key_bytes_from_keyring()
+        sk_bytes = load_key_bytes_from_keyring(keyring_identity)
         if sk_bytes is not None:
-            logger.debug("Loading secret key from system keyring")
+            username = keyring_username(keyring_identity)
+            logger.debug("Loading secret key from system keyring (username=%r)", username)
             sk = minisign.SecretKey.from_bytes(sk_bytes.rstrip(b"\n"))
             if password:
                 sk.decrypt(password)
