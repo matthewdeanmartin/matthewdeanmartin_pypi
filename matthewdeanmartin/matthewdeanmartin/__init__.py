@@ -1,6 +1,7 @@
 """PyPI profile data and plugin for pypi-profile — Matthew Martin's packages."""
 
 from matthewdeanmartin.__about__ import __version__
+
 from pypi_profile.plugin_spec import hookimpl
 
 __all__ = ["__version__"]

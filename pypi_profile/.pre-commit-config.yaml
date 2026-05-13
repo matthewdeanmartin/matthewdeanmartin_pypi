@@ -9,8 +9,6 @@ repos:
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
-      # check-yaml disabled: uncomment if you have no !reference / !reset tags
-      # - id: check-yaml
       - id: check-builtin-literals
       - id: fix-byte-order-marker
       - id: check-case-conflict
@@ -21,41 +19,28 @@ repos:
       - id: detect-private-key
       - id: forbid-new-submodules
 
-  - repo: https://github.com/PyCQA/autoflake
-    rev: v2.3.3
+  # Mirrors `make fix` exactly: isort -> black -> ruff --fix -> black.
+  # Explicit config paths required: pre-commit runs from repo root and this
+  # is a monorepo sub-package — without them tools fall back to defaults
+  # (79-char lines etc.) and oscillate commit-to-commit.
+  # files: scoped to this package only so ruff errors in sibling packages
+  # don't block commits here.
+  - repo: local
     hooks:
-      - id: autoflake
-        args:
-          - --in-place
-          - --recursive
-          - --expand-star-imports
-          - --remove-duplicate-keys
-          - --remove-unused-variables
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.10
-    hooks:
-      - id: ruff
-        args: ["--config", "pyproject.toml", "--fix"]
+      - id: fix
+        name: fix (isort + black + ruff + black)
+        language: system
+        entry: bash -c 'uv run isort --settings-path pypi_profile/ "$@" && uv run black --config pypi_profile/pyproject.toml "$@" && uv run ruff check --fix --quiet --config pypi_profile/pyproject.toml "$@" && uv run black --config pypi_profile/pyproject.toml "$@"' --
+        types: [python]
+        files: ^pypi_profile/
+        pass_filenames: true
 
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
     hooks:
       - id: python-use-type-annotations
+        files: ^pypi_profile/
       - id: python-no-log-warn
+        files: ^pypi_profile/
       - id: text-unicode-replacement-char
-
-# Uncomment to auto-format Python with black on commit.
-# black conflicts with some other hooks; test before enabling.
-#  - repo: https://github.com/psf/black
-#    rev: 25.1.0
-#    hooks:
-#      - id: black
-
-# Uncomment to auto-format Markdown on commit.
-#  - repo: https://github.com/executablebooks/mdformat
-#    rev: 0.7.22
-#    hooks:
-#      - id: mdformat
-#        additional_dependencies:
-#          - mdformat-gfm
+        files: ^pypi_profile/

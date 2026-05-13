@@ -18,9 +18,9 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
 
 DEFAULT_ENV_FILE = Path(r"C:\github\.env")
 FAILED_CONCLUSIONS = {"failure"}
@@ -41,7 +41,7 @@ class WorkflowRun:
     created_at: str | None
 
     @classmethod
-    def from_api(cls, payload: dict[str, object]) -> "WorkflowRun":
+    def from_api(cls, payload: dict[str, object]) -> WorkflowRun:
         """Build a workflow run from the GitHub API payload."""
         return cls(
             id=int(payload["id"]),
@@ -96,10 +96,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "--conclusion",
         action="append",
         dest="conclusions",
-        help=(
-            "Workflow conclusion to target. Repeat to include more than one. "
-            "Defaults to: failure"
-        ),
+        help=("Workflow conclusion to target. Repeat to include more than one. " "Defaults to: failure"),
     )
     parser.add_argument(
         "--max-delete",
@@ -214,9 +211,7 @@ def resolve_repo(explicit_repo: str | None) -> str:
             text=True,
         )
     except subprocess.CalledProcessError as exc:
-        raise RuntimeError(
-            "Could not read git remote 'origin'. Pass --repo owner/repo explicitly."
-        ) from exc
+        raise RuntimeError("Could not read git remote 'origin'. Pass --repo owner/repo explicitly.") from exc
     remote = result.stdout.strip()
 
     patterns = [
@@ -229,9 +224,7 @@ def resolve_repo(explicit_repo: str | None) -> str:
             repo = match.group("repo")
             return f"{owner}/{repo}"
 
-    raise RuntimeError(
-        "Could not infer owner/repo from the current git remote. Pass --repo owner/repo explicitly."
-    )
+    raise RuntimeError("Could not infer owner/repo from the current git remote. Pass --repo owner/repo explicitly.")
 
 
 def iter_workflow_runs(
@@ -298,10 +291,7 @@ def render_run(run: WorkflowRun) -> str:
     """Render a single workflow run for terminal output."""
     created = run.created_at or "unknown-date"
     branch = run.head_branch or "unknown-branch"
-    return (
-        f"- {run.id} | {created} | {run.name} | {run.display_title} | "
-        f"{branch} | {run.conclusion or 'unknown'}"
-    )
+    return f"- {run.id} | {created} | {run.name} | {run.display_title} | " f"{branch} | {run.conclusion or 'unknown'}"
 
 
 def main(argv: Sequence[str]) -> int:
@@ -310,14 +300,10 @@ def main(argv: Sequence[str]) -> int:
         args = parse_args(argv)
         env = build_gh_env(args.env_file)
         repo = resolve_repo(args.repo)
-        conclusions = {
-            value.lower() for value in (args.conclusions or FAILED_CONCLUSIONS)
-        }
+        conclusions = {value.lower() for value in (args.conclusions or FAILED_CONCLUSIONS)}
 
         runs = filter_runs(
-            iter_workflow_runs(
-                repo=repo, env=env, branch=args.branch, event=args.event
-            ),
+            iter_workflow_runs(repo=repo, env=env, branch=args.branch, event=args.event),
             conclusions=conclusions,
             max_delete=args.max_delete,
         )
@@ -332,9 +318,7 @@ def main(argv: Sequence[str]) -> int:
 
         if not args.execute:
             action = "delete logs for" if args.mode == "logs" else "delete"
-            print(
-                f"\nDry run only. Re-run with --execute to {action} these workflow runs."
-            )
+            print(f"\nDry run only. Re-run with --execute to {action} these workflow runs.")
             return 0
 
         failures: list[tuple[int, str]] = []

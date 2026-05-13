@@ -117,7 +117,7 @@ def decode_claim(token: str) -> dict[str, Any]:
     """
     token = token.strip()
     if token.startswith(PROOF_PREFIX):
-        token = token[len(PROOF_PREFIX):].strip()
+        token = token[len(PROOF_PREFIX) :].strip()
     padding = (4 - len(token) % 4) % 4
     raw = base64.urlsafe_b64decode(token + "=" * padding)
     return cast(dict[str, Any], json.loads(raw))

@@ -440,7 +440,11 @@ def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str
         urllib.error.URLError,
         ValueError,
     ):
-        logger.warning("Failed to fetch GitHub repos for %r (partial results may be returned)", username, exc_info=True)
+        logger.warning(
+            "Failed to fetch GitHub repos for %r (partial results may be returned)",
+            username,
+            exc_info=True,
+        )
     return results
 
 

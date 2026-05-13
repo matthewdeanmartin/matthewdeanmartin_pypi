@@ -458,7 +458,10 @@ def test_patch_proofs_distinct_per_url(tmp_path):
         sk_path=sk_path,
     )
 
-    assert set(updated) == {"https://github.com/testuser", "https://mastodon.social/@testuser/99999"}
+    assert set(updated) == {
+        "https://github.com/testuser",
+        "https://mastodon.social/@testuser/99999",
+    }
 
     import sys
 
@@ -473,9 +476,9 @@ def test_patch_proofs_distinct_per_url(tmp_path):
     proofs = {p["url"]: p["stored_proof"] for p in data["profiles"]}
 
     # Proofs must be different (different subjects)
-    assert proofs["https://github.com/testuser"] != proofs["https://mastodon.social/@testuser/99999"], (
-        "Both profiles received the same stored_proof — subject was not applied per URL"
-    )
+    assert (
+        proofs["https://github.com/testuser"] != proofs["https://mastodon.social/@testuser/99999"]
+    ), "Both profiles received the same stored_proof — subject was not applied per URL"
 
     # Each proof must encode the correct subject URL
     github_claim = decode_claim(proofs["https://github.com/testuser"])

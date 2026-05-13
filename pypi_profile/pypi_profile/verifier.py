@@ -306,7 +306,9 @@ def diagnose_tokens(
             steps.append("    If you regenerated your keypair, re-run: pypi-profile update-proofs <source>")
             return "invalid", steps
 
-    steps.append(f"No token matched subject={subject_url!r} / username={pypi_username!r} / package={profile_package!r}.")
+    steps.append(
+        f"No token matched subject={subject_url!r} / username={pypi_username!r} / package={profile_package!r}."
+    )
     return "unverified", steps
 
 

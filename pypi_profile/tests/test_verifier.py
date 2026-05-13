@@ -7,7 +7,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pypi_profile.models import IdentitySection, ProfileData, ProfileLink, VerificationSection
+from pypi_profile.models import (
+    IdentitySection,
+    ProfileData,
+    ProfileLink,
+    VerificationSection,
+)
 from pypi_profile.verifier import fetch_page, verify_all_profiles, verify_profile_link
 
 

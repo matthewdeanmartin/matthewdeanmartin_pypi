@@ -62,7 +62,11 @@ def build_static_site(
     toml_path = find_profile(source)
     profile = load_profile(toml_path)
 
-    logger.info("Building static site for %r (base_url=%r)", profile.profile.display_name, base_url)
+    logger.info(
+        "Building static site for %r (base_url=%r)",
+        profile.profile.display_name,
+        base_url,
+    )
     if verbose:
         print(f"Building static site for {profile.profile.display_name!r}...")
 
@@ -115,7 +119,12 @@ def build_static_site(
 
     copy_static_assets(output, verbose=verbose)
 
-    logger.info("Build complete: %d HTML pages, %d JSON files -> %s", html_count, json_count, output)
+    logger.info(
+        "Build complete: %d HTML pages, %d JSON files -> %s",
+        html_count,
+        json_count,
+        output,
+    )
     if verbose:
         print()
         summary_lines = [

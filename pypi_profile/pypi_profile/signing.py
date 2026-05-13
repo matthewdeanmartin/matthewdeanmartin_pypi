@@ -45,7 +45,11 @@ def store_key_in_keyring(sk_bytes: bytes) -> bool:
     try:
         encoded = base64.b64encode(sk_bytes).decode()
         keyring.set_password(KEYRING_SERVICE, keyring_username(), encoded)
-        logger.info("Secret key stored in keyring (service=%r, username=%r)", KEYRING_SERVICE, keyring_username())
+        logger.info(
+            "Secret key stored in keyring (service=%r, username=%r)",
+            KEYRING_SERVICE,
+            keyring_username(),
+        )
         return True
     except Exception:
         logger.warning("Could not store key in keyring", exc_info=True)
@@ -57,7 +61,11 @@ def load_key_bytes_from_keyring() -> bytes | None:
     try:
         encoded = keyring.get_password(KEYRING_SERVICE, keyring_username())
         if encoded is None:
-            logger.debug("No key found in keyring for service=%r username=%r", KEYRING_SERVICE, keyring_username())
+            logger.debug(
+                "No key found in keyring for service=%r username=%r",
+                KEYRING_SERVICE,
+                keyring_username(),
+            )
             return None
         return base64.b64decode(encoded)
     except Exception:
@@ -175,7 +183,12 @@ def sign_controls_url(
     uses single-letter keys + Unix timestamps.  The default (False) produces
     the full human-readable token.
     """
-    logger.debug("Signing controls-url claim for %s -> %s (compact=%s)", pypi_username, subject_url, compact)
+    logger.debug(
+        "Signing controls-url claim for %s -> %s (compact=%s)",
+        pypi_username,
+        subject_url,
+        compact,
+    )
     sk = load_secret_key(sk_path, password)
 
     if compact:
@@ -203,9 +216,7 @@ def sign_controls_url(
         claim_json_bytes = claim_to_bytes(claim)
         sig = sk.sign(claim_json_bytes, prehash=True)
         # Store only the 74-byte binary (algo + key_id + ed25519_sig), not the armored text format.
-        sig_b64 = base64.standard_b64encode(
-            sig._signature_algorithm.value + sig._key_id + sig._signature
-        ).decode()
+        sig_b64 = base64.standard_b64encode(sig._signature_algorithm.value + sig._key_id + sig._signature).decode()
         claim["signature"] = sig_b64
 
     return encode_claim(claim)
@@ -344,7 +355,9 @@ def patch_proofs_in_toml(
         escaped_url = re.escape(url)
         replacer = _make_proof_replacer(proof, escaped_url)
         # (?:(?!\[\[profiles\]\])[\s\S])*? — lazy match that cannot cross into the next [[profiles]] block
-        pattern = rf'(\[\[profiles\]\](?:(?!\[\[profiles\]\])[\s\S])*?url\s*=\s*"{escaped_url}"[\s\S]*?)(?=\[\[|\[(?!\[)|\Z)'
+        pattern = (
+            rf'(\[\[profiles\]\](?:(?!\[\[profiles\]\])[\s\S])*?url\s*=\s*"{escaped_url}"[\s\S]*?)(?=\[\[|\[(?!\[)|\Z)'
+        )
         new_text, n = re.subn(pattern, replacer, text, flags=re.DOTALL)
         if n:
             text = new_text

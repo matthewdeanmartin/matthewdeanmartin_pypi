@@ -43,7 +43,12 @@ def generate_proofs(
     for link in needing_proof:
         if link.stored_proof:
             results_from_stored.append(
-                {"label": link.label, "url": link.url, "proof": link.stored_proof, "error": None}
+                {
+                    "label": link.label,
+                    "url": link.url,
+                    "proof": link.stored_proof,
+                    "error": None,
+                }
             )
         else:
             still_needing.append(link)
@@ -89,7 +94,13 @@ def _get_claim_results(
         for link in profile.profiles:
             if link.stored_proof:
                 status = "verified"
-            elif link.verification in ("self_asserted", "verified", "unverified", "invalid", "expired"):
+            elif link.verification in (
+                "self_asserted",
+                "verified",
+                "unverified",
+                "invalid",
+                "expired",
+            ):
                 status = link.verification
             else:
                 status = "unverified"

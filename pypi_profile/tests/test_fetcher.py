@@ -9,8 +9,19 @@ from typing import Any
 
 import pytest
 
-from pypi_profile.fetcher import compare_packages, extract_github_username, extract_gitlab_username, fetch_all
-from pypi_profile.models import IdentitySection, PackageEntry, ProfileData, ProfileLink, ProfileSection
+from pypi_profile.fetcher import (
+    compare_packages,
+    extract_github_username,
+    extract_gitlab_username,
+    fetch_all,
+)
+from pypi_profile.models import (
+    IdentitySection,
+    PackageEntry,
+    ProfileData,
+    ProfileLink,
+    ProfileSection,
+)
 
 
 @pytest.fixture
