@@ -7,10 +7,12 @@ TOML    := john_doe/pypi_profile.toml
 ABOUT_FILE := john_doe/__about__.py
 
 .PHONY: \
-	sync \
+	sync pre-commit-install \
+	fix \
 	init update \
 	serve inspect validate dump doctor \
-	format lint typecheck security \
+	format format-python format-check format-check-python \
+	lint lint-check typecheck security \
 	test test-ci \
 	metadata metadata-check \
 	publish-check publish \
@@ -31,6 +33,7 @@ help:
 	@echo "  Development:"
 	@echo "    sync          Install all dependencies"
 	@echo "    format        Auto-format Python source"
+	@echo "    format-check  Check Python formatting"
 	@echo "    lint          Lint Python source"
 	@echo "    typecheck     Type-check with mypy"
 	@echo "    security      Run bandit security scan"
@@ -48,6 +51,9 @@ help:
 
 sync:
 	@$(UV) sync
+
+pre-commit-install:
+	@$(UV) run pre-commit install
 
 # ── Profile management ────────────────────────────────────────────────────────
 
@@ -83,12 +89,27 @@ doctor:
 
 # ── Code quality ──────────────────────────────────────────────────────────────
 
-format:
-	@$(UV) run ruff check --fix --quiet $(PACKAGE) tests
-	@$(UV) run ruff format $(PACKAGE) tests
+fix: format-python
 
-lint:
-	@$(UV) run ruff check --quiet $(PACKAGE) tests
+format: format-python
+
+format-python:
+	@$(UV) run isort --settings-path pyproject.toml $(PACKAGE) tests
+	@$(UV) run black --config pyproject.toml $(PACKAGE) tests
+	@$(UV) run ruff check --fix --quiet --config pyproject.toml $(PACKAGE) tests
+	@$(UV) run black --config pyproject.toml $(PACKAGE) tests
+
+format-check: format-check-python
+
+format-check-python:
+	@$(UV) run isort --settings-path pyproject.toml --check-only $(PACKAGE) tests
+	@$(UV) run black --config pyproject.toml --check $(PACKAGE) tests
+	@$(UV) run ruff check --quiet --config pyproject.toml $(PACKAGE) tests
+
+lint: lint-check
+
+lint-check:
+	@$(UV) run ruff check --quiet --config pyproject.toml $(PACKAGE) tests
 
 typecheck:
 	@$(UV) run mypy --hide-error-context $(PACKAGE) tests
@@ -129,8 +150,8 @@ publish:
 
 # ── Gates ─────────────────────────────────────────────────────────────────────
 
-check: format lint security test typecheck validate
+check: format-check lint-check security test typecheck validate
 	@echo "All checks passed."
 
-check-ci: lint security test-ci typecheck validate
+check-ci: format-check lint-check security test-ci typecheck validate
 	@echo "CI checks passed."

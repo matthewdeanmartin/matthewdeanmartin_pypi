@@ -55,7 +55,6 @@ def test_fetch_page_urllib_fallback(mocker: Any) -> None:
 
     # I'll mock the whole 'fetch_page' for other tests anyway.
     # To test the fallback, I can use a different approach.
-    pass
 
 
 def test_fetch_page_urllib_success(mocker: Any) -> None:

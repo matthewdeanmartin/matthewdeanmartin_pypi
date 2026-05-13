@@ -20,14 +20,14 @@ role = "Owner"
 kind = "github"
 label = "GitHub"
 url = "https://github.com/matthewdeanmartin"
-stored_proof = "pypi-profile-proof: eyJwcm9maWxlX3BhY2thZ2UiOiJweXBpLXByb2ZpbGUtbWF0dGhld2RlYW5tYXJ0aW4iLCJweXBpX3VzZXJuYW1lIjoibWF0dGhld2RlYW5tYXJ0aW4iLCJjbGFpbSI6ImNvbnRyb2xzLXVybCIsInN1YmplY3QiOiJodHRwczovL2dpdGh1Yi5jb20vbWF0dGhld2RlYW5tYXJ0aW4iLCJpc3N1ZWRfYXQiOiIyMDI2LTA1LTEzVDAwOjU1OjE0WiIsImV4cGlyZXNfYXQiOiIyMDI3LTA1LTEzVDAwOjU1OjE0WiIsIm5vbmNlIjoiOGQ1NmRkMTItY2ZiOS00MjhjLTg0YTAtMDkxNGQ2NmI1OGE1Iiwia2V5X2lkIjoiN0E0MjI5NzlDOEEyRTExQSIsInNpZ25hdHVyZV9iYWNrZW5kIjoibWluaXNpZ24iLCJzaWduYXR1cmUiOiJSVVI2UWlsNXlLTGhHbWw0R3BwZFRDOEovNzJ5VGRMYTI2NEFsM2J6QmpCaDFUSEQwRXRQejlVRXRzdWRuK0FFdG56ZERTQmhDUHNYQjRSNjJ1OEVIWHVMN1dBdXdQK20zUTA9In0"
+stored_proof = "pypi-profile-proof: eyJwcm9maWxlX3BhY2thZ2UiOiJweXBpLXByb2ZpbGUtbWF0dGhld2RlYW5tYXJ0aW4iLCJweXBpX3VzZXJuYW1lIjoibWF0dGhld2RlYW5tYXJ0aW4iLCJjbGFpbSI6ImNvbnRyb2xzLXVybCIsInN1YmplY3QiOiJodHRwczovL2dpdGh1Yi5jb20vbWF0dGhld2RlYW5tYXJ0aW4iLCJpc3N1ZWRfYXQiOiIyMDI2LTA1LTEzVDAwOjU1OjEzWiIsImV4cGlyZXNfYXQiOiIyMDI3LTA1LTEzVDAwOjU1OjEzWiIsIm5vbmNlIjoiNGZlYzFjNDctMGY2NS00NDUzLTk3N2ItMDdlNDg4MjdjNGQ3Iiwia2V5X2lkIjoiN0E0MjI5NzlDOEEyRTExQSIsInNpZ25hdHVyZV9iYWNrZW5kIjoibWluaXNpZ24iLCJzaWduYXR1cmUiOiJSVVI2UWlsNXlLTGhHdlgwT1BmWFU0d3BWeXVGQmlrTXkwQjVRbGc0QVVCTURRODBqdDgyTlJya29YSlhVQWZ5dHNrS3d5ZGtkNDc1SEp3bndVMVgxSXFNd0dSMHRiWHNkd1E9In0"
 verification = "self_asserted"
 
 [[profiles]]
 kind = "mastodon"
 label = "Mastodon"
 url = "https://mastodon.social/@mistersql/116564001894006752"
-stored_proof = "pypi-profile-proof: eyJwIjoicHlwaS1wcm9maWxlLW1hdHRoZXdkZWFubWFydGluIiwidSI6Im1hdHRoZXdkZWFubWFydGluIiwicyI6Imh0dHBzOi8vbWFzdG9kb24uc29jaWFsL0BtaXN0ZXJzcWwvMTE2NTY0MDAxODk0MDA2NzUyIiwiaSI6MTc3ODYzMzcxNCwiZSI6MTgxMDE2OTcxNCwibiI6Ii03MG0yV0ZNaV9hSlNpV3dhdEdyRmciLCJnIjoiRWc5bzlJSHRWWW8tdnZETkY0NzUzQzRCZkVTd0ozNHlvdTZmUTNwMHU3Ty1wSGZsSkpLTElZZ2QwenNDUEZRTkx6YjUwSk1rWmFkTUNDUnd1U0djQlEifQ"
+stored_proof = "pypi-profile-proof: eyJwIjoicHlwaS1wcm9maWxlLW1hdHRoZXdkZWFubWFydGluIiwidSI6Im1hdHRoZXdkZWFubWFydGluIiwicyI6Imh0dHBzOi8vbWFzdG9kb24uc29jaWFsL0BtaXN0ZXJzcWwvMTE2NTY0MDAxODk0MDA2NzUyIiwiaSI6MTc3ODYzMzcxMywiZSI6MTgxMDE2OTcxMywibiI6Imw0SmpscHB3VVhlWWphcUE2RUszdGciLCJnIjoiRW1xZHNMSVdLbDEyQjllamFicGk5R2lZb3dyLWdvVDlBdkMyMy1YZ3NvOVY2MnRvVm5tclctYUdWT0ZIVmhDVzd5MnY4NWlTc1RXcnRlTXphbXlEQncifQ"
 verification = "self_asserted"
 
 [[contact_methods]]
@@ -61,6 +61,7 @@ role = "owner"
 state = "active"
 summary = "Automated pyproject.toml metadata fixer."
 
+
 [hiring]
 open_to_work_since = "2026-07-15"
 employment_types = ["employment", "contracting", "consulting"]
@@ -71,11 +72,11 @@ sponsorship = true
 
 [contracting]
 legal_entity = ""
-engagement_types = ["hourly", "retainer"]
+engagement_types = []
 
 [contact_preferences]
-do_contact_about = ["consulting", "package-maintenance", "security"]
-do_not_contact_about = ["cryptocurrency", "unpaid-custom-work"]
+do_contact_about = [ "package-maintenance", "security"]
+do_not_contact_about = ["consulting","cryptocurrency", "unpaid-custom-work"]
 
 [succession]
 policy = "If unreachable for 90 days, open a GitHub issue on any affected repository."

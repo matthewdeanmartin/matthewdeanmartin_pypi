@@ -1683,7 +1683,10 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "bandit" },
+    { name = "black" },
+    { name = "isort" },
     { name = "mypy" },
+    { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-timeout" },
@@ -1696,7 +1699,10 @@ requires-dist = [{ name = "pypi-profile", editable = "pypi_profile" }]
 [package.metadata.requires-dev]
 dev = [
     { name = "bandit", specifier = ">=1.9.4" },
+    { name = "black", specifier = ">=26.0.0" },
+    { name = "isort", specifier = ">=6.0.0" },
     { name = "mypy", specifier = ">=1.18.0" },
+    { name = "pre-commit", specifier = ">=4.0.0" },
     { name = "pytest", specifier = ">=8.4.0" },
     { name = "pytest-cov", specifier = ">=6.0.0" },
     { name = "pytest-timeout", specifier = ">=2.4.0" },

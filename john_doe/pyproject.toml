@@ -53,7 +53,10 @@ include = ["/README.md", "LICENSE", "/john_doe", "/tests"]
 [dependency-groups]
 dev = [
     "bandit>=1.9.4",
+    "black>=26.0.0",
+    "isort>=6.0.0",
     "mypy>=1.18.0",
+    "pre-commit>=4.0.0",
     "pytest>=8.4.0",
     "pytest-cov>=6.0.0",
     "pytest-timeout>=2.4.0",
@@ -72,6 +75,25 @@ testpaths = ["tests"]
 addopts = "-q --timeout=60"
 norecursedirs = ["vendor", "scripts", "dist", "build"]
 junit_family = "xunit1"
+
+[tool.black]
+line-length = 120
+target-version = ["py310"]
+include = '\.pyi?$'
+exclude = '''
+(
+  /(
+      \.eggs | \.git | \.hg | \.mypy_cache | \.tox | \.venv
+    | _build | buck-out | build | dist
+  )/
+)
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+py_version = 310
+skip_gitignore = true
 
 [tool.mypy]
 python_version = "3.10"

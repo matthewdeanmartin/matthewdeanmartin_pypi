@@ -9,8 +9,6 @@ repos:
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
-      # check-yaml disabled: uncomment if you have no !reference / !reset tags
-      # - id: check-yaml
       - id: check-builtin-literals
       - id: fix-byte-order-marker
       - id: check-case-conflict
@@ -30,22 +28,17 @@ repos:
       - id: fix
         name: fix (isort + black + ruff + black)
         language: system
-        entry: bash -c 'uv run isort --settings-path matthewdeanmartin/ "$@" && uv run black --config matthewdeanmartin/pyproject.toml "$@" && uv run ruff check --fix --quiet --config matthewdeanmartin/pyproject.toml "$@" && uv run black --config matthewdeanmartin/pyproject.toml "$@"' --
+        entry: bash -c 'uv run isort --settings-path john_doe/ "$@" && uv run black --config john_doe/pyproject.toml "$@" && uv run ruff check --fix --quiet --config john_doe/pyproject.toml "$@" && uv run black --config john_doe/pyproject.toml "$@"' --
         types: [python]
-        files: ^matthewdeanmartin/
+        files: ^john_doe/
         pass_filenames: true
 
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
     hooks:
       - id: python-use-type-annotations
+        files: ^john_doe/
       - id: python-no-log-warn
+        files: ^john_doe/
       - id: text-unicode-replacement-char
-
-# Uncomment to auto-format Markdown on commit.
-#  - repo: https://github.com/executablebooks/mdformat
-#    rev: 0.7.22
-#    hooks:
-#      - id: mdformat
-#        additional_dependencies:
-#          - mdformat-gfm
+        files: ^john_doe/

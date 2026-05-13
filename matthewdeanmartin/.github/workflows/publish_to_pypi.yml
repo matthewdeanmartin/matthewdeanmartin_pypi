@@ -7,6 +7,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: matthewdeanmartin
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,7 +28,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: packages
-          path: dist/
+          path: matthewdeanmartin/dist/
           if-no-files-found: error
           retention-days: 1
   pypi-publish:
