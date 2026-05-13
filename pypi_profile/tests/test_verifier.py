@@ -114,6 +114,12 @@ def test_verify_profile_link_invalid_signature(mocker: Any) -> None:
 
 
 def test_verify_profile_link_success(mocker: Any) -> None:
+    import base64
+
+    # 74-byte fake sig and 42-byte fake pk so format pre-checks pass
+    fake_sig = base64.standard_b64encode(b"ED" + b"\x00" * 72).decode()
+    fake_pk = base64.standard_b64encode(b"RW" + b"\x00" * 40).decode()
+
     mocker.patch(
         "pypi_profile.verifier.fetch_page",
         return_value="pypi-profile-proof: valid_token",
@@ -124,13 +130,14 @@ def test_verify_profile_link_success(mocker: Any) -> None:
             "subject": "https://example.com",
             "pypi_username": "alice",
             "profile_package": "pkg",
+            "signature": fake_sig,
         },
     )
     mocker.patch("pypi_profile.verifier.verify_claim_signature", return_value=True)
     mocker.patch("pypi_profile.verifier.is_expired", return_value=False)
 
     link = ProfileLink(kind="github", label="GitHub", url="https://example.com")
-    status = verify_profile_link(link, "pubkey", "pkg", "alice")
+    status = verify_profile_link(link, fake_pk, "pkg", "alice")
     assert status == "verified"
 
 

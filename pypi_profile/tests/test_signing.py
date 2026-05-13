@@ -4,7 +4,15 @@ from __future__ import annotations
 
 import pytest
 
-from pypi_profile.claims import PROOF_PREFIX, build_claim, decode_claim, encode_claim, is_expired
+from pypi_profile.claims import (
+    PROOF_PREFIX,
+    build_claim,
+    build_compact_claim,
+    decode_claim,
+    encode_claim,
+    is_compact_claim,
+    is_expired,
+)
 
 # --- claims.py tests --------------------------------------------------------
 
@@ -69,6 +77,46 @@ def test_is_expired_missing():
     assert not is_expired({})
 
 
+def test_build_compact_claim_fields():
+    claim = build_compact_claim(
+        profile_package="pypi-profile-test",
+        pypi_username="test",
+        subject_url="https://mastodon.social/@test",
+    )
+    assert claim["p"] == "pypi-profile-test"
+    assert claim["u"] == "test"
+    assert claim["s"] == "https://mastodon.social/@test"
+    assert isinstance(claim["i"], int)
+    assert isinstance(claim["e"], int)
+    assert claim["e"] > claim["i"]
+    assert "n" in claim
+    assert is_compact_claim(claim)
+    assert not is_compact_claim({"subject": "x"})
+
+
+def test_compact_claim_encode_decode_roundtrip():
+    claim = build_compact_claim(
+        profile_package="pypi-profile-test",
+        pypi_username="test",
+        subject_url="https://mastodon.social/@test",
+    )
+    claim["g"] = "fakesig"
+    token = encode_claim(claim)
+    assert token.startswith(PROOF_PREFIX)
+    recovered = decode_claim(token)
+    assert recovered["s"] == "https://mastodon.social/@test"
+    assert recovered["g"] == "fakesig"
+    assert is_compact_claim(recovered)
+
+
+def test_compact_claim_is_expired_unix():
+    import time
+
+    assert not is_expired({"p": "x", "s": "y", "e": int(time.time()) + 9999})
+    assert is_expired({"p": "x", "s": "y", "e": int(time.time()) - 1})
+    assert not is_expired({"p": "x", "s": "y"})
+
+
 # --- signing.py + verifier.py integration tests (require py-minisign) -------
 
 pytest.importorskip("minisign", reason="py-minisign not installed")
@@ -98,6 +146,75 @@ def test_generate_keypair_and_sign_verify(tmp_path):
     assert "signature" in claim
 
     assert verify_claim_signature(claim, pub_b64)
+
+
+def test_compact_sign_verify_roundtrip(tmp_path):
+    from pypi_profile.signing import generate_keypair, sign_controls_url
+    from pypi_profile.verifier import verify_claim_signature
+
+    sk_path, _pk_path, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+
+    proof = sign_controls_url(
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://mastodon.social/@testuser",
+        sk_path=sk_path,
+        password="",
+        compact=True,
+    )
+    assert proof.startswith(PROOF_PREFIX)
+    assert len(proof) < 500
+
+    claim = decode_claim(proof)
+    assert is_compact_claim(claim)
+    assert claim["s"] == "https://mastodon.social/@testuser"
+    assert claim["p"] == "pypi-profile-test"
+    assert "g" in claim
+    assert "signature" not in claim
+
+    assert verify_claim_signature(claim, pub_b64)
+
+
+def test_compact_sign_verify_wrong_key(tmp_path):
+    from pypi_profile.signing import generate_keypair, sign_controls_url
+    from pypi_profile.verifier import verify_claim_signature
+
+    sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, password="", force=True)
+    _sk2, _pk2, pub_b64_other = generate_keypair(key_dir=tmp_path / "other", password="", force=True)
+
+    proof = sign_controls_url(
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://mastodon.social/@testuser",
+        sk_path=sk_path,
+        compact=True,
+    )
+    claim = decode_claim(proof)
+    assert not verify_claim_signature(claim, pub_b64_other)
+
+
+def test_compact_status_from_tokens(tmp_path):
+    from pypi_profile.signing import generate_keypair, sign_controls_url
+    from pypi_profile.verifier import status_from_tokens
+
+    sk_path, _pk, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+
+    proof = sign_controls_url(
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://mastodon.social/@testuser",
+        sk_path=sk_path,
+        compact=True,
+    )
+
+    status = status_from_tokens(
+        [proof],
+        subject_url="https://mastodon.social/@testuser",
+        pypi_username="testuser",
+        profile_package="pypi-profile-test",
+        public_key_b64=pub_b64,
+    )
+    assert status == "verified"
 
 
 def test_verify_claim_signature_wrong_key(tmp_path):
@@ -297,3 +414,101 @@ def test_patch_proofs_force_overwrites(tmp_path):
     new_proof = data["profiles"][0]["stored_proof"]
     assert new_proof.startswith("pypi-profile-proof:")
     assert new_proof != "pypi-profile-proof: old"
+
+
+MULTI_PROFILE_TOML = """\
+[profile]
+kind = "individual"
+display_name = "Test User"
+
+[identity]
+pypi_username = "testuser"
+
+[[profiles]]
+kind = "github"
+label = "GitHub"
+url = "https://github.com/testuser"
+verification = "self_asserted"
+
+[[profiles]]
+kind = "mastodon"
+label = "Mastodon"
+url = "https://mastodon.social/@testuser/99999"
+verification = "self_asserted"
+
+[verification]
+public_key = ""
+preferred_signature_backend = "minisign"
+"""
+
+
+def test_patch_proofs_distinct_per_url(tmp_path):
+    """Each [[profiles]] entry must receive a proof for its own URL, not another entry's."""
+    from pypi_profile.claims import decode_claim, is_compact_claim
+    from pypi_profile.signing import generate_keypair, patch_proofs_in_toml
+
+    toml_path = tmp_path / "pypi_profile.toml"
+    toml_path.write_text(MULTI_PROFILE_TOML, encoding="utf-8")
+    sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, force=True)
+
+    updated = patch_proofs_in_toml(
+        toml_path=toml_path,
+        profile_package="pypi-profile-testuser",
+        pypi_username="testuser",
+        sk_path=sk_path,
+    )
+
+    assert set(updated) == {"https://github.com/testuser", "https://mastodon.social/@testuser/99999"}
+
+    import sys
+
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomllib  # type: ignore[no-reuse-def]
+
+    with open(toml_path, "rb") as fh:
+        data = tomllib.load(fh)
+
+    proofs = {p["url"]: p["stored_proof"] for p in data["profiles"]}
+
+    # Proofs must be different (different subjects)
+    assert proofs["https://github.com/testuser"] != proofs["https://mastodon.social/@testuser/99999"], (
+        "Both profiles received the same stored_proof — subject was not applied per URL"
+    )
+
+    # Each proof must encode the correct subject URL
+    github_claim = decode_claim(proofs["https://github.com/testuser"])
+    subject_key = "s" if is_compact_claim(github_claim) else "subject"
+    assert github_claim[subject_key] == "https://github.com/testuser"
+
+    mastodon_claim = decode_claim(proofs["https://mastodon.social/@testuser/99999"])
+    subject_key = "s" if is_compact_claim(mastodon_claim) else "subject"
+    assert mastodon_claim[subject_key] == "https://mastodon.social/@testuser/99999"
+
+
+def test_patch_proofs_duplicate_detection(tmp_path, mocker):
+    """patch_proofs_in_toml raises ValueError and rolls back if two entries get the same proof."""
+    from pypi_profile.signing import generate_keypair, patch_proofs_in_toml
+
+    toml_path = tmp_path / "pypi_profile.toml"
+    toml_path.write_text(MULTI_PROFILE_TOML, encoding="utf-8")
+    original = toml_path.read_text(encoding="utf-8")
+    sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, force=True)
+
+    # Force sign_controls_url to return the same proof for every call
+    mocker.patch(
+        "pypi_profile.signing.sign_controls_url",
+        return_value="pypi-profile-proof: SAMEPROOF",
+    )
+
+    with pytest.raises(ValueError, match="duplicate stored_proof"):
+        patch_proofs_in_toml(
+            toml_path=toml_path,
+            profile_package="pypi-profile-testuser",
+            pypi_username="testuser",
+            sk_path=sk_path,
+        )
+
+    # File must be rolled back to original
+    assert toml_path.read_text(encoding="utf-8") == original

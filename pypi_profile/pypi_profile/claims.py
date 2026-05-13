@@ -14,6 +14,19 @@ logger = logging.getLogger(__name__)
 
 PROOF_PREFIX = "pypi-profile-proof:"
 
+# Compact claim field names (to minimise token length for character-limited platforms).
+# Full name -> short key
+_COMPACT_FIELDS = {
+    "profile_package": "p",
+    "pypi_username": "u",
+    "subject": "s",
+    "issued_at": "i",
+    "expires_at": "e",
+    "nonce": "n",
+    "signature": "g",
+}
+_COMPACT_FIELDS_INV = {v: k for k, v in _COMPACT_FIELDS.items()}
+
 
 def build_claim(
     *,
@@ -27,11 +40,10 @@ def build_claim(
     expires_at: datetime | None = None,
     nonce: str | None = None,
 ) -> dict[str, Any]:
-    """Return an unsigned claim dict ready for signing."""
+    """Return an unsigned full claim dict ready for signing."""
     if issued_at is None:
         issued_at = datetime.now(tz=timezone.utc)
     if expires_at is None:
-        # Default: 1 year
         expires_at = issued_at.replace(year=issued_at.year + 1)
     if nonce is None:
         nonce = str(uuid.UUID(bytes=secrets.token_bytes(16), version=4))
@@ -49,6 +61,48 @@ def build_claim(
     }
 
 
+def build_compact_claim(
+    *,
+    profile_package: str,
+    pypi_username: str,
+    subject_url: str,
+    issued_at: datetime | None = None,
+    expires_at: datetime | None = None,
+    nonce: str | None = None,
+) -> dict[str, Any]:
+    """Return an unsigned compact claim dict ready for signing.
+
+    Compact claims use short single-letter keys and Unix timestamps instead of
+    ISO strings, and omit redundant fields (claim type, key_id, backend).
+    The signature field is ``g`` and stores only the raw 64-byte Ed25519
+    signature as base64url (no minisign header prefix), saving another 14 chars
+    vs the full format.
+
+    Typical encoded length: ~360 chars — well under Mastodon's 500-char limit.
+    """
+    if issued_at is None:
+        issued_at = datetime.now(tz=timezone.utc)
+    if expires_at is None:
+        expires_at = issued_at.replace(year=issued_at.year + 1)
+    if nonce is None:
+        # 16 random bytes → 22 base64url chars (vs 36 for a UUID string)
+        nonce = base64.urlsafe_b64encode(secrets.token_bytes(16)).rstrip(b"=").decode()
+
+    return {
+        "p": profile_package,
+        "u": pypi_username,
+        "s": subject_url,
+        "i": int(issued_at.timestamp()),
+        "e": int(expires_at.timestamp()),
+        "n": nonce,
+    }
+
+
+def is_compact_claim(claim: dict[str, Any]) -> bool:
+    """Return True if this is a compact claim (uses short single-letter keys)."""
+    return "p" in claim and "s" in claim
+
+
 def encode_claim(claim: dict[str, Any]) -> str:
     """Base64url-encode a claim dict (with signature) to a proof token string."""
     raw = json.dumps(claim, separators=(",", ":")).encode()
@@ -57,18 +111,32 @@ def encode_claim(claim: dict[str, Any]) -> str:
 
 
 def decode_claim(token: str) -> dict[str, Any]:
-    """Decode a pypi-profile-proof token back to a dict."""
+    """Decode a pypi-profile-proof token back to a dict.
+
+    Handles both full and compact claim formats transparently.
+    """
     token = token.strip()
     if token.startswith(PROOF_PREFIX):
-        token = token[len(PROOF_PREFIX) :].strip()
-    # Re-add padding
+        token = token[len(PROOF_PREFIX):].strip()
     padding = (4 - len(token) % 4) % 4
     raw = base64.urlsafe_b64decode(token + "=" * padding)
     return cast(dict[str, Any], json.loads(raw))
 
 
 def is_expired(claim: dict[str, Any]) -> bool:
-    """Return True if the claim's expires_at is in the past."""
+    """Return True if the claim's expiry is in the past.
+
+    Handles both ISO-string (full) and Unix-timestamp (compact) formats.
+    """
+    if is_compact_claim(claim):
+        exp = claim.get("e")
+        if not exp:
+            return False
+        try:
+            return datetime.now(tz=timezone.utc).timestamp() > int(exp)
+        except (TypeError, ValueError):
+            return False
+
     expires_str = claim.get("expires_at", "")
     if not expires_str:
         return False

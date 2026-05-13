@@ -62,7 +62,7 @@ def test_build_app_pubkey_load_fail(minimal_profile: ProfileData, mocker: Any) -
 
 
 def test_verification_route_error(minimal_profile: ProfileData, mocker: Any) -> None:
-    mock_verify = mocker.patch("pypi_profile.verifier.verify_all_profiles")
+    mock_verify = mocker.patch("pypi_profile.verifier.diagnose_all_profiles")
     mock_verify.side_effect = OSError("verify boom")
 
     app = build_app(minimal_profile)
@@ -74,7 +74,7 @@ def test_verification_route_error(minimal_profile: ProfileData, mocker: Any) -> 
 
 
 def test_api_verification_route_error(minimal_profile: ProfileData, mocker: Any) -> None:
-    mock_verify = mocker.patch("pypi_profile.verifier.verify_all_profiles")
+    mock_verify = mocker.patch("pypi_profile.verifier.diagnose_all_profiles")
     mock_verify.side_effect = ValueError("verify boom")
 
     app = build_app(minimal_profile)

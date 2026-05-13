@@ -104,10 +104,10 @@ def _get_claim_results(
             )
         return results
 
-    from pypi_profile.verifier import verify_all_profiles
+    from pypi_profile.verifier import diagnose_all_profiles
 
     try:
-        return verify_all_profiles(profile, profile_package=profile_package)
+        return diagnose_all_profiles(profile, profile_package=profile_package)
     except (ImportError, OSError, ValueError):
         logger.warning("Verification failed", exc_info=True)
         return []

@@ -15,7 +15,7 @@ import keyring
 import keyring.backends.fail
 import minisign  # type: ignore[import-untyped]
 
-from pypi_profile.claims import build_claim, encode_claim
+from pypi_profile.claims import build_claim, build_compact_claim, encode_claim
 
 logger = logging.getLogger(__name__)
 
@@ -166,31 +166,48 @@ def sign_controls_url(
     subject_url: str,
     sk_path: Path | None = None,
     password: str | None = None,
+    compact: bool = False,
 ) -> str:
-    """Sign a controls-url claim and return the encoded proof string."""
-    logger.debug("Signing controls-url claim for %s -> %s", pypi_username, subject_url)
+    """Sign a controls-url claim and return the encoded proof string.
+
+    ``compact=True`` produces a shorter token (~360 chars) suitable for
+    character-limited platforms like Mastodon.  It omits redundant fields and
+    uses single-letter keys + Unix timestamps.  The default (False) produces
+    the full human-readable token.
+    """
+    logger.debug("Signing controls-url claim for %s -> %s (compact=%s)", pypi_username, subject_url, compact)
     sk = load_secret_key(sk_path, password)
 
-    key_id_bytes = bytes(sk._keynum_sk.key_id)
-    key_id_hex = key_id_bytes.hex().upper()
+    if compact:
+        claim = build_compact_claim(
+            profile_package=profile_package,
+            pypi_username=pypi_username,
+            subject_url=subject_url,
+        )
+        claim_json_bytes = claim_to_bytes(claim)
+        sig = sk.sign(claim_json_bytes, prehash=True)
+        # Compact: store only the raw 64-byte Ed25519 sig as base64url (no header).
+        claim["g"] = base64.urlsafe_b64encode(sig._signature).rstrip(b"=").decode()
+    else:
+        key_id_bytes = bytes(sk._keynum_sk.key_id)
+        key_id_hex = key_id_bytes.hex().upper()
 
-    claim = build_claim(
-        profile_package=profile_package,
-        pypi_username=pypi_username,
-        claim_type="controls-url",
-        subject_url=subject_url,
-        key_id=key_id_hex,
-        signature_backend="minisign",
-    )
+        claim = build_claim(
+            profile_package=profile_package,
+            pypi_username=pypi_username,
+            claim_type="controls-url",
+            subject_url=subject_url,
+            key_id=key_id_hex,
+            signature_backend="minisign",
+        )
+        claim_json_bytes = claim_to_bytes(claim)
+        sig = sk.sign(claim_json_bytes, prehash=True)
+        # Store only the 74-byte binary (algo + key_id + ed25519_sig), not the armored text format.
+        sig_b64 = base64.standard_b64encode(
+            sig._signature_algorithm.value + sig._key_id + sig._signature
+        ).decode()
+        claim["signature"] = sig_b64
 
-    claim_json_bytes = claim_to_bytes(claim)
-    sig = sk.sign(claim_json_bytes, prehash=True)
-    # Store only the 74-byte binary (algo + key_id + ed25519_sig), not the armored text format.
-    sig_b64 = base64.standard_b64encode(
-        sig._signature_algorithm.value + sig._key_id + sig._signature
-    ).decode()
-
-    claim["signature"] = sig_b64
     return encode_claim(claim)
 
 
@@ -310,6 +327,7 @@ def patch_proofs_in_toml(
             logger.debug("Skipping %s — stored_proof already present", url)
             continue
 
+        compact = entry.get("kind", "") == "mastodon"
         try:
             proof = sign_controls_url(
                 profile_package=profile_package,
@@ -317,6 +335,7 @@ def patch_proofs_in_toml(
                 subject_url=url,
                 sk_path=sk_path,
                 password=password,
+                compact=compact,
             )
         except (FileNotFoundError, OSError, ValueError) as exc:
             logger.warning("Could not sign %s: %s", url, exc)
@@ -324,7 +343,8 @@ def patch_proofs_in_toml(
 
         escaped_url = re.escape(url)
         replacer = _make_proof_replacer(proof, escaped_url)
-        pattern = rf'(\[\[profiles\]\][\s\S]*?url\s*=\s*"{escaped_url}"[\s\S]*?)(?=\[\[|\[(?!\[)|\Z)'
+        # (?:(?!\[\[profiles\]\])[\s\S])*? — lazy match that cannot cross into the next [[profiles]] block
+        pattern = rf'(\[\[profiles\]\](?:(?!\[\[profiles\]\])[\s\S])*?url\s*=\s*"{escaped_url}"[\s\S]*?)(?=\[\[|\[(?!\[)|\Z)'
         new_text, n = re.subn(pattern, replacer, text, flags=re.DOTALL)
         if n:
             text = new_text
@@ -343,14 +363,14 @@ def patch_proofs_in_toml(
         # Validate the written file parses as valid TOML; roll back if not.
         try:
             with open(toml_path, "rb") as fh:
-                tomllib.load(fh)
+                written = tomllib.load(fh)
         except Exception as exc:
             logger.error("Patched TOML is invalid (%s); rolling back to original content", exc)
             try:
                 toml_path.write_text(original_text, encoding="utf-8")
             except OSError:
                 logger.error(
-                    "Rollback also failed for %s — file may be corrupt; " "original content: %r",
+                    "Rollback also failed for %s — file may be corrupt; original content: %r",
                     toml_path,
                     original_text,
                 )
@@ -359,10 +379,37 @@ def patch_proofs_in_toml(
                 f"file rolled back to original. Parser error: {exc}"
             ) from exc
 
+        # Validate that no two [[profiles]] entries share the same stored_proof.
+        written_profiles = written.get("profiles", [])
+        seen_proofs: dict[str, str] = {}
+        for entry in written_profiles:
+            proof = entry.get("stored_proof", "")
+            entry_url = entry.get("url", "")
+            if not proof:
+                continue
+            if proof in seen_proofs:
+                logger.error(
+                    "Duplicate stored_proof detected: url=%r shares proof with url=%r — rolling back",
+                    entry_url,
+                    seen_proofs[proof],
+                )
+                try:
+                    toml_path.write_text(original_text, encoding="utf-8")
+                except OSError:
+                    logger.error("Rollback failed for %s", toml_path)
+                raise ValueError(
+                    f"patch_proofs_in_toml wrote duplicate stored_proof for {entry_url!r} and "
+                    f"{seen_proofs[proof]!r} in {toml_path}; file rolled back."
+                )
+            seen_proofs[proof] = entry_url
+
     return updated
 
 
 def claim_to_bytes(claim: dict[str, Any]) -> bytes:
-    """Deterministic JSON bytes for a claim (without the signature field)."""
-    canonical = {k: v for k, v in claim.items() if k != "signature"}
+    """Deterministic JSON bytes for a claim (without the signature field).
+
+    Works for both full claims (``signature`` key) and compact claims (``g`` key).
+    """
+    canonical = {k: v for k, v in claim.items() if k not in ("signature", "g")}
     return json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()

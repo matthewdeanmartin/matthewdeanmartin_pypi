@@ -663,6 +663,7 @@ def cmd_sign(args: argparse.Namespace) -> None:
             subject_url=args.url,
             sk_path=sk_path,
             password=password,
+            compact=args.compact,
         )
     except FileNotFoundError as exc:
         logger.error("Secret key not found: %s", exc)
@@ -676,6 +677,8 @@ def cmd_sign(args: argparse.Namespace) -> None:
     print("Copy and paste the following proof string into your external profile page:")
     print()
     print(proof)
+    if args.compact:
+        print(f"\n({len(proof)} chars — compact format)")
     print()
     print(f"Place it at: {args.url}")
 
@@ -929,6 +932,12 @@ def main() -> None:
     )
     sign_p.add_argument("--password", default="", help="Password for the secret key")
     sign_p.add_argument("--profile-package", default="", help="Profile package name override")
+    sign_p.add_argument(
+        "--compact",
+        action="store_true",
+        default=False,
+        help="Produce a compact token (~360 chars) suitable for Mastodon and other character-limited platforms",
+    )
     sign_p.set_defaults(func=cmd_sign)
 
     verify_p = subparsers.add_parser("verify", help="Verify proof-of-control claims for declared profile URLs")

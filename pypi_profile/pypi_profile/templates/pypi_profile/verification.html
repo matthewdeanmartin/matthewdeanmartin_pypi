@@ -55,6 +55,11 @@
               "This is a static build. Verification status is derived from stored_proof values baked into the TOML. Live checks run in the browser and update the table below.",
               tone="info", title="Static build"
             ) }}
+          {% else %}
+            {{ feedback.notification(
+              "Live server: verification is performed server-side by fetching each URL. Diagnostics are shown below.",
+              tone="info", title="Live verification"
+            ) }}
           {% endif %}
           {% if claim_results %}
             <table class="table table--light">
@@ -64,6 +69,7 @@
                   <th>URL</th>
                   <th>{% if static_mode %}Status (stored){% else %}Status{% endif %}</th>
                   {% if static_mode %}<th>Live check</th>{% endif %}
+                  {% if not static_mode %}<th>Diagnostics</th>{% endif %}
                 </tr>
               </thead>
               <tbody>
@@ -73,6 +79,18 @@
                     <td><a href="{{ item.url }}">{{ item.url }}</a></td>
                     <td>{{ pc.claim_badge(item.status) }}</td>
                     {% if static_mode %}<td class="live-status" data-url="{{ item.url }}"><span class="badge">—</span></td>{% endif %}
+                    {% if not static_mode %}
+                      <td>
+                        {% if item.detail %}
+                          <details>
+                            <summary style="cursor:pointer;font-size:0.85rem;">{% if item.status == 'verified' %}✓ steps{% else %}why?{% endif %}</summary>
+                            <ol style="margin:0.5rem 0 0 1rem;padding:0;font-size:0.8rem;font-family:monospace;white-space:pre-wrap;">
+                              {% for step in item.detail %}<li>{{ step }}</li>{% endfor %}
+                            </ol>
+                          </details>
+                        {% endif %}
+                      </td>
+                    {% endif %}
                   </tr>
                 {% endfor %}
               </tbody>
@@ -189,18 +207,30 @@ function b64urlDecode(str) {
   return b64decode(padded);
 }
 
+function isCompactClaim(claim) {
+  return 'p' in claim && 's' in claim;
+}
+
 function canonicalClaimBytes(claim) {
-  // Matches Python claim_to_bytes(): JSON sorted keys, no signature field.
+  // Matches Python claim_to_bytes(): JSON sorted keys, no signature field (full='signature', compact='g').
   const copy = Object.fromEntries(
-    Object.keys(claim).filter(k => k !== 'signature').sort()
+    Object.keys(claim).filter(k => k !== 'signature' && k !== 'g').sort()
       .map(k => [k, claim[k]])
   );
   return new TextEncoder().encode(JSON.stringify(copy));
 }
 
 function isExpired(claim) {
+  if (isCompactClaim(claim)) {
+    if (!claim.e) return false;
+    return Date.now() / 1000 > claim.e;
+  }
   if (!claim.expires_at) return false;
   return new Date(claim.expires_at + 'Z') < new Date();
+}
+
+function claimSubject(claim) {
+  return isCompactClaim(claim) ? claim.s : claim.subject;
 }
 
 // Extract github username from https://github.com/<user> URLs
@@ -228,25 +258,27 @@ function findProofTokens(text) {
 
 async function verifySignature(publicKeyB64, claim) {
   // publicKeyB64: minisign base64 — 42 bytes: 2-byte algo + 8-byte key_id + 32-byte ed25519 pk
-  // claim.signature: standard base64 of 74-byte minisign sig: 2-byte algo + 8-byte key_id + 64-byte ed25519 sig
+  const pkFull = b64decode(publicKeyB64);  // 42 bytes
+  if (pkFull.length !== 42) throw new Error(`Unexpected public key length: ${pkFull.length} (expected 42)`);
+  const rawPk = pkFull.slice(10);  // 32 bytes
 
-  const pkFull  = b64decode(publicKeyB64);         // 42 bytes
-  const sigFull = b64decode(claim.signature);      // 74 bytes
-
-  if (pkFull.length !== 42)  throw new Error(`Unexpected public key length: ${pkFull.length} (expected 42)`);
-  if (sigFull.length !== 74) throw new Error(`Unexpected signature length: ${sigFull.length} (expected 74)`);
-
-  const algoBytes = String.fromCharCode(sigFull[0], sigFull[1]);
-  if (algoBytes !== 'ED') {
-    throw new Error(`Unexpected sig algorithm "${algoBytes}" — expected "ED" (prehash). Legacy "Ed" mode not supported.`);
+  let rawSig;
+  if (isCompactClaim(claim)) {
+    // Compact: claim.g is base64url of the raw 64-byte Ed25519 sig (no header).
+    rawSig = b64urlDecode(claim.g);
+    if (rawSig.length !== 64) throw new Error(`Unexpected compact sig length: ${rawSig.length} (expected 64)`);
+  } else {
+    // Full: claim.signature is standard base64 of 74-byte minisign binary.
+    const sigFull = b64decode(claim.signature);
+    if (sigFull.length !== 74) throw new Error(`Unexpected signature length: ${sigFull.length} (expected 74)`);
+    const algoBytes = String.fromCharCode(sigFull[0], sigFull[1]);
+    if (algoBytes !== 'ED') throw new Error(`Unexpected sig algorithm "${algoBytes}" — expected "ED" (prehash).`);
+    rawSig = sigFull.slice(10);  // 64 bytes
   }
 
-  const rawPk  = pkFull.slice(10);   // 32 bytes
-  const rawSig = sigFull.slice(10);  // 64 bytes
-
   // Prehash: blake2b-512(canonical_claim_json)
-  const msgBytes    = canonicalClaimBytes(claim);
-  const msgHash     = blake2b(msgBytes, null, 64);   // 64-byte = 512-bit output
+  const msgBytes = canonicalClaimBytes(claim);
+  const msgHash  = blake2b(msgBytes, null, 64);  // 64-byte = 512-bit output
 
   const cryptoKey = await crypto.subtle.importKey(
     'raw', rawPk, { name: 'Ed25519' }, false, ['verify']
@@ -320,8 +352,8 @@ async function checkGithub(item, publicKeyB64) {
 
     console.debug('Decoded claim:', claim);
 
-    if (claim.subject !== item.url) {
-      console.debug('Subject mismatch — skipping (subject:', claim.subject, ')');
+    if (claimSubject(claim) !== item.url) {
+      console.debug('Subject mismatch — skipping (subject:', claimSubject(claim), ')');
       continue;
     }
 
@@ -367,8 +399,8 @@ async function checkGithub(item, publicKeyB64) {
   }
 
   if (!matched) {
-    console.warn('No token with subject =', item.url, 'found (subject mismatch).');
-    console.warn('Expected subject in claim to equal the URL exactly:', item.url);
+    console.warn('No token with subject matching', item.url, 'found.');
+    console.warn('Expected claim subject (full: claim.subject, compact: claim.s) to equal:', item.url);
     setLiveStatus(item.url, '<span class="badge badge--warning" title="No token found with matching subject URL">❓ subject mismatch</span>');
   }
 
