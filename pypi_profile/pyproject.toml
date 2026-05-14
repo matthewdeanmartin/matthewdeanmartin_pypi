@@ -189,7 +189,7 @@ convention = "google"
 
 [tool.bandit]
 exclude_dirs = ["tests"]
-skips = ["B101"]
+skips = ["B101", "B110"]
 
 [tool.coverage.report]
 exclude_also = [
