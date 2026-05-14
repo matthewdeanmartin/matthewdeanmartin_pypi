@@ -17,8 +17,13 @@ nav:
   - Installation: installation.md
   - Quick Start: quickstart.md
   - Basic Usage: basic-usage.md
-  - Advanced Usage: advanced-usage.md
+  - Advanced Usage:
+      - Overview: advanced-usage.md
+      - JSON Resume Import: skills/json-resume.md
+  - GUI: gui.md
+  - Signing and Verification: signing.md
   - Troubleshooting: troubleshooting.md
+  - Security: security.md
   - Roadmap: roadmap.md
   - Contributing: contributing.md
 validation:

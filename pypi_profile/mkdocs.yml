@@ -1,27 +1,25 @@
 ---
-site_name: pypi_profile
-site_url: https://pypi_profile.readthedocs.io/
-site_author: '{{ cookiecutter.author_name }} <{{ cookiecutter.author_email }}>'
-site_description: pypi_profile
-repo_url: https://github.com/{{ cookiecutter.github_username }}/{{ cookiecutter.github_repo
-  }}
+site_name: pypi-profile
+site_url: https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/tree/main/pypi_profile
+site_author: Matthew Martin
+site_description: CLI and FastAPI app for publishing PyPI maintainer profiles
+repo_url: https://github.com/matthewdeanmartin/matthewdeanmartin_pypi
 theme:
   name: readthedocs
   features: [navigation.footer]
-edit_uri: edit/main/docs/
+edit_uri: edit/main/pypi_profile/docs/
 markdown_extensions:
   - attr_list
   - codehilite
   - toc:
       permalink: true
 nav:
-  - Overview:
-      - Readme.md: overview/README.md
+  - Overview: overview/README.md
   - Installation: installation.md
   - Usage:
-      - Quick Start: usage/quickstart.md
+      - Quick start: usage/quickstart.md
+  - Security: security.md
   - Contributing: extending/CONTRIBUTING.md
-  - Change Log: CHANGELOG.md
 validation:
   nav:
     omitted_files: warn

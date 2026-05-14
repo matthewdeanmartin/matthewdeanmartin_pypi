@@ -6,16 +6,16 @@ This page summarizes the roadmap **as inferred from `spec/spec.md` and `spec/rem
 
 The largest gaps between the current implementation and the spec are:
 
-1. a stable distribution layout for `pypi_profile.toml` inside published wheels
-2. a fuller plugin system with explicit `allow_code` behavior
-3. static site export (`build` command)
-4. richer CLI coverage, especially `build` and stronger validation diagnostics
+1. a stable, documented distribution layout for `pypi_profile.toml` inside published wheels and installed distributions
+2. stronger validation and schema hardening, including versioning and richer consistency checks
+3. a clearer and safer plugin execution model around `--allow-code`
+4. better inspection, publishing, and UX polish around the now-shipped GUI and static build workflow
 
 ## Planned work areas
 
 ### Signing and verification
 
-The core signing flow is shipped. The following remain:
+The core signing flow is shipped. The remaining gaps are mostly around polish and lifecycle handling:
 
 - key rotation support: marking claims signed by an old key as `expired` rather
   than `invalid`
@@ -25,21 +25,28 @@ The core signing flow is shipped. The following remain:
 
 ### CLI expansion
 
-The current CLI covers `init`, `validate`, `inspect`, `serve`, `doctor`,
-`fetch`, `dump`, `keygen`, `sign`, and `verify`. The spec additionally calls for:
+The CLI surface is now much broader than it was earlier in the project. It includes `init`, `validate`, `inspect`,
+`serve`, `doctor`, `fetch`, `dump`, `keygen`, `sign`, `verify`, `update-proofs`, `build`, `find-profiles`, and
+`gui`.
 
-- `build` for static export
-- richer `fetch` with more complete ownership comparisons
-- stronger validation diagnostics (URL format, missing keys)
-- a more capable `inspect` for wheel inspection
+The bigger remaining CLI/documentation gaps are:
+
+- richer `fetch` with more complete ownership and metadata comparisons
+- stronger validation diagnostics such as URL checking and missing-key consistency warnings
+- a more capable `inspect` for wheel and installed-distribution inspection
+- clearer end-user docs for GUI-first and static-build-first workflows
 
 ### Packaging conventions
 
-The roadmap still needs a final answer for where `pypi_profile.toml` lives inside a wheel. The remaining-work notes lean toward a predictable packaged resource location and follow-on loader/build updates.
+The roadmap still needs a final answer for where `pypi_profile.toml` lives inside a wheel, plus matching loader and
+inspection behavior for installed packages.
 
 ### Plugin architecture
 
-The intended plugin model is broader than the current one. Planned hooks include:
+The intended plugin model is broader than the current one. The main remaining work is not basic discovery; it is
+making the execution boundary safer, clearer, and more explicit.
+
+Planned hooks and behaviors still include:
 
 - extra pages
 - extra routes
@@ -47,7 +54,11 @@ The intended plugin model is broader than the current one. Planned hooks include
 - validators
 - verification backends
 
-The spec also expects code execution to stay opt-in and clearly separated from data-only mode.
+The spec also expects:
+
+- code execution to stay opt-in and clearly separated from data-only mode
+- plugin loading to be impossible in the default safe path
+- clearer operator-facing warnings when `--allow-code` is enabled
 
 ### Schema and validation
 
@@ -61,7 +72,8 @@ The remaining-work notes call out:
 
 ### Live metadata enrichment
 
-The current fetch path already talks to PyPI and social/code hosting services, but the roadmap goes further:
+The current fetch path already talks to PyPI and social/code hosting services. The remaining work is to make the
+results deeper and more trustworthy:
 
 - more complete maintainer/ownership comparisons
 - cache-aware enrichment for the rendered site and API
@@ -78,12 +90,25 @@ The spec describes several pages and behaviors that are only partially present t
 
 ### Static export and hosting
 
-Phase 2 in the spec adds static output so a rendered profile can be published to GitHub Pages, Netlify, Cloudflare Pages, or similar hosts without a live FastAPI server.
+Static export is now shipped. The remaining roadmap items are mostly around the publishing experience:
+
+- better documentation for GitHub Pages, Netlify, and Cloudflare Pages deployment
+- graceful handling for dynamic UI pieces that do not make sense in a static export
+- clearer expectations for how future plugin-provided dynamic features should degrade in static builds
+
+### GUI and local authoring UX
+
+The desktop GUI is now shipped, but there is still room to improve the overall authoring experience:
+
+- broader GUI coverage for commands such as static build and profile discovery
+- better onboarding for first-run users
+- clearer multi-identity key management guidance
+- more workflow documentation that treats the GUI as a first-class entry point, not only a wrapper around CLI flags
 
 ## Practical reading of the roadmap
 
 If you are evaluating the project today:
 
-- treat the existing server, CLI, and signing flow as the **usable core**
-- treat static export and full plugin extensibility as **planned but not finished**
+- treat the existing server, CLI, signing flow, static build, and GUI as the **usable core**
+- treat wheel-packaging conventions, full plugin extensibility, and schema hardening as the biggest unfinished areas
 - use the spec to understand the intended direction, not the exact shipped feature set

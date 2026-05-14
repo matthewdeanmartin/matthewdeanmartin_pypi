@@ -2,26 +2,32 @@
 
 ## Setup
 
-```bash
-git clone https://github.com/{{ cookiecutter.github_username }}/{{ cookiecutter.github_repo }}.git
-cd {{ cookiecutter.github_repo }}
-uv sync
-```
-
-## Running checks
+This repository is a `uv` workspace. Clone the repo and install all workspace dependencies from the repo root:
 
 ```bash
-make check
+git clone https://github.com/matthewdeanmartin/matthewdeanmartin_pypi.git
+cd matthewdeanmartin_pypi
+uv sync --all-extras
 ```
 
-## Running tests only
+## Common package commands
+
+Run package-specific checks from the workspace root:
 
 ```bash
-make test
+uv run make -C pypi_profile lint
+uv run make -C pypi_profile typecheck
+uv run make -C pypi_profile test
+uv run make -C pypi_profile check
 ```
 
-## Before submitting a PR
+## Docs updates
 
-```bash
-make prerelease
-```
+The package docs live under `pypi_profile/docs/` and are configured by `pypi_profile/mkdocs.yml`.
+
+When changing user-facing behavior, update:
+
+- `README.md` for the package summary shown on GitHub and PyPI
+- `docs/installation.md` for install guidance
+- `docs/usage/quickstart.md` for the shortest working flow
+- `docs/security.md` for signing, verification, and safe operation guidance

@@ -7,7 +7,7 @@ The day-to-day flow is:
 1. create or edit `pypi_profile.toml`
 2. run `pypi-profile validate`
 3. run `pypi-profile serve`
-4. optionally use `inspect`, `dump`, or `fetch`
+4. optionally use `inspect`, `dump`, `fetch`, `build`, or `gui`
 
 For signed proof-of-control:
 
@@ -128,6 +128,44 @@ Fetches live metadata for the declared profile:
 - Mastodon profile
 
 Fetch results are cached in `.pypi_profile_cache/`.
+
+### `build`
+
+Generates a static site from the profile so it can be published without running a
+live FastAPI server.
+
+```bash
+pypi-profile build pypi_profile.toml --output dist
+```
+
+Use `--base-url` when publishing below a subpath such as a GitHub Pages project
+site.
+
+### `find-profiles`
+
+Scans a directory tree for profile files.
+
+It currently finds:
+
+- files named `pypi_profile.toml`
+- `pyproject.toml` files that contain `[tool.pypi-profile]`
+
+```bash
+pypi-profile find-profiles
+pypi-profile find-profiles path\to\workspace
+```
+
+### `gui`
+
+Launches the Tkinter desktop GUI for the most common local workflows:
+
+- creating a starter profile
+- validating and inspecting a profile
+- serving the site locally
+- generating keys
+- signing claims and updating stored proofs
+
+See [GUI](gui.md) for the layout and usage model.
 
 ## Data model sections
 
