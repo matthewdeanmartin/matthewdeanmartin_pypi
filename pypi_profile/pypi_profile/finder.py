@@ -11,7 +11,7 @@ else:
     try:
         import tomllib
     except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as tomllib
 
 # Directories that are always skipped during the walk (exact name match).
 _SKIP_DIRS = {
@@ -71,7 +71,7 @@ def find_profile_files(root: Path | None = None, max_depth: int = 6) -> list[Pat
                             data = tomllib.load(fh)
                         if "pypi-profile" in data.get("tool", {}):
                             via_pyproject.append(entry)
-                    except Exception:
+                    except (OSError, tomllib.TOMLDecodeError):
                         pass
 
     _walk(root, 0)

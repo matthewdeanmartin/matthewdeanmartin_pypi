@@ -1,5 +1,7 @@
 """Command-line entry point for pypi-profile."""
 
+# pylint: disable=too-many-lines
+
 from __future__ import annotations
 
 import argparse
@@ -563,7 +565,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     )
 
     if keyring_is_usable():
-        import keyring as kr  # type: ignore[import-untyped]
+        import keyring as kr
 
         backend_name = type(kr.get_keyring()).__name__
         print(f"  OK  Keyring backend: {backend_name} (username={keyring_username()!r})")

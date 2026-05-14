@@ -1,5 +1,7 @@
 """Tkinter GUI for pypi-profile CLI commands."""
 
+# pylint: disable=too-many-lines
+
 from __future__ import annotations
 
 # The GUI launches the local pypi-profile CLI without shell=True.
@@ -11,7 +13,37 @@ from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
 from tkinter import filedialog, font, scrolledtext, ttk
-from typing import Literal, TypedDict, cast
+from typing import Any, Literal, TypedDict, Union, cast
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+
+TkVar = Union[tk.StringVar, tk.BooleanVar]
+
+
+def _get_string_var(var: TkVar | None, default: str = "") -> str:
+    """Return a variable's value as text."""
+    if var is None:
+        return default
+    return str(cast(Any, var).get())
+
+
+def _get_bool_var(var: TkVar | None, default: bool = False) -> bool:
+    """Return a variable's value as bool."""
+    if var is None:
+        return default
+    return bool(cast(Any, var).get())
+
+
+def _set_var(var: TkVar | None, value: str | bool) -> None:
+    """Set a Tk variable when present."""
+    if var is not None:
+        cast(Any, var).set(value)
 
 
 def _detect_keyring_status() -> str:
@@ -19,12 +51,16 @@ def _detect_keyring_status() -> str:
     try:
         import keyring
         import keyring.backends.fail
+        from keyring.errors import KeyringError
+    except ImportError:
+        return "unavailable"
 
+    try:
         backend = keyring.get_keyring()
         if isinstance(backend, keyring.backends.fail.Keyring):
             return "unavailable (disk only)"
         return f"active ({type(backend).__name__})"
-    except Exception:
+    except (KeyringError, RuntimeError):
         return "unavailable"
 
 
@@ -33,31 +69,29 @@ def _load_toml_info(path_str: str) -> dict[str, str]:
     result = {"full_path": "", "rel_path": "", "pypi_username": "", "public_key": ""}
     if not path_str.strip():
         return result
+    p = Path(path_str.strip()).expanduser()
+    if not p.exists():
+        return result
+
+    resolved = p.resolve()
+    result["full_path"] = str(resolved)
     try:
-        p = Path(path_str.strip()).expanduser()
-        if not p.exists():
-            return result
-        result["full_path"] = str(p.resolve())
-        try:
-            result["rel_path"] = str(p.resolve().relative_to(Path.cwd()))
-        except ValueError:
-            result["rel_path"] = str(p.resolve())
+        result["rel_path"] = str(resolved.relative_to(Path.cwd()))
+    except ValueError:
+        result["rel_path"] = str(resolved)
 
-        if sys.version_info >= (3, 11):
-            import tomllib
-        else:
-            try:
-                import tomllib  # type: ignore[no-redef]
-            except ImportError:
-                import tomli as tomllib  # type: ignore[no-redef]
-
+    try:
         with open(p, "rb") as fh:
             data = tomllib.load(fh)
+    except (OSError, tomllib.TOMLDecodeError):
+        return result
 
-        result["pypi_username"] = data.get("identity", {}).get("pypi_username", "")
-        result["public_key"] = data.get("verification", {}).get("public_key", "")
-    except Exception:
-        pass
+    identity = data.get("identity", {})
+    verification = data.get("verification", {})
+    if isinstance(identity, dict):
+        result["pypi_username"] = str(identity.get("pypi_username", ""))
+    if isinstance(verification, dict):
+        result["public_key"] = str(verification.get("public_key", ""))
     return result
 
 
@@ -494,7 +528,7 @@ class PypiProfileGui(tk.Tk):
         self.minsize(900, 600)
         self.running_proc: subprocess.Popen[str] | None = None
         self.current_cmd: GuiCommand | None = None
-        self.arg_widgets: dict[str, tk.Variable] = {}
+        self.arg_widgets: dict[str, TkVar] = {}
 
         # Active profile — source of truth for all profile commands
         self.active_source = tk.StringVar(value="")
@@ -754,8 +788,7 @@ class PypiProfileGui(tk.Tk):
             return
         self.active_source.set(chosen)
         src_var = self.arg_widgets.get("source") or self.arg_widgets.get("path")
-        if src_var is not None:
-            src_var.set(chosen)  # type: ignore[attr-defined]
+        _set_var(src_var, chosen)
 
     def _on_profile_picker_selected(self, _event: object = None) -> None:
         self._apply_profile_picker()
@@ -787,8 +820,7 @@ class PypiProfileGui(tk.Tk):
 
     def _propagate_key_to_form(self) -> None:
         key_var = self.arg_widgets.get("--key")
-        if key_var is not None:
-            key_var.set(self.global_key_path.get())  # type: ignore[attr-defined]
+        _set_var(key_var, self.global_key_path.get())
 
     def _refresh_key_list(self) -> None:
         """Populate the key picker with keys found in default locations."""
@@ -831,14 +863,12 @@ class PypiProfileGui(tk.Tk):
         label_var = self.arg_widgets.get("--label")
         if site_var is None:
             return
-        chosen_label = str(site_var.get())
+        chosen_label = _get_string_var(site_var)
         site = IDENTITY_SITE_BY_LABEL.get(chosen_label)
         if site is None:
             return
-        if url_var is not None:
-            url_var.set(site["url_template"])  # type: ignore[attr-defined]
-        if label_var is not None:
-            label_var.set(chosen_label)  # type: ignore[attr-defined]
+        _set_var(url_var, site["url_template"])
+        _set_var(label_var, chosen_label)
         cmd = self.current_cmd
         if cmd and cmd["name"] == "add-identity-site":
             extra = (
@@ -905,24 +935,26 @@ class PypiProfileGui(tk.Tk):
             )
 
             if kind == "bool":
-                var: tk.Variable = tk.BooleanVar(value=bool(default))
-                tk.Checkbutton(self.args_frame, variable=var).grid(row=row_i, column=1, sticky="w", pady=3)
-                self.arg_widgets[flag] = var
+                bool_var = tk.BooleanVar(value=bool(default))
+                tk.Checkbutton(self.args_frame, variable=bool_var).grid(row=row_i, column=1, sticky="w", pady=3)
+                self.arg_widgets[flag] = bool_var
 
             elif kind == "choice":
-                var = tk.StringVar(value=str(default))
-                cb = ttk.Combobox(self.args_frame, textvariable=var, values=arg["choices"], state="readonly", width=24)
+                choice_var = tk.StringVar(value=str(default))
+                cb = ttk.Combobox(
+                    self.args_frame, textvariable=choice_var, values=arg["choices"], state="readonly", width=24
+                )
                 cb.grid(row=row_i, column=1, sticky="ew", pady=3, padx=(0, 8))
-                self.arg_widgets[flag] = var
+                self.arg_widgets[flag] = choice_var
                 if cmd["name"] == "add-identity-site" and flag == "--site":
-                    var.trace_add("write", self._on_site_choice_changed)
+                    choice_var.trace_add("write", self._on_site_choice_changed)
 
             elif kind == "password":
-                var = tk.StringVar(value=str(default))
+                password_var = tk.StringVar(value=str(default))
                 pw_frame = tk.Frame(self.args_frame)
                 pw_frame.grid(row=row_i, column=1, columnspan=2, sticky="ew", pady=3, padx=(0, 8))
                 pw_frame.columnconfigure(0, weight=1)
-                tk.Entry(pw_frame, textvariable=var, show="*", width=36).grid(row=0, column=0, sticky="ew")
+                tk.Entry(pw_frame, textvariable=password_var, show="*", width=36).grid(row=0, column=0, sticky="ew")
                 tk.Label(
                     pw_frame,
                     text="Leave blank — keyring handles this automatically.",
@@ -930,45 +962,45 @@ class PypiProfileGui(tk.Tk):
                     font=("Helvetica", 8),
                     anchor="w",
                 ).grid(row=1, column=0, sticky="w")
-                self.arg_widgets[flag] = var
+                self.arg_widgets[flag] = password_var
 
             elif kind in ("file", "dir"):
-                var = tk.StringVar(value=str(default))
-                entry = tk.Entry(self.args_frame, textvariable=var, width=36)
+                path_var = tk.StringVar(value=str(default))
+                entry = tk.Entry(self.args_frame, textvariable=path_var, width=36)
                 entry.grid(row=row_i, column=1, sticky="ew", pady=3)
 
                 if kind == "file":
 
-                    def _browse(v: tk.StringVar = var) -> None:
+                    def _browse(v: tk.StringVar = path_var) -> None:
                         if p := filedialog.askopenfilename():
                             v.set(p)
 
                 else:
 
-                    def _browse(v: tk.StringVar = var) -> None:
+                    def _browse(v: tk.StringVar = path_var) -> None:
                         if p := filedialog.askdirectory():
                             v.set(p)
 
                 tk.Button(self.args_frame, text="Browse", command=_browse).grid(
                     row=row_i, column=2, padx=(4, 8), pady=3
                 )
-                self.arg_widgets[flag] = var
+                self.arg_widgets[flag] = path_var
 
                 # Keep source/path fields in sync with the status bar
                 if flag in _SOURCE_FLAGS:
-                    var.trace_add("write", self._on_form_source_changed)
+                    path_var.trace_add("write", self._on_form_source_changed)
 
             else:
-                var = tk.StringVar(value=str(default))
-                tk.Entry(self.args_frame, textvariable=var, width=36).grid(
+                text_var = tk.StringVar(value=str(default))
+                tk.Entry(self.args_frame, textvariable=text_var, width=36).grid(
                     row=row_i, column=1, sticky="ew", pady=3, padx=(0, 8)
                 )
-                self.arg_widgets[flag] = var
+                self.arg_widgets[flag] = text_var
 
     def _on_form_source_changed(self, *_: object) -> None:
         src_var = self.arg_widgets.get("source") or self.arg_widgets.get("path")
         if src_var is not None:
-            val = str(src_var.get()).strip()
+            val = _get_string_var(src_var).strip()
             if val:
                 self.active_source.set(val)
 
@@ -1000,20 +1032,22 @@ class PypiProfileGui(tk.Tk):
             var = self.arg_widgets.get(flag)
             if var is None:
                 continue
-            value = cast(Callable[[], object], var.get)()
 
             if kind == "bool":
-                if value:
+                if _get_bool_var(var):
                     argv.append(flag)
             elif kind == "password":
-                if str(value).strip():
-                    extra_env["PYPI_PROFILE_KEY_PASSWORD"] = str(value)
+                value = _get_string_var(var).strip()
+                if value:
+                    extra_env["PYPI_PROFILE_KEY_PASSWORD"] = value
             elif flag.startswith("--"):
-                if str(value).strip():
-                    argv += [flag, str(value)]
+                value = _get_string_var(var).strip()
+                if value:
+                    argv += [flag, value]
             else:
-                if str(value).strip():
-                    argv.append(str(value))
+                value = _get_string_var(var).strip()
+                if value:
+                    argv.append(value)
 
         # Global key settings — only apply if the per-command --key field was empty
         key_path = self.global_key_path.get().strip()
@@ -1075,19 +1109,19 @@ class PypiProfileGui(tk.Tk):
 
     def _run_display_toml(self) -> None:
         source_var = self.arg_widgets.get("source")
-        source = str(source_var.get()).strip() if source_var else self.active_source.get()
+        source = _get_string_var(source_var, self.active_source.get()).strip()
         self.append_output(f"# {source}\n\n")
         try:
             p = Path(source).expanduser()
             if not p.exists():
                 self.append_output(f"ERROR: File not found: {p}\n")
-                self.after(0, lambda: self.on_done(1, self.current_cmd))  # type: ignore[arg-type]
+                self.after(0, lambda: self._finish_current_command(1))
                 return
             self.append_output(p.read_text(encoding="utf-8"))
-            self.after(0, lambda: self.on_done(0, self.current_cmd))  # type: ignore[arg-type]
+            self.after(0, lambda: self._finish_current_command(0))
         except OSError as exc:
             self.append_output(f"ERROR: {exc}\n")
-            self.after(0, lambda: self.on_done(1, self.current_cmd))  # type: ignore[arg-type]
+            self.after(0, lambda: self._finish_current_command(1))
 
     def _run_add_identity_site(self) -> None:
         source_var = self.arg_widgets.get("source")
@@ -1096,11 +1130,11 @@ class PypiProfileGui(tk.Tk):
         label_var = self.arg_widgets.get("--label")
         rel_me_var = self.arg_widgets.get("--rel-me")
 
-        source = str(source_var.get()).strip() if source_var else self.active_source.get()
-        chosen_label = str(site_var.get()).strip() if site_var else ""
-        url = str(url_var.get()).strip() if url_var else ""
-        display_label = str(label_var.get()).strip() if label_var else ""
-        rel_me = bool(rel_me_var.get()) if rel_me_var else True
+        source = _get_string_var(source_var, self.active_source.get()).strip()
+        chosen_label = _get_string_var(site_var).strip()
+        url = _get_string_var(url_var).strip()
+        display_label = _get_string_var(label_var).strip()
+        rel_me = _get_bool_var(rel_me_var, True)
 
         site = IDENTITY_SITE_BY_LABEL.get(chosen_label)
         kind = site["kind"] if site else "other"
@@ -1113,14 +1147,14 @@ class PypiProfileGui(tk.Tk):
                 "ERROR: Please fill in the Profile URL field with your actual profile URL.\n"
                 f"Template was: {template}\n"
             )
-            self.after(0, lambda: self.on_done(1, self.current_cmd))  # type: ignore[arg-type]
+            self.after(0, lambda: self._finish_current_command(1))
             return
 
         try:
             p = Path(source).expanduser()
             if not p.exists():
                 self.append_output(f"ERROR: File not found: {p}\n")
-                self.after(0, lambda: self.on_done(1, self.current_cmd))  # type: ignore[arg-type]
+                self.after(0, lambda: self._finish_current_command(1))
                 return
 
             rel_me_toml = "true" if rel_me else "false"
@@ -1139,11 +1173,16 @@ class PypiProfileGui(tk.Tk):
             self.append_output(f"Added [[profiles]] entry to {p}\n\n")
             self.append_output(new_block)
             self.append_output("\nNext step: run 'Update Proofs' to sign this URL and embed the proof.\n")
-            self.after(0, lambda: self.on_done(0, self.current_cmd))  # type: ignore[arg-type]
+            self.after(0, lambda: self._finish_current_command(0))
             self.active_source.set(source)
         except OSError as exc:
             self.append_output(f"ERROR: {exc}\n")
-            self.after(0, lambda: self.on_done(1, self.current_cmd))  # type: ignore[arg-type]
+            self.after(0, lambda: self._finish_current_command(1))
+
+    def _finish_current_command(self, rc: int) -> None:
+        """Complete the active command when one is selected."""
+        if self.current_cmd is not None:
+            self.on_done(rc, self.current_cmd)
 
     def on_done(self, rc: int, cmd: GuiCommand) -> None:
         self.stop_btn.config(state=tk.DISABLED)

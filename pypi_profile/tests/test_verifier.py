@@ -49,28 +49,15 @@ def test_fetch_page_urllib_fallback(mocker: Any) -> None:
 
 
 def test_fetch_page_urllib_success(mocker: Any) -> None:
-    # Alternative: use sys.modules
-    import sys
+    mocker.patch("pypi_profile.verifier.import_httpx", side_effect=ImportError("no httpx"))
+    mock_urlopen = mocker.patch("urllib.request.urlopen")
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = b"urllib content"
+    mock_resp.__enter__.return_value = mock_resp
+    mock_urlopen.return_value = mock_resp
 
-    # If we already have httpx in sys.modules, we need to handle it
-    real_httpx = sys.modules.get("httpx")
-    sys.modules["httpx"] = None
-    try:
-        # We need to make sure 'import httpx' happens again or fails
-        # Since fetch_page has 'import httpx' inside, it should look at sys.modules
-        mock_urlopen = mocker.patch("urllib.request.urlopen")
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = b"urllib content"
-        mock_resp.__enter__.return_value = mock_resp
-        mock_urlopen.return_value = mock_resp
-
-        content = fetch_page("https://example.com")
-        assert content == "urllib content"
-    finally:
-        if real_httpx:
-            sys.modules["httpx"] = real_httpx
-        else:
-            del sys.modules["httpx"]
+    content = fetch_page("https://example.com")
+    assert content == "urllib content"
 
 
 def test_verify_claim_signature_no_sig() -> None:

@@ -6,11 +6,6 @@ import sys
 
 import pytest
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
-
 from pypi_profile.claims import (
     PROOF_PREFIX,
     build_claim,
@@ -20,6 +15,11 @@ from pypi_profile.claims import (
     is_compact_claim,
     is_expired,
 )
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 # --- claims.py tests --------------------------------------------------------
 
@@ -437,7 +437,6 @@ preferred_signature_backend = "minisign"
 
 def test_patch_proofs_distinct_per_url(tmp_path):
     """Each [[profiles]] entry must receive a proof for its own URL, not another entry's."""
-    from pypi_profile.claims import decode_claim, is_compact_claim
     from pypi_profile.signing import generate_keypair, patch_proofs_in_toml
 
     toml_path = tmp_path / "pypi_profile.toml"

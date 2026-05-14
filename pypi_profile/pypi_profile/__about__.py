@@ -15,11 +15,11 @@ __all__ = [
 
 __title__ = "pypi-profile"
 __version__ = "0.1.0"
-__description__ = "The missing PyPI profile page — pipx-installable, plugin-extensible."
+__description__ = "The missing PyPI(tm) profile page — pipx-installable, plugin-extensible. Not associated with PSF."
 __readme__ = "README.md"
 __credits__ = [{"name": "Matthew Martin", "email": "matthewdeanmartin@gmail.com"}]
 __keywords__ = ["pypi", "profile", "cli"]
-__license__ = "MIT"
+__license__ = "Apache-2.0"
 __requires_python__ = ">=3.10"
 __status__ = "3 - Alpha"
 __dependencies__ = [
@@ -30,4 +30,6 @@ __dependencies__ = [
     "pydantic>=2.0.0",
     "tomli>=2.0.0; python_version < '3.11'",
     "prompt-toolkit>=3.0.0",
+    "keyring>=25.7.0",
+    "py-minisign>=0.13.2",
 ]

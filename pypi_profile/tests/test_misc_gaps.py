@@ -15,23 +15,23 @@ from pypi_profile.loader import find_profile
 from pypi_profile.signing import generate_keypair, load_secret_key
 
 
-def test_claims_is_expired_invalid():
+def test_claims_is_expired_invalid() -> None:
     assert not is_expired({"expires_at": "invalid-date"})
 
 
-def test_claims_decode_padding_error():
+def test_claims_decode_padding_error() -> None:
     # Trigger possible issues in decode_claim if any
     with pytest.raises((ValueError, Exception)):
         decode_claim("!!!")
 
 
-def test_ds_paths():
+def test_ds_paths() -> None:
     assert package_root_path().exists()
     assert template_root_path().exists()
     assert static_root_path().exists()
 
 
-def test_loader_find_profile_package(mocker: Any):
+def test_loader_find_profile_package(mocker: Any) -> None:
     mock_dist = MagicMock()
     mock_dist.locate_file.return_value = "pypi_profile.toml"
     mocker.patch("importlib.metadata.distribution", return_value=mock_dist)
@@ -41,26 +41,26 @@ def test_loader_find_profile_package(mocker: Any):
     assert str(path) == "pypi_profile.toml"
 
 
-def test_loader_find_profile_not_found():
+def test_loader_find_profile_not_found() -> None:
     with pytest.raises(FileNotFoundError):
         find_profile("non-existent-thing-12345")
 
 
-def test_signing_generate_keypair_exists(tmp_path: Path):
+def test_signing_generate_keypair_exists(tmp_path: Path) -> None:
     sk = tmp_path / "minisign.key"
     sk.touch()
     with pytest.raises(FileExistsError):
         generate_keypair(key_dir=tmp_path, force=False)
 
 
-def test_signing_generate_keypair_with_password(tmp_path: Path):
+def test_signing_generate_keypair_with_password(tmp_path: Path) -> None:
     # This requires minisign
     pytest.importorskip("minisign")
     sk, _pk, _pub = generate_keypair(key_dir=tmp_path, password="secret")
     assert sk.exists()
 
 
-def test_signing_load_secret_key_env(tmp_path: Path, mocker: Any):
+def test_signing_load_secret_key_env(tmp_path: Path, mocker: Any) -> None:
     pytest.importorskip("minisign")
     sk = tmp_path / "my.key"
     sk.touch()
@@ -72,6 +72,6 @@ def test_signing_load_secret_key_env(tmp_path: Path, mocker: Any):
     assert key is not None
 
 
-def test_signing_load_secret_key_not_found():
+def test_signing_load_secret_key_not_found() -> None:
     with pytest.raises(FileNotFoundError):
         load_secret_key(Path("/non/existent/key"))

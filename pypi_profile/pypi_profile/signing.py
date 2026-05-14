@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 import logging
 import os
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import keyring
 import keyring.backends.fail
 import minisign  # type: ignore[import-untyped]
+from keyring.errors import KeyringError
 
 from pypi_profile.claims import build_claim, build_compact_claim, encode_claim
 
@@ -66,7 +68,7 @@ def store_key_in_keyring(sk_bytes: bytes, identity: str | None = None) -> bool:
             username,
         )
         return True
-    except Exception:
+    except KeyringError:
         logger.warning("Could not store key in keyring", exc_info=True)
         return False
 
@@ -84,7 +86,7 @@ def load_key_bytes_from_keyring(identity: str | None = None) -> bytes | None:
             )
             return None
         return base64.b64decode(encoded)
-    except Exception:
+    except (KeyringError, TypeError, binascii.Error):
         logger.warning("Could not load key from keyring", exc_info=True)
         return None
 
@@ -264,8 +266,8 @@ def read_public_key_b64(pk_path: Path | None = None) -> str | None:
     try:
         pk = minisign.PublicKey.from_file(pk_path)
         logger.debug("Loaded public key from %s", pk_path)
-        return pk.to_base64().decode()
-    except Exception:
+        return cast(bytes, pk.to_base64()).decode()
+    except (OSError, TypeError, ValueError):
         logger.warning("Failed to read public key from %s", pk_path, exc_info=True)
         return None
 
@@ -345,7 +347,7 @@ def patch_proofs_in_toml(
         try:
             import tomllib
         except ImportError:
-            import tomli as tomllib  # type: ignore[no-reuse-def]
+            import tomli as tomllib
 
     try:
         text = toml_path.read_text(encoding="utf-8")
@@ -408,7 +410,7 @@ def patch_proofs_in_toml(
         try:
             with open(toml_path, "rb") as fh:
                 written = tomllib.load(fh)
-        except Exception as exc:
+        except (OSError, tomllib.TOMLDecodeError) as exc:
             logger.error("Patched TOML is invalid (%s); rolling back to original content", exc)
             try:
                 toml_path.write_text(original_text, encoding="utf-8")

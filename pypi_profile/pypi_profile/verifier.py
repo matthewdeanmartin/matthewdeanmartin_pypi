@@ -1,5 +1,7 @@
 """Fetch external URLs and verify pypi-profile-proof claims."""
 
+# pylint: disable=too-many-return-statements
+
 from __future__ import annotations
 
 import base64
@@ -83,7 +85,9 @@ def find_proof_tokens(text: str) -> list[str]:
     return [m.group(0) for m in PROOF_RE.finditer(text)]
 
 
-def verify_claim_signature(claim: dict[str, Any], public_key_b64: str) -> bool:
+def verify_claim_signature(
+    claim: dict[str, Any], public_key_b64: str
+) -> bool:  # pylint: disable=too-many-return-statements
     """Verify the Ed25519 signature on a decoded claim dict.
 
     Handles both claim formats:
@@ -191,7 +195,7 @@ def status_from_tokens(
     return "unverified"
 
 
-def diagnose_tokens(
+def diagnose_tokens(  # pylint: disable=too-many-return-statements
     tokens: list[str],
     *,
     subject_url: str,
@@ -266,7 +270,7 @@ def diagnose_tokens(
                         " Re-run: pypi-profile update-proofs <source>"
                     )
                     return "invalid", steps
-            except Exception as exc:
+            except (TypeError, ValueError, binascii.Error) as exc:
                 steps.append(f"  ↳ Could not decode compact signature: {exc}")
                 return "invalid", steps
         else:
@@ -284,7 +288,7 @@ def diagnose_tokens(
                         " Re-run: pypi-profile update-proofs <source>"
                     )
                     return "invalid", steps
-            except Exception as exc:
+            except (TypeError, ValueError, binascii.Error) as exc:
                 steps.append(f"  ↳ Could not decode signature: {exc}")
                 return "invalid", steps
 
@@ -298,7 +302,7 @@ def diagnose_tokens(
                     "Check public_key in [verification] is a minisign .pub value."
                 )
                 return "invalid", steps
-        except Exception as exc:
+        except (TypeError, ValueError, binascii.Error) as exc:
             steps.append(f"  ↳ Could not decode public key: {exc}")
             return "invalid", steps
 
@@ -307,11 +311,10 @@ def diagnose_tokens(
         if verify_claim_signature(claim, public_key_b64):
             steps.append("  ↳ Signature valid. ✓")
             return "verified", steps
-        else:
-            steps.append("  ↳ Signature INVALID — does not verify against public key.")
-            steps.append("    Check that public_key in [verification] matches the key used to sign.")
-            steps.append("    If you regenerated your keypair, re-run: pypi-profile update-proofs <source>")
-            return "invalid", steps
+        steps.append("  ↳ Signature INVALID — does not verify against public key.")
+        steps.append("    Check that public_key in [verification] matches the key used to sign.")
+        steps.append("    If you regenerated your keypair, re-run: pypi-profile update-proofs <source>")
+        return "invalid", steps
 
     steps.append(
         f"No token matched subject={subject_url!r} / username={pypi_username!r} / package={profile_package!r}."
@@ -339,7 +342,7 @@ def verify_mastodon_link(
     return status
 
 
-def diagnose_mastodon_link(
+def diagnose_mastodon_link(  # pylint: disable=too-many-return-statements
     link: ProfileLink,
     profile_package: str,
     public_key_b64: str = "",
@@ -398,11 +401,10 @@ def diagnose_mastodon_link(
                 if verified_at:
                     steps.append(f"  -> Contains {pattern!r} and is Mastodon-verified. ✓")
                     return "verified", steps
-                else:
-                    steps.append(f"  -> Contains {pattern!r} but NOT yet verified by Mastodon.")
-                    steps.append("     Mastodon verifies links by checking for a rel='me' backlink.")
-                    steps.append("     pypi.org/user/<name> pages don't carry rel='me', so this won't auto-verify.")
-                    steps.append("     Use proof-token verification instead (see 'Add proof-of-control' below).")
+                steps.append(f"  -> Contains {pattern!r} but NOT yet verified by Mastodon.")
+                steps.append("     Mastodon verifies links by checking for a rel='me' backlink.")
+                steps.append("     pypi.org/user/<name> pages don't carry rel='me', so this won't auto-verify.")
+                steps.append("     Use proof-token verification instead (see 'Add proof-of-control' below).")
 
     steps.append(f"No Mastodon-verified field matching any of {identity_patterns} found.")
     steps.append("Falling back to proof-token check on the profile page...")

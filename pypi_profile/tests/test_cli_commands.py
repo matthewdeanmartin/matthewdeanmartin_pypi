@@ -45,7 +45,13 @@ def test_cmd_validate_dry_run_skips_public_key_autopatch(capsys: Any, tmp_path: 
     autopatch = mocker.patch("pypi_profile.signing.patch_public_key_in_toml")
     toml = tmp_path / "pypi_profile.toml"
     toml.write_text(
-        '[profile]\ndisplay_name = "Alice"\n[verification]\npublic_key = ""\npreferred_signature_backend = "minisign"\n',
+        (
+            "[profile]\n"
+            'display_name = "Alice"\n'
+            "[verification]\n"
+            'public_key = ""\n'
+            'preferred_signature_backend = "minisign"\n'
+        ),
         encoding="utf-8",
     )
 

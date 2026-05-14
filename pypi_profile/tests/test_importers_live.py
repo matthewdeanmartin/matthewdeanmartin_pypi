@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import urllib.error
-from typing import Any
+from email.message import Message
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -28,7 +29,7 @@ from pypi_profile.importers import (
 
 @pytest.fixture
 def mock_urlopen(mocker: Any) -> MagicMock:
-    return mocker.patch("urllib.request.urlopen")
+    return cast(MagicMock, mocker.patch("urllib.request.urlopen"))
 
 
 def test_open_http_url_invalid_scheme() -> None:
@@ -111,7 +112,7 @@ def test_fetch_pypi_package_info_error(mock_urlopen: MagicMock) -> None:
 
 
 def test_fetch_github_profile_error(mock_urlopen: MagicMock) -> None:
-    mock_urlopen.side_effect = urllib.error.HTTPError("url", 404, "Not Found", {}, None)
+    mock_urlopen.side_effect = urllib.error.HTTPError("url", 404, "Not Found", Message(), None)
     assert fetch_github_profile("alice") == {}
 
 
@@ -189,14 +190,14 @@ def test_fetch_gitlab_profile_no_users(mock_urlopen: MagicMock) -> None:
 
 
 def test_merge_live_data_existing_blog() -> None:
-    profile_data = {"contact_methods": [{"kind": "website", "value": "https://alice.dev"}]}
+    profile_data: dict[str, Any] = {"contact_methods": [{"kind": "website", "value": "https://alice.dev"}]}
     live = {"github": {"blog": "alice.dev"}}
     res = merge_live_data_into_profile(profile_data, live)
     assert len(res["contact_methods"]) == 1
 
 
 def test_merge_live_data_pypi_packages() -> None:
-    profile_data = {"packages": []}
+    profile_data: dict[str, Any] = {"packages": []}
     live = {"pypi_packages": [{"name": "pkg1"}]}
     res = merge_live_data_into_profile(profile_data, live)
     assert len(res["packages"]) == 1

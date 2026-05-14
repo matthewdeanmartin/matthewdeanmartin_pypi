@@ -41,7 +41,7 @@ def load_profile(path: Path, *, autopatch_public_key: bool = True) -> ProfileDat
             pub_b64 = patch_public_key_in_toml(path)
             if pub_b64:
                 profile.verification.public_key = pub_b64
-        except Exception:
+        except (ImportError, OSError, ValueError):
             logger.warning("Could not auto-patch public key into %s", path, exc_info=True)
     logger.debug("Loaded profile for %r", profile.profile.display_name)
     return profile
