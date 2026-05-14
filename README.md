@@ -41,3 +41,10 @@ cd pypi_profile && make check
 `pypi-profile` uses [pluggy](https://pluggy.readthedocs.io/) with the entry-point group `pypi_profile.plugins`.
 Any installed package that registers this entry point and implements `get_profile_data()` will be discovered
 automatically.
+
+
+## Prior Art
+
+- Keyoxide - https://docs.keyoxide.org/
+- Keybase - https://keybase.io/matthewmartin
+- 

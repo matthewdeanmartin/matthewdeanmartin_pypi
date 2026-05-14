@@ -39,6 +39,24 @@ def test_cmd_validate_invalid(capsys: Any, tmp_path: Path) -> None:
     assert "INVALID:" in captured.err
 
 
+def test_cmd_validate_dry_run_skips_public_key_autopatch(capsys: Any, tmp_path: Path, mocker: Any) -> None:
+    from pypi_profile.cli import cmd_validate
+
+    autopatch = mocker.patch("pypi_profile.signing.patch_public_key_in_toml")
+    toml = tmp_path / "pypi_profile.toml"
+    toml.write_text(
+        '[profile]\ndisplay_name = "Alice"\n[verification]\npublic_key = ""\npreferred_signature_backend = "minisign"\n',
+        encoding="utf-8",
+    )
+
+    args = argparse.Namespace(path=str(toml), dry_run=True)
+    cmd_validate(args)
+
+    autopatch.assert_not_called()
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
+
+
 def test_cmd_init_basic(capsys: Any, tmp_path: Path, mocker: Any) -> None:
     from pypi_profile.cli import cmd_init
 
@@ -64,6 +82,30 @@ def test_cmd_init_basic(capsys: Any, tmp_path: Path, mocker: Any) -> None:
     assert "Created" in captured.out
 
 
+def test_cmd_init_dry_run_does_not_write(capsys: Any, tmp_path: Path, mocker: Any) -> None:
+    from pypi_profile.cli import cmd_init
+
+    mocker.patch("sys.stdin.isatty", return_value=False)
+
+    dest = tmp_path / "pypi_profile.toml"
+    args = argparse.Namespace(
+        output=str(dest),
+        username="alice",
+        kind="individual",
+        force=False,
+        from_json_resume="",
+        fetch=True,
+        no_interactive=True,
+        dry_run=True,
+    )
+
+    cmd_init(args)
+
+    assert not dest.exists()
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
+
+
 def test_cmd_serve_mock(mocker: Any, tmp_path: Path) -> None:
     from pypi_profile.cli import cmd_serve
 
@@ -80,6 +122,24 @@ def test_cmd_serve_mock(mocker: Any, tmp_path: Path) -> None:
 
     mock_uvicorn.assert_called_once()
     assert mock_uvicorn.call_args[1]["host"] == "127.0.0.1"
+
+
+def test_cmd_serve_dry_run_skips_uvicorn(mocker: Any, tmp_path: Path, capsys: Any) -> None:
+    from pypi_profile.cli import cmd_serve
+
+    mock_uvicorn = mocker.patch("uvicorn.run")
+    mocker.patch("pypi_profile.loader.load_profile")
+    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+
+    args = argparse.Namespace(
+        source=str(tmp_path / "pypi_profile.toml"), host="127.0.0.1", port=8000, allow_code=False, dry_run=True
+    )
+
+    cmd_serve(args)
+
+    mock_uvicorn.assert_not_called()
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
 
 
 def test_cmd_fetch_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
@@ -137,6 +197,26 @@ def test_cmd_keygen_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     assert "Secret key" in captured.out
 
 
+def test_cmd_keygen_dry_run_skips_generation(mocker: Any, tmp_path: Path, capsys: Any) -> None:
+    from pypi_profile.cli import cmd_keygen
+
+    mock_gen = mocker.patch("pypi_profile.signing.generate_keypair")
+    args = argparse.Namespace(
+        key_dir=str(tmp_path),
+        password="",
+        force=True,
+        keyring_identity="work",
+        no_keyring=True,
+        dry_run=True,
+    )
+
+    cmd_keygen(args)
+
+    mock_gen.assert_not_called()
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
+
+
 def test_cmd_sign_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_sign
 
@@ -161,6 +241,31 @@ def test_cmd_sign_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     mock_sign.assert_called_once()
     captured = capsys.readouterr()
     assert "pypi-profile-proof" in captured.out
+
+
+def test_cmd_update_proofs_dry_run_skips_patch(mocker: Any, tmp_path: Path, capsys: Any) -> None:
+    from pypi_profile.cli import cmd_update_proofs
+
+    mock_patch = mocker.patch("pypi_profile.signing.patch_proofs_in_toml")
+    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+    mock_profile = mocker.patch("pypi_profile.loader.load_profile").return_value
+    mock_profile.identity.pypi_username = "alice"
+    mock_profile.profiles = []
+
+    args = argparse.Namespace(
+        source=str(tmp_path / "pypi_profile.toml"),
+        key="",
+        password="",
+        profile_package="",
+        force=False,
+        dry_run=True,
+    )
+
+    cmd_update_proofs(args)
+
+    mock_patch.assert_not_called()
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
 
 
 def test_cmd_verify_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
@@ -191,3 +296,16 @@ def test_main_help(mocker: Any, capsys: Any) -> None:
     assert exc.value.code == 0
     captured = capsys.readouterr()
     assert "usage: pypi-profile" in captured.out
+
+
+def test_main_gui_dry_run(mocker: Any, capsys: Any) -> None:
+    from pypi_profile.cli import main
+
+    launch = mocker.patch("pypi_profile.cli.launch_gui")
+    mocker.patch("sys.argv", ["pypi-profile", "gui", "--dry-run"])
+
+    main()
+
+    launch.assert_not_called()
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out

@@ -20,15 +20,21 @@ else:
         import tomli as tomllib
 
 
-def load_profile(path: Path) -> ProfileData:
-    """Read a pypi_profile.toml (or pyproject.toml [tool.pypi-profile]) and return a validated ProfileData."""
+def load_profile(path: Path, *, autopatch_public_key: bool = True) -> ProfileData:
+    """Read a profile TOML and return validated data.
+
+    Args:
+        path: Path to ``pypi_profile.toml`` or ``pyproject.toml``.
+        autopatch_public_key: When True, opportunistically fill an empty
+            ``[verification].public_key`` from the local key on disk.
+    """
     logger.debug("Loading profile from %s", path)
     with open(path, "rb") as fh:
         raw = tomllib.load(fh)
     if path.name == "pyproject.toml":
         raw = raw.get("tool", {}).get("pypi-profile", {})
     profile = ProfileData.model_validate(raw)
-    if not profile.verification.public_key and path.name == "pypi_profile.toml":
+    if autopatch_public_key and not profile.verification.public_key and path.name == "pypi_profile.toml":
         try:
             from pypi_profile.signing import patch_public_key_in_toml
 

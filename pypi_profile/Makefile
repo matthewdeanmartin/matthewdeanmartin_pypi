@@ -23,7 +23,7 @@ AUDIT_IGNORE := PYSEC-2022-42969
 	dead-code vulture deadcode \
 	explore refurb crosshair deptry import-linter \
 	security bandit audit \
-	smoke test test-ci tox \
+	smoke smoke-dry-run test test-ci tox \
 	typecheck typecheck-mypy \
 	metadata metadata-check version-check dev-status \
 	gha-validate gha-pin gha-upgrade publish-gha \
@@ -32,7 +32,7 @@ AUDIT_IGNORE := PYSEC-2022-42969
 
 help:
 	@echo "Package: $(PACKAGE)"
-	@echo "Targets: sync format format-check lint lint-check spell test test-ci tox"
+	@echo "Targets: sync format format-check lint lint-check spell smoke-dry-run test test-ci tox"
 	@echo "         typecheck security docs-check build-docs dead-code explore"
 	@echo "         metadata metadata-check version-check dev-status"
 	@echo "         gha-validate gha-pin gha-upgrade publish-gha (delegates to repo root)"
@@ -162,6 +162,9 @@ audit:
 smoke:
 	@$(UV) run bash scripts/basic_checks.sh
 
+smoke-dry-run:
+	@$(UV) run bash scripts/tests_dry_run.sh
+
 test:
 	@$(UV) run pytest -q \
 		--cov=$(PACKAGE) \
@@ -214,10 +217,10 @@ publish-check:
 publish:
 	@$(UV) publish
 
-check: format-check lint-check security test typecheck metadata-check version-check
+check: format-check lint-check security test smoke-dry-run typecheck metadata-check version-check
 	@echo "All checks passed."
 
-check-ci: format-check lint-check security test-ci typecheck metadata-check version-check
+check-ci: format-check lint-check security test-ci smoke-dry-run typecheck metadata-check version-check
 	@echo "CI checks passed."
 
 prerelease: check dev-status docs-check smoke spell publish-check
