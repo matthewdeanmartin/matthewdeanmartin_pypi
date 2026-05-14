@@ -37,24 +37,15 @@ def test_fetch_page_httpx_error(mocker: Any) -> None:
 
 
 def test_fetch_page_urllib_fallback(mocker: Any) -> None:
-    # Force ImportError for httpx
-    mocker.patch(
-        "builtins.__import__",
-        side_effect=lambda name, *args, **kwargs: (
-            exec('raise ImportError("no httpx")') if name == "httpx" else __import__(name, *args, **kwargs)
-        ),
-    )
-    # Wait, the above might be too complex and break other things.
-    # Simpler: mock httpx to raise ImportError when imported in fetch_page
-    mocker.patch("pypi_profile.verifier.import_httpx", side_effect=ImportError, create=True)
-    # But wait, verifier.py doesn't have import_httpx. It does 'import httpx' inside the try block.
+    mocker.patch("pypi_profile.verifier.import_httpx", side_effect=ImportError("no httpx"))
+    mock_urlopen = mocker.patch("urllib.request.urlopen")
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = b"urllib content"
+    mock_resp.__enter__.return_value = mock_resp
+    mock_urlopen.return_value = mock_resp
 
-    # Let's try mocking the httpx module itself to be None or something?
-    # Actually, I'll just mock 'httpx.get' to raise ImportError if I can.
-    # But 'import httpx' happens BEFORE 'httpx.get'.
-
-    # I'll mock the whole 'fetch_page' for other tests anyway.
-    # To test the fallback, I can use a different approach.
+    content = fetch_page("https://example.com")
+    assert content == "urllib content"
 
 
 def test_fetch_page_urllib_success(mocker: Any) -> None:

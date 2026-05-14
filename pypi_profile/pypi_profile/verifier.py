@@ -38,6 +38,13 @@ SCRAPER_HOSTILE_DOMAINS = frozenset(
 )
 
 
+def import_httpx() -> Any:
+    """Import and return httpx on demand."""
+    import httpx
+
+    return httpx
+
+
 def import_minisign() -> Any:
     try:
         import minisign  # type: ignore[import-untyped]
@@ -55,7 +62,7 @@ def fetch_page(url: str) -> str:
         raise ValueError(f"Unsupported URL scheme: {parsed_url.scheme}")
 
     try:
-        import httpx
+        httpx = import_httpx()
 
         resp = httpx.get(url, follow_redirects=True, timeout=15)
         resp.raise_for_status()

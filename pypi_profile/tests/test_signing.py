@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
+import sys
+
 import pytest
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from pypi_profile.claims import (
     PROOF_PREFIX,
@@ -302,13 +309,6 @@ def test_patch_proofs_success(tmp_path):
     assert updated == ["https://github.com/testuser"]
 
     # File must still parse as valid TOML with stored_proof present.
-    import sys
-
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        import tomllib  # type: ignore[no-reuse-def]
-
     with open(toml_path, "rb") as fh:
         data = tomllib.load(fh)
 
@@ -401,13 +401,6 @@ def test_patch_proofs_force_overwrites(tmp_path):
 
     assert updated == ["https://github.com/testuser"]
 
-    import sys
-
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        import tomllib  # type: ignore[no-reuse-def]
-
     with open(toml_path, "rb") as fh:
         data = tomllib.load(fh)
 
@@ -462,13 +455,6 @@ def test_patch_proofs_distinct_per_url(tmp_path):
         "https://github.com/testuser",
         "https://mastodon.social/@testuser/99999",
     }
-
-    import sys
-
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        import tomllib  # type: ignore[no-reuse-def]
 
     with open(toml_path, "rb") as fh:
         data = tomllib.load(fh)

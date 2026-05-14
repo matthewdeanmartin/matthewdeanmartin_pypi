@@ -584,8 +584,9 @@ def cmd_keygen(args: argparse.Namespace) -> None:
         key_dir = None
     password = args.password or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "")
 
-    keyring_identity: str | None = args.keyring_identity or None
-    store_in_keyring: bool = not args.no_keyring
+    keyring_identity_arg = getattr(args, "keyring_identity", "")
+    keyring_identity: str | None = keyring_identity_arg or None
+    store_in_keyring: bool = not getattr(args, "no_keyring", False)
 
     if store_in_keyring and not keyring_is_usable():
         print(
