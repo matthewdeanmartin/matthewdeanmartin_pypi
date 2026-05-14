@@ -25,8 +25,8 @@ It is not a separate backend. It runs the same local commands the CLI exposes.
 The window is organized into three areas:
 
 1. **Top bar**: choose the active profile, active signing key, and optional key password.
-2. **Left panel**: choose a command. Setup commands and profile commands are grouped separately.
-3. **Center and right panels**: fill in arguments, run the command, read output, and view command help.
+1. **Left panel**: choose a command. Setup commands and profile commands are grouped separately.
+1. **Center and right panels**: fill in arguments, run the command, read output, and view command help.
 
 The top bar also shows:
 
@@ -72,17 +72,17 @@ Use **Stop** to terminate a long-running command such as `serve`.
 For a first-time setup:
 
 1. run **Init**
-2. select the resulting `pypi_profile.toml` in the top bar
-3. run **Validate**
-4. run **Serve**
-5. if you want signed claims, run **Keygen**, then **Sign Claim** or **Update Proofs**
+1. select the resulting `pypi_profile.toml` in the top bar
+1. run **Validate**
+1. run **Serve**
+1. if you want signed claims, run **Keygen**, then **Sign Claim** or **Update Proofs**
 
 For an existing profile:
 
 1. select the TOML in the top bar
-2. use **Inspect**, **Display TOML**, and **Display JSON** to review it
-3. use **Fetch** to compare live service data
-4. use **Verify Claims** to confirm external proof tokens still validate
+1. use **Inspect**, **Display TOML**, and **Display JSON** to review it
+1. use **Fetch** to compare live service data
+1. use **Verify Claims** to confirm external proof tokens still validate
 
 ## Signing keys in the GUI
 

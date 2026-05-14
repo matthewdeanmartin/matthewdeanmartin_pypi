@@ -6,11 +6,11 @@ Bata: Rapidly evolving.
 
 ## Packages
 
-| Package                                    | Description                                                |
+| Package | Description |
 |--------------------------------------------|------------------------------------------------------------|
-| [`pypi_profile/`](pypi_profile/)           | Main CLI (`pipx install pypi-profile`). Plugin host.       |
-| [`matthewdeanmartin/`](matthewdeanmartin/) | Data/plugin package for Matthew Martin's PyPI profile.     |
-| [`john_doe/`](john_doe/)                   | Example/test plugin — demonstrates two plugins coexisting. |
+| [`pypi_profile/`](pypi_profile/) | Main CLI (`pipx install pypi-profile`). Plugin host. |
+| [`matthewdeanmartin/`](matthewdeanmartin/) | Data/plugin package for Matthew Martin's PyPI profile. |
+| [`john_doe/`](john_doe/) | Example/test plugin — demonstrates two plugins coexisting. |
 
 ## Structure
 

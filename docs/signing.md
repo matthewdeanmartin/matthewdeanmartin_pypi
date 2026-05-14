@@ -7,7 +7,7 @@ Mastodon bio, a personal website, and so on.
 This page explains how the mechanism works, what it actually proves, and where
 it can fail or be misunderstood.
 
----
+______________________________________________________________________
 
 ## What problem this solves
 
@@ -32,7 +32,7 @@ PyPI account also places a short signed token on the external page. A reader
 who fetches both can check that the signature was made with the key embedded in
 the PyPI package, and therefore that the same entity controls both places.
 
----
+______________________________________________________________________
 
 ## How minisign works
 
@@ -58,7 +58,7 @@ properties:
 optional dependency; the base `pypi-profile` package works without it, but the
 `keygen`, `sign`, and `verify` commands require it.
 
----
+______________________________________________________________________
 
 ## The signing flow, step by step
 
@@ -160,20 +160,20 @@ pypi-profile verify pypi_profile.toml
 The verifier:
 
 1. Reads `public_key` from `[verification]`.
-2. For each `[[profiles]]` entry, fetches the URL.
-3. Scans the page text for any line matching `pypi-profile-proof: <token>`.
-4. Decodes each token it finds.
-5. Checks that `subject`, `pypi_username`, and `profile_package` match what is
+1. For each `[[profiles]]` entry, fetches the URL.
+1. Scans the page text for any line matching `pypi-profile-proof: <token>`.
+1. Decodes each token it finds.
+1. Checks that `subject`, `pypi_username`, and `profile_package` match what is
    in the profile.
-6. Checks that `expires_at` has not passed.
-7. Verifies the minisign signature against the embedded public key.
+1. Checks that `expires_at` has not passed.
+1. Verifies the minisign signature against the embedded public key.
 
 Results are reported as `verified`, `unverified`, `invalid`, or `expired`.
 
 The same check runs live when a visitor loads `/verification` in the served site
 and appears in `/api/verification.json`.
 
----
+______________________________________________________________________
 
 ## What a verified claim actually proves
 
@@ -192,7 +192,7 @@ token requires both:
 
 Both conditions must be true simultaneously. Neither alone is sufficient.
 
----
+______________________________________________________________________
 
 ## What a verified claim does NOT prove
 
@@ -243,7 +243,7 @@ self-asserted regardless of whether other claims are verified. The UI labels
 them accordingly. Do not conflate "this profile has some verified claims" with
 "everything in this profile is verified."
 
----
+______________________________________________________________________
 
 ## The trust model in plain terms
 
@@ -266,7 +266,7 @@ Breaking any link in that chain breaks the proof:
 | Expiry | The token's `expires_at` is in the past |
 | Signature | The signature was produced with a different secret key |
 
----
+______________________________________________________________________
 
 ## Mastodon workflow
 
@@ -274,9 +274,11 @@ Mastodon posts have a URL, but that URL is not known until after the post is
 created. The recommended workflow is:
 
 1. **Create a blank post** (or a placeholder post) on Mastodon.
-2. **Copy the post URL** from the browser address bar, e.g.
+
+1. **Copy the post URL** from the browser address bar, e.g.
    `https://fosstodon.org/@yourname/123456789`.
-3. **Add it to your TOML:**
+
+1. **Add it to your TOML:**
 
    ```toml
    [[profiles]]
@@ -287,23 +289,23 @@ created. The recommended workflow is:
    rel_me = true
    ```
 
-4. **Sign it:**
+1. **Sign it:**
 
    ```bash
    pypi-profile sign controls-url pypi_profile.toml \
        --url https://fosstodon.org/@yourname/123456789
    ```
 
-5. **Edit the Mastodon post** to include the `pypi-profile-proof: ...` token
+1. **Edit the Mastodon post** to include the `pypi-profile-proof: ...` token
    that was printed. Mastodon allows editing posts.
 
-6. **Store the proof in the TOML** so static builds work without the private key:
+1. **Store the proof in the TOML** so static builds work without the private key:
 
    ```bash
    pypi-profile update-proofs pypi_profile.toml
    ```
 
-7. **Verify:**
+1. **Verify:**
 
    ```bash
    pypi-profile verify pypi_profile.toml
@@ -313,7 +315,7 @@ Note: The verifier fetches the post URL as plain HTML. Mastodon renders post
 content in the server-side HTML, so the token will be found without requiring
 JavaScript.
 
----
+______________________________________________________________________
 
 ## `rel="me"` links
 
@@ -343,7 +345,7 @@ The served and built pages will render the corresponding anchors as
 `<a href="..." rel="me">`. This is independent of the minisign proof-of-control
 mechanism — you can use `rel_me` with or without a `stored_proof`.
 
----
+______________________________________________________________________
 
 ## What can go wrong
 
@@ -409,7 +411,7 @@ found.
 For services like GitHub and Mastodon where the bio is in the raw HTML, this
 works. For single-page apps that require JavaScript, it may not.
 
----
+______________________________________________________________________
 
 ## Common misunderstandings
 
@@ -442,7 +444,7 @@ No. GitHub is only a hosting medium. The claim proves that the token was placed
 there by the holder of the private key; it does not involve GitHub in any
 verification capacity.
 
----
+______________________________________________________________________
 
 ## Security checklist
 
@@ -461,7 +463,7 @@ verification capacity.
 - [ ] Set a calendar reminder to re-sign before tokens expire (default: 1 year)
 - [ ] If you ever rotate your key, run `pypi-profile update-proofs --force` to re-sign all claims
 
----
+______________________________________________________________________
 
 ## Signing dependencies
 

@@ -7,9 +7,9 @@ This page summarizes the roadmap **as inferred from `spec/spec.md` and `spec/rem
 The largest gaps between the current implementation and the spec are:
 
 1. a stable, documented distribution layout for `pypi_profile.toml` inside published wheels and installed distributions
-2. stronger validation and schema hardening, including versioning and richer consistency checks
-3. a clearer and safer plugin execution model around `--allow-code`
-4. better inspection, publishing, and UX polish around the now-shipped GUI and static build workflow
+1. stronger validation and schema hardening, including versioning and richer consistency checks
+1. a clearer and safer plugin execution model around `--allow-code`
+1. better inspection, publishing, and UX polish around the now-shipped GUI and static build workflow
 
 ## Planned work areas
 

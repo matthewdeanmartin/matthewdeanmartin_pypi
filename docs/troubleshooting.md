@@ -23,7 +23,7 @@ Delete that cache directory if you want a fresh fetch.
 That is usually one of two things:
 
 1. the plugin package is not installed as a `pypi_profile.plugins` entry point
-2. you are expecting extension points that are specified but not fully implemented yet
+1. you are expecting extension points that are specified but not fully implemented yet
 
 The current implementation has plugin discovery, but the richer plugin execution model is still roadmap work.
 

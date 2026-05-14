@@ -5,7 +5,7 @@ description = "The missing PyPI(tm) profile page — pipx-installable, plugin-ex
 readme = "README.md"
 authors = [{ name = "Matthew Martin", email = "matthewdeanmartin@gmail.com" }]
 keywords = ["pypi", "profile", "cli"]
-license = "Apache"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 3 - Alpha",

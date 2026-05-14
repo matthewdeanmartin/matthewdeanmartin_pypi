@@ -4,7 +4,7 @@ This document teaches you how to write a valid `resume.json` that passes schema
 validation used by `pypi-profile` (the `schema-resume-validator` Python package,
 which wraps the JSON Resume schema).
 
----
+______________________________________________________________________
 
 ## Schema version
 
@@ -12,7 +12,7 @@ This project validates against the JSON Resume schema as implemented by
 `schema-resume-validator`. The schema differs from the original v1.0.0 spec in
 one important way: **work entry `location` is an object, not a string.**
 
----
+______________________________________________________________________
 
 ## Top-level structure
 
@@ -38,7 +38,7 @@ All top-level arrays are optional and may be empty (`[]`). Never omit a key
 with `null` — use `[]` for arrays and omit optional string fields entirely
 rather than setting them to `""` when the value would fail format validation.
 
----
+______________________________________________________________________
 
 ## `basics`
 
@@ -76,7 +76,7 @@ rather than setting them to `""` when the value would fail format validation.
 - `url` in `basics` must be a valid URI or omitted. Never `""`.
 - `image`, `email`, `phone`, `summary` are plain strings and may be `""`.
 
----
+______________________________________________________________________
 
 ## `work` entries
 
@@ -135,7 +135,7 @@ rather than setting them to `""` when the value would fail format validation.
 }
 ```
 
----
+______________________________________________________________________
 
 ## `education` entries
 
@@ -153,7 +153,7 @@ rather than setting them to `""` when the value would fail format validation.
 
 Same date rules as `work`. Omit `endDate` if still enrolled.
 
----
+______________________________________________________________________
 
 ## `skills` entries
 
@@ -168,7 +168,7 @@ Same date rules as `work`. Omit `endDate` if still enrolled.
 `level` is a free string (no enum). Common values: `"Beginner"`, `"Intermediate"`,
 `"Advanced"`, `"Expert"`, `"Master"`.
 
----
+______________________________________________________________________
 
 ## `projects` entries
 
@@ -189,7 +189,7 @@ Same date rules as `work`. Omit `endDate` if still enrolled.
 - `url` must be a valid URI or omitted — never `""`.
 - `startDate`/`endDate` follow the same date pattern.
 
----
+______________________________________________________________________
 
 ## `certificates` entries
 
@@ -202,7 +202,7 @@ Same date rules as `work`. Omit `endDate` if still enrolled.
 }
 ```
 
----
+______________________________________________________________________
 
 ## `languages` entries
 
@@ -213,7 +213,7 @@ Same date rules as `work`. Omit `endDate` if still enrolled.
 }
 ```
 
----
+______________________________________________________________________
 
 ## Date format
 
@@ -230,11 +230,12 @@ The regex that all date fields must satisfy:
 | `YYYY-MM-DD` | `2023-06-15` | Full date (certificates, awards) |
 
 **Never use:**
+
 - `""` (empty string) — omit the field instead
 - `"present"` — omit `endDate` for current positions
 - `"2025-2"` — month must be zero-padded: `"2025-02"`
 
----
+______________________________________________________________________
 
 ## URI fields
 
@@ -252,7 +253,7 @@ Fields typed as `"format": "uri"` (`url` in `work`, `projects`, `certificates`,
 "url": "https://github.com/me/repo"
 ```
 
----
+______________________________________________________________________
 
 ## Common mistakes to avoid
 
@@ -265,7 +266,7 @@ Fields typed as `"format": "uri"` (`url` in `work`, `projects`, `certificates`,
 | `"startDate": "2025-2"` | Zero-pad month: `"2025-02"` |
 | `"highlights": null` | Use `[]` or omit |
 
----
+______________________________________________________________________
 
 ## Validating in this project
 

@@ -5,8 +5,8 @@
 The main security concerns are:
 
 1. protecting the local signing key
-2. understanding what signed verification does and does not prove
-3. only enabling code execution when you trust the code being loaded
+1. understanding what signed verification does and does not prove
+1. only enabling code execution when you trust the code being loaded
 
 ## Safe defaults
 
@@ -37,9 +37,9 @@ Treat the secret key like a password:
 If the key is lost or exposed:
 
 1. generate a new keypair
-2. update `[verification].public_key` in `pypi_profile.toml`
-3. republish the profile package
-4. re-sign stored proofs with `pypi-profile update-proofs --force`
+1. update `[verification].public_key` in `pypi_profile.toml`
+1. republish the profile package
+1. re-sign stored proofs with `pypi-profile update-proofs --force`
 
 ## What verification proves
 

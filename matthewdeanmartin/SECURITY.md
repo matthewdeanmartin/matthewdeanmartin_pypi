@@ -16,8 +16,8 @@ the latest release to receive security patches.
 
 | Version | Supported |
 |---------|-----------|
-| latest  | Yes       |
-| older   | No        |
+| latest | Yes |
+| older | No |
 
 ## Reporting a Vulnerability
 
@@ -26,10 +26,10 @@ Please **do not** report security vulnerabilities through public GitHub issues.
 You have two private reporting channels:
 
 1. **GitHub private vulnerability reporting** —
-   [submit a confidential report](https://github.com/{{ cookiecutter.github_username }}/{{ cookiecutter.github_repo }}/security/advisories/new)
+   \[submit a confidential report\](https://github.com/{{ cookiecutter.github_username }}/{{ cookiecutter.github_repo }}/security/advisories/new)
    directly on GitHub. This is the preferred channel.
 
-2. **Email** — contact **`{{ cookiecutter.author_email }}`** if you prefer not to use GitHub.
+1. **Email** — contact **`{{ cookiecutter.author_email }}`** if you prefer not to use GitHub.
 
 When reporting, please include as much of the following as possible:
 
@@ -57,7 +57,7 @@ If you discover that a pinned transitive dependency has a known vulnerability yo
 
 1. **Override the dependency** — create a `requirements.txt` with the patched version pinned and install it
    alongside this tool.
-2. **Open an issue or pull request** — a PR that bumps the dependency and keeps all tests green is the fastest
+1. **Open an issue or pull request** — a PR that bumps the dependency and keeps all tests green is the fastest
    path to a fix.
 
 ## Running in Docker (isolation)

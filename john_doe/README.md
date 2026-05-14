@@ -7,8 +7,8 @@ This package exists to show how any PyPI publisher can ship their profile as an 
 ## How it works
 
 1. The package ships a `pypi_profile.toml` inside the `john_doe/` directory.
-2. When installed, `pypi-profile` discovers this file via the `pypi_profile.plugins` entry-point.
-3. Running `pypi-profile serve john-doe` (the installed package name) boots a local web server for the profile.
+1. When installed, `pypi-profile` discovers this file via the `pypi_profile.plugins` entry-point.
+1. Running `pypi-profile serve john-doe` (the installed package name) boots a local web server for the profile.
 
 ## Quick start
 

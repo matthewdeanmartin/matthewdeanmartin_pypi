@@ -22,9 +22,11 @@ python -c "from pypi_profile.importers import ..."
 ```
 
 If you get `ModuleNotFoundError` for any project package, the fix is always:
+
 ```bash
 uv sync --all-extras
 ```
+
 then retry with `uv run`.
 
 ## Workspace layout

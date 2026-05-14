@@ -16,15 +16,15 @@ Draft.
 
 PyPI is excellent at presenting package metadata, release history, distribution files, and project links. It is much less expressive as a profile system for package publishers. Maintainers often need to communicate information that does not naturally fit inside a single package page, including:
 
-* who they are;
-* whether they are an individual, team, company, LLC, foundation, or other principal;
-* what packages they maintain;
-* what their role is in each package;
-* whether a project is active, archived, deprecated, seeking maintainers, or in security-only mode;
-* how to hire, contract with, sponsor, or contact them;
-* what their professional background is;
-* who can speak for a project if the current maintainer is unavailable;
-* which external profiles are actually controlled by the same PyPI publisher.
+- who they are;
+- whether they are an individual, team, company, LLC, foundation, or other principal;
+- what packages they maintain;
+- what their role is in each package;
+- whether a project is active, archived, deprecated, seeking maintainers, or in security-only mode;
+- how to hire, contract with, sponsor, or contact them;
+- what their professional background is;
+- who can speak for a project if the current maintainer is unavailable;
+- which external profiles are actually controlled by the same PyPI publisher.
 
 `pypi-profile` fills this gap by treating PyPI itself as the root publication channel. The basic proof is simple: **the PyPI account holder published a package containing profile data and verification material.** Additional evidence can then be layered on top through signatures, OIDC-based CI metadata, and signed claims placed on external profile sites.
 
@@ -39,31 +39,31 @@ The project should be useful to open-source maintainers, consultants, companies,
 `pypi-profile` aims to provide:
 
 1. A standard package-based profile format for Python package publishers.
-2. A TOML-first, human-editable data model.
-3. A FastAPI + Jinja2 server for rendering PyPI-inspired public profile websites.
-4. A Jinja2 component library that maps PyPI package-page idioms to profile-page idioms.
-5. Support for multiple kinds of principals, including individuals, teams, companies, LLCs, foundations, and collectives.
-6. Support for one profile package describing one or many human participants.
-7. Clear distinction between self-asserted claims and verified claims.
-8. A plugin mechanism, based on pluggy, that can add data, pages, endpoints, validators, signing helpers, and UI components.
-9. A safe-by-default execution model where profile code is not run unless explicitly enabled.
-10. Tools for creating, validating, serving, signing, verifying, inspecting, and eventually exporting profile websites.
-11. A future path for static site generation and data-only consumption.
+1. A TOML-first, human-editable data model.
+1. A FastAPI + Jinja2 server for rendering PyPI-inspired public profile websites.
+1. A Jinja2 component library that maps PyPI package-page idioms to profile-page idioms.
+1. Support for multiple kinds of principals, including individuals, teams, companies, LLCs, foundations, and collectives.
+1. Support for one profile package describing one or many human participants.
+1. Clear distinction between self-asserted claims and verified claims.
+1. A plugin mechanism, based on pluggy, that can add data, pages, endpoints, validators, signing helpers, and UI components.
+1. A safe-by-default execution model where profile code is not run unless explicitly enabled.
+1. Tools for creating, validating, serving, signing, verifying, inspecting, and eventually exporting profile websites.
+1. A future path for static site generation and data-only consumption.
 
 ## Non-Goals
 
 `pypi-profile` is not intended to be:
 
 1. A replacement for PyPI or Warehouse.
-2. A package publishing tool.
-3. A general social network.
-4. A full LinkedIn replacement.
-5. A payment platform.
-6. A private profile hosting system.
-7. A secret manager.
-8. A trustless identity system.
-9. A browser-based profile editor in the initial version.
-10. A sandbox for untrusted arbitrary Python code.
+1. A package publishing tool.
+1. A general social network.
+1. A full LinkedIn replacement.
+1. A payment platform.
+1. A private profile hosting system.
+1. A secret manager.
+1. A trustless identity system.
+1. A browser-based profile editor in the initial version.
+1. A sandbox for untrusted arbitrary Python code.
 
 The project may eventually inspire Warehouse itself. If Warehouse or another PyPI-adjacent service adopts the core ideas, that is considered a success rather than a conflict.
 
@@ -73,15 +73,15 @@ The project may eventually inspire Warehouse itself. If Warehouse or another PyP
 
 A principal is the entity represented by a profile package. A principal may be:
 
-* an individual person;
-* a pseudonymous person;
-* a team;
-* a company;
-* an LLC;
-* a nonprofit;
-* a foundation;
-* an open-source collective;
-* a project stewardship group.
+- an individual person;
+- a pseudonymous person;
+- a team;
+- a company;
+- an LLC;
+- a nonprofit;
+- a foundation;
+- an open-source collective;
+- a project stewardship group.
 
 ### Human
 
@@ -99,11 +99,11 @@ A data-only profile package is a package whose profile data can be extracted and
 
 A verified claim is a claim supported by a verification mechanism such as:
 
-* publication by a PyPI account;
-* a public key included in a PyPI-published profile package;
-* a signature placed on an external website or profile page;
-* OIDC-based CI metadata associated with the package publication process;
-* other supported verification backends.
+- publication by a PyPI account;
+- a public key included in a PyPI-published profile package;
+- a signature placed on an external website or profile page;
+- OIDC-based CI metadata associated with the package publication process;
+- other supported verification backends.
 
 ### Self-Asserted Claim
 
@@ -266,12 +266,12 @@ The UI MUST NOT imply that all profile data is verified merely because it appear
 
 The UI SHOULD visibly distinguish between:
 
-* “Published by this PyPI account”;
-* “Self-asserted by the profile package”;
-* “Verified by signature”;
-* “Verified by OIDC publication metadata”;
-* “Verification failed”;
-* “Verification not attempted.”
+- “Published by this PyPI account”;
+- “Self-asserted by the profile package”;
+- “Verified by signature”;
+- “Verified by OIDC publication metadata”;
+- “Verification failed”;
+- “Verification not attempted.”
 
 ## Verification Model
 
@@ -281,13 +281,13 @@ Additional verification is based on public keys and signed claims. A profile pac
 
 For example, a user might place a signed claim in:
 
-* a personal website;
-* a GitHub profile README;
-* a GitLab profile page;
-* a Mastodon bio or profile metadata field;
-* a project documentation site;
-* a PyPI project description;
-* another profile system that permits user-editable text.
+- a personal website;
+- a GitHub profile README;
+- a GitLab profile page;
+- a Mastodon bio or profile metadata field;
+- a project documentation site;
+- a PyPI project description;
+- another profile system that permits user-editable text.
 
 `pypi-profile` can then fetch public profile sites and look for signed data chunks proving that the holder of the private key associated with the PyPI-published profile package also controls the external profile location.
 
@@ -295,15 +295,15 @@ For example, a user might place a signed claim in:
 
 A signed claim SHOULD include:
 
-* profile package name;
-* PyPI username or project owner claim;
-* claim type;
-* subject URL;
-* issued timestamp;
-* optional expiration timestamp;
-* nonce or unique claim ID;
-* signature backend;
-* signature value.
+- profile package name;
+- PyPI username or project owner claim;
+- claim type;
+- subject URL;
+- issued timestamp;
+- optional expiration timestamp;
+- nonce or unique claim ID;
+- signature backend;
+- signature value.
 
 Example conceptual claim:
 
@@ -337,11 +337,11 @@ The implementation SHOULD support pluggable signature backends.
 
 Initial candidate backends include:
 
-* SSH signatures;
-* Minisign;
-* Sigstore;
-* JWS/JOSE;
-* GPG.
+- SSH signatures;
+- Minisign;
+- Sigstore;
+- JWS/JOSE;
+- GPG.
 
 The first implementation SHOULD choose one simple default and leave room for others. SSH signatures are attractive because many developers already have SSH keys, but the final choice should consider portability, library quality, Windows support, and ease of pasting proofs into profile fields.
 
@@ -371,17 +371,17 @@ This human identity is legally verified.
 
 Plugins may provide:
 
-* additional profile data;
-* validators;
-* renderable sections;
-* Jinja2 components;
-* FastAPI routes;
-* API endpoints;
-* external profile fetchers;
-* signature helpers;
-* verification backends;
-* package/project metadata enrichers;
-* static export hooks.
+- additional profile data;
+- validators;
+- renderable sections;
+- Jinja2 components;
+- FastAPI routes;
+- API endpoints;
+- external profile fetchers;
+- signature helpers;
+- verification backends;
+- package/project metadata enrichers;
+- static export hooks.
 
 Plugins SHOULD be discovered through Python entry points.
 
@@ -418,13 +418,13 @@ Data-only mode is the default safe behavior.
 
 In data-only mode, `pypi-profile`:
 
-* reads profile data;
-* validates the profile schema;
-* renders built-in pages;
-* performs verification using built-in safe mechanisms;
-* does not import profile package Python modules;
-* does not execute profile package plugin hooks;
-* does not register profile-package-provided FastAPI routes.
+- reads profile data;
+- validates the profile schema;
+- renders built-in pages;
+- performs verification using built-in safe mechanisms;
+- does not import profile package Python modules;
+- does not execute profile package plugin hooks;
+- does not register profile-package-provided FastAPI routes.
 
 A data-only profile package may still include rich data. It simply cannot extend runtime behavior unless the operator opts in to code execution.
 
@@ -459,10 +459,10 @@ pypi-profile serve pypi-profile-example
 
 The server uses:
 
-* FastAPI for routing and API endpoints;
-* Jinja2 for server-side rendering;
-* a PyPI-inspired component library;
-* optional plugin-provided routers and components when code execution is enabled.
+- FastAPI for routing and API endpoints;
+- Jinja2 for server-side rendering;
+- a PyPI-inspired component library;
+- optional plugin-provided routers and components when code execution is enabled.
 
 The site SHOULD include a summary page and detail pages.
 
@@ -470,29 +470,29 @@ The site SHOULD include a summary page and detail pages.
 
 The summary page SHOULD present:
 
-* principal name and kind;
-* PyPI publication proof summary;
-* verification status summary;
-* primary contact methods;
-* package and project highlights;
-* hiring/contracting availability;
-* current maintenance status;
-* links to detail pages.
+- principal name and kind;
+- PyPI publication proof summary;
+- verification status summary;
+- primary contact methods;
+- package and project highlights;
+- hiring/contracting availability;
+- current maintenance status;
+- links to detail pages.
 
 ### Detail Pages
 
 Detail pages MAY include:
 
-* `/people` or `/humans`;
-* `/packages`;
-* `/projects`;
-* `/resume`;
-* `/hiring`;
-* `/contracting`;
-* `/verification`;
-* `/succession`;
-* `/contact`;
-* plugin-provided pages.
+- `/people` or `/humans`;
+- `/packages`;
+- `/projects`;
+- `/resume`;
+- `/hiring`;
+- `/contracting`;
+- `/verification`;
+- `/succession`;
+- `/contact`;
+- plugin-provided pages.
 
 A profile package representing many humans SHOULD have a summary page for the principal and detail pages for individual humans.
 
@@ -502,16 +502,16 @@ The default theme SHOULD closely follow PyPI’s design language without requiri
 
 PyPI package-page idioms should be mapped to profile-page idioms. For example:
 
-| PyPI Idiom          | `pypi-profile` Idiom                        |
+| PyPI Idiom | `pypi-profile` Idiom |
 | ------------------- | ------------------------------------------- |
-| Project name        | Principal or profile name                   |
-| Project description | Profile summary                             |
-| Release history     | Career/package timeline                     |
-| Project links       | External profiles/contact links             |
-| Maintainers         | Humans and roles                            |
-| Verified details    | Verification panel                          |
+| Project name | Principal or profile name |
+| Project description | Profile summary |
+| Release history | Career/package timeline |
+| Project links | External profiles/contact links |
+| Maintainers | Humans and roles |
+| Verified details | Verification panel |
 | Package classifiers | Skills, roles, availability, project states |
-| Security contact    | Security and succession contacts            |
+| Security contact | Security and succession contacts |
 
 The design should feel immediately familiar to Python package users.
 
@@ -523,21 +523,21 @@ The implementation SHOULD avoid copying PyPI branding in a way that implies offi
 
 Components SHOULD include:
 
-* profile header;
-* verification badge;
-* claim status badge;
-* package card;
-* project card;
-* human/maintainer card;
-* contact method card;
-* hiring availability panel;
-* contracting panel;
-* resume timeline;
-* role badge;
-* package state badge;
-* succession notice;
-* proof detail table;
-* external profile link list.
+- profile header;
+- verification badge;
+- claim status badge;
+- package card;
+- project card;
+- human/maintainer card;
+- contact method card;
+- hiring availability panel;
+- contracting panel;
+- resume timeline;
+- role badge;
+- package state badge;
+- succession notice;
+- proof detail table;
+- external profile link list.
 
 The component library SHOULD be usable internally by `pypi-profile` and MAY later be packaged for reuse by other Jinja2 applications.
 
@@ -551,10 +551,10 @@ pypi-profile build pypi-profile-example --output dist/
 
 Static export should degrade gracefully. Server-only features should either:
 
-* be omitted;
-* be precomputed;
-* be represented as static JSON;
-* or be reimplemented with optional client-side JavaScript.
+- be omitted;
+- be precomputed;
+- be represented as static JSON;
+- or be reimplemented with optional client-side JavaScript.
 
 Static export SHOULD support publishing to static hosts such as GitHub Pages, GitLab Pages, Cloudflare Pages, Netlify, or ordinary web servers.
 
@@ -615,12 +615,12 @@ pypi-profile init --package-name pypi-profile-example
 
 `init` SHOULD be able to create:
 
-* `pypi_profile.toml`;
-* a minimal Python package skeleton;
-* optional signing key configuration;
-* example proofs;
-* example package/project entries;
-* optional GitHub Actions trusted publishing hints.
+- `pypi_profile.toml`;
+- a minimal Python package skeleton;
+- optional signing key configuration;
+- example proofs;
+- example package/project entries;
+- optional GitHub Actions trusted publishing hints.
 
 Publishing to PyPI remains out of scope for v1.
 
@@ -634,13 +634,13 @@ pypi-profile validate pypi_profile.toml
 
 Validation SHOULD check:
 
-* schema correctness;
-* known enum values;
-* malformed URLs;
-* missing required fields;
-* unsupported plugin declarations;
-* invalid verification metadata;
-* dangerous ambiguity between self-asserted and verified claims.
+- schema correctness;
+- known enum values;
+- malformed URLs;
+- missing required fields;
+- unsupported plugin declarations;
+- invalid verification metadata;
+- dangerous ambiguity between self-asserted and verified claims.
 
 ### `serve`
 
@@ -675,12 +675,12 @@ pypi-profile inspect pypi-profile-example
 
 `inspect` SHOULD report:
 
-* discovered profile files;
-* whether code plugins are present;
-* public keys;
-* declared external claims;
-* package metadata;
-* warnings about execution risk.
+- discovered profile files;
+- whether code plugins are present;
+- public keys;
+- declared external claims;
+- package metadata;
+- warnings about execution risk.
 
 ### `sign`
 
@@ -704,12 +704,12 @@ pypi-profile verify ./pypi_profile.toml
 
 Verification SHOULD be able to:
 
-* read public keys from the profile package;
-* fetch declared external URLs;
-* discover signed claim chunks;
-* validate signatures;
-* report claim status;
-* render verification details for the site.
+- read public keys from the profile package;
+- fetch declared external URLs;
+- discover signed claim chunks;
+- validate signatures;
+- report claim status;
+- render verification details for the site.
 
 ### `fetch`
 
@@ -721,10 +721,10 @@ pypi-profile fetch pypi-profile-example
 
 `fetch` MAY retrieve:
 
-* PyPI package metadata;
-* GitHub/GitLab project metadata;
-* external profile pages;
-* verification targets.
+- PyPI package metadata;
+- GitHub/GitLab project metadata;
+- external profile pages;
+- verification targets.
 
 Network access SHOULD be explicit or clearly documented.
 
@@ -738,13 +738,13 @@ pypi-profile doctor
 
 Checks MAY include:
 
-* Python version;
-* installed optional dependencies;
-* whether FastAPI/Jinja2 are importable;
-* plugin discovery status;
-* signature backend availability;
-* malformed profile data;
-* static export readiness.
+- Python version;
+- installed optional dependencies;
+- whether FastAPI/Jinja2 are importable;
+- plugin discovery status;
+- signature backend availability;
+- malformed profile data;
+- static export readiness.
 
 ## Package and Project Roles
 
@@ -845,17 +845,17 @@ Contact values may be public, obfuscated, or replaced with links to external con
 
 The hiring model SHOULD support:
 
-* employment availability;
-* consulting availability;
-* contracting availability;
-* sponsorship availability;
-* commercial support;
-* speaking availability;
-* preferred contact channels;
-* resume links;
-* work history;
-* skills;
-* package/project evidence.
+- employment availability;
+- consulting availability;
+- contracting availability;
+- sponsorship availability;
+- commercial support;
+- speaking availability;
+- preferred contact channels;
+- resume links;
+- work history;
+- skills;
+- package/project evidence.
 
 However, `pypi-profile` SHOULD remain package-publisher-centric. It should not become a general-purpose job board or social network.
 
@@ -877,13 +877,13 @@ The default theme SHOULD be accessible.
 
 At minimum, the rendered site SHOULD:
 
-* use semantic HTML;
-* provide readable contrast;
-* avoid conveying verification state by color alone;
-* include text labels for badges;
-* support keyboard navigation;
-* render useful content without JavaScript;
-* make machine-readable JSON available for tooling.
+- use semantic HTML;
+- provide readable contrast;
+- avoid conveying verification state by color alone;
+- include text labels for badges;
+- support keyboard navigation;
+- render useful content without JavaScript;
+- make machine-readable JSON available for tooling.
 
 ## Compatibility with Warehouse
 
@@ -891,26 +891,26 @@ The project is designed so that Warehouse could adopt or adapt the idea in the f
 
 To support that possibility, `pypi-profile` SHOULD:
 
-* use clear package metadata conventions;
-* avoid unnecessary runtime coupling;
-* define a stable data schema;
-* expose machine-readable JSON;
-* distinguish self-asserted and verified data;
-* avoid branding confusion with official PyPI services.
+- use clear package metadata conventions;
+- avoid unnecessary runtime coupling;
+- define a stable data schema;
+- expose machine-readable JSON;
+- distinguish self-asserted and verified data;
+- avoid branding confusion with official PyPI services.
 
 ## Reference Implementation Sketch
 
 A reference implementation might use:
 
-* FastAPI for web serving;
-* Jinja2 for templates;
-* pluggy for plugin hooks;
-* Pydantic for validation models;
-* `tomllib` for TOML parsing on supported Python versions;
-* `tomli` as a compatibility dependency if older Python versions are supported;
-* `importlib.metadata` for installed package discovery;
-* standard packaging metadata for project inspection;
-* optional libraries for signature backends.
+- FastAPI for web serving;
+- Jinja2 for templates;
+- pluggy for plugin hooks;
+- Pydantic for validation models;
+- `tomllib` for TOML parsing on supported Python versions;
+- `tomli` as a compatibility dependency if older Python versions are supported;
+- `importlib.metadata` for installed package discovery;
+- standard packaging metadata for project inspection;
+- optional libraries for signature backends.
 
 The implementation SHOULD keep data parsing separate from plugin execution so that data-only mode remains robust.
 
@@ -919,15 +919,15 @@ The implementation SHOULD keep data parsing separate from plugin execution so th
 The following questions remain open for future refinement:
 
 1. Which signature backend should be the default?
-2. What is the exact wheel-internal location for `pypi_profile.toml`?
-3. Should the schema be versioned independently of the package version?
-4. Should there be a formal JSON Schema or Pydantic-generated schema artifact?
-5. Should `pypi-profile` define a PyPI classifier for profile packages?
-6. How much live PyPI metadata should be fetched and compared against self-asserted package roles?
-7. What is the exact static export contract for plugin-provided dynamic features?
-8. Should the component library be distributed separately from the main CLI/server?
-9. Should there be official built-in plugins for GitHub, GitLab, Mastodon, and personal websites in v1?
-10. How should expired or rotated verification keys be represented?
+1. What is the exact wheel-internal location for `pypi_profile.toml`?
+1. Should the schema be versioned independently of the package version?
+1. Should there be a formal JSON Schema or Pydantic-generated schema artifact?
+1. Should `pypi-profile` define a PyPI classifier for profile packages?
+1. How much live PyPI metadata should be fetched and compared against self-asserted package roles?
+1. What is the exact static export contract for plugin-provided dynamic features?
+1. Should the component library be distributed separately from the main CLI/server?
+1. Should there be official built-in plugins for GitHub, GitLab, Mastodon, and personal websites in v1?
+1. How should expired or rotated verification keys be represented?
 
 ## Example User Story
 
@@ -939,10 +939,10 @@ pypi-profile-example
 
 The package contains:
 
-* `pypi_profile.toml`;
-* public verification key material;
-* self-asserted identity, contact, package, project, resume, and hiring data;
-* optional plugin code.
+- `pypi_profile.toml`;
+- public verification key material;
+- self-asserted identity, contact, package, project, resume, and hiring data;
+- optional plugin code.
 
 A reader or operator runs:
 
@@ -967,15 +967,14 @@ Additional plugin-provided pages and endpoints then become available.
 Version 1 is successful when a PyPI publisher can:
 
 1. Create a TOML-based profile package.
-2. Publish that package to PyPI.
-3. Run `pypi-profile serve <profile-package>`.
-4. See a PyPI-inspired public profile website.
-5. Display package/project roles and maintenance states.
-6. Display hiring, contracting, contact, resume, and succession information.
-7. Clearly distinguish self-asserted from verified claims.
-8. Generate signed proof chunks for external sites.
-9. Verify at least one external profile claim.
-10. Run safely by default without executing profile package code.
-
+1. Publish that package to PyPI.
+1. Run `pypi-profile serve <profile-package>`.
+1. See a PyPI-inspired public profile website.
+1. Display package/project roles and maintenance states.
+1. Display hiring, contracting, contact, resume, and succession information.
+1. Clearly distinguish self-asserted from verified claims.
+1. Generate signed proof chunks for external sites.
+1. Verify at least one external profile claim.
+1. Run safely by default without executing profile package code.
 
 And heads up, we will be usin minisign

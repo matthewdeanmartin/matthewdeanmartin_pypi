@@ -5,18 +5,18 @@
 The day-to-day flow is:
 
 1. create or edit `pypi_profile.toml`
-2. run `pypi-profile validate`
-3. run `pypi-profile serve`
-4. optionally use `inspect`, `dump`, `fetch`, `build`, or `gui`
+1. run `pypi-profile validate`
+1. run `pypi-profile serve`
+1. optionally use `inspect`, `dump`, `fetch`, `build`, or `gui`
 
 For signed proof-of-control:
 
 1. run `pypi-profile keygen` once to create a keypair
-2. paste the printed public key into `[verification]` in your TOML
-3. run `pypi-profile sign controls-url` for each external profile URL
-4. paste the proof token onto the external page
-5. run `pypi-profile update-proofs` to store proofs in the TOML for static builds
-6. run `pypi-profile verify` to confirm the round-trip
+1. paste the printed public key into `[verification]` in your TOML
+1. run `pypi-profile sign controls-url` for each external profile URL
+1. paste the proof token onto the external page
+1. run `pypi-profile update-proofs` to store proofs in the TOML for static builds
+1. run `pypi-profile verify` to confirm the round-trip
 
 ## Accepted profile sources
 

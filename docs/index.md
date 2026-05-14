@@ -37,8 +37,8 @@ The docs in this site intentionally separate the current shipped behavior from t
 ## Start here
 
 1. Read [Quick start](quickstart.md) to generate and serve a profile.
-2. Use [Basic usage](basic-usage.md) for the everyday CLI flow.
-3. Use [GUI](gui.md) if you want a desktop interface for local profile editing, inspection, and signing workflows.
-4. Use [Advanced usage](advanced-usage.md) for JSON Resume import, fetch, builds, and plugin-oriented setups.
-5. Read [Security](security.md) and [Signing and verification](signing.md) before publishing signed claims or enabling code execution.
-6. Read [Roadmap](roadmap.md) for the major remaining gaps between the current implementation and the long-term spec.
+1. Use [Basic usage](basic-usage.md) for the everyday CLI flow.
+1. Use [GUI](gui.md) if you want a desktop interface for local profile editing, inspection, and signing workflows.
+1. Use [Advanced usage](advanced-usage.md) for JSON Resume import, fetch, builds, and plugin-oriented setups.
+1. Read [Security](security.md) and [Signing and verification](signing.md) before publishing signed claims or enabling code execution.
+1. Read [Roadmap](roadmap.md) for the major remaining gaps between the current implementation and the long-term spec.

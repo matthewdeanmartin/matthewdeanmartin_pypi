@@ -4,12 +4,13 @@ Phase 1 is complete. This document tracks what is still required to reach the v1
 
 Items are grouped by area. Within each group they are roughly ordered by dependency — earlier items unblock later ones.
 
----
-JSON Resume import. 
+______________________________________________________________________
+
+JSON Resume import.
 
 - Need to implement.
 
----
+______________________________________________________________________
 
 ## Signing and verification (minisign)
 
@@ -25,7 +26,7 @@ The signature backend is decided: **minisign**. Nothing here is implemented yet.
 - [ ] Update the `/verification` page and `/api/verification.json` endpoint to reflect live claim status when a verification cache/result is available
 - [ ] `doctor` check: report whether `minisign` / `pyminisign` is importable and a key file is present
 
----
+______________________________________________________________________
 
 ## CLI gaps
 
@@ -41,7 +42,7 @@ Several subcommands from the spec are stubbed or missing.
 - [ ] `validate` — URL format checking for `[[profiles]]` and `[[projects]]` entries
 - [ ] `validate` — warn when a claim is marked `verified` but no public key is present in `[verification]`
 
----
+______________________________________________________________________
 
 ## Packaging: wheel-internal TOML location
 
@@ -52,7 +53,7 @@ The spec requires a stable, predictable location for `pypi_profile.toml` inside 
 - [ ] Update `hatch` build config in each profile package's `pyproject.toml` to include the TOML at that path
 - [ ] Update `inspect` to report the discovered TOML path inside a wheel or installed dist-info
 
----
+______________________________________________________________________
 
 ## Plugin system (allow-code path)
 
@@ -65,7 +66,7 @@ The pluggy wiring exists but the hook API is minimal and the allow-code path is 
 - [ ] Add a warning banner to the served site when running with `--allow-code`
 - [ ] Enforce that `build_plugin_manager()` is never called (and plugins never loaded) unless `allow_code=True`
 
----
+______________________________________________________________________
 
 ## Schema and validation hardening
 
@@ -76,7 +77,7 @@ The pluggy wiring exists but the hook API is minimal and the allow-code path is 
 - [ ] Validate that `start_date` / `end_date` in `[[work_experience]]` are parseable dates or `"present"`
 - [ ] Validate that `last_reviewed` in `[succession]` is a valid date
 
----
+______________________________________________________________________
 
 ## Live PyPI metadata enrichment (`fetch`)
 
@@ -86,7 +87,7 @@ The pluggy wiring exists but the hook API is minimal and the allow-code path is 
 - [ ] Cache fetch results to a local `.pypi_profile_cache/` directory so the server doesn't re-fetch on every request
 - [ ] Surface enriched status on the `/packages` page and `/api/packages.json`
 
----
+______________________________________________________________________
 
 ## Static site export (Phase 2)
 
@@ -101,7 +102,7 @@ The pluggy wiring exists but the hook API is minimal and the allow-code path is 
 - [ ] Document how to publish the output to GitHub Pages / Netlify / Cloudflare Pages
 - [ ] Add `make build-john-doe` target to the root Makefile as a demo
 
----
+______________________________________________________________________
 
 ## Design and templates
 
@@ -113,7 +114,7 @@ The pluggy wiring exists but the hook API is minimal and the allow-code path is 
 - [ ] OpenGraph / Twitter card tags on the summary page
 - [ ] Print stylesheet or `/resume` PDF-export hint
 
----
+______________________________________________________________________
 
 ## Testing gaps
 
@@ -123,33 +124,33 @@ The pluggy wiring exists but the hook API is minimal and the allow-code path is 
 - [ ] Property-based tests (Hypothesis) for `ProfileData` round-trip: `model_dump()` → `model_validate()` → `model_dump()` equality
 - [ ] Integration test: `init` → write TOML → `validate` → `serve` → `GET /` returns 200
 
----
+______________________________________________________________________
 
 ## Open questions to resolve before v1 freeze
 
 From `spec.md` section "Open Questions":
 
 1. ~~Which signature backend?~~ **Resolved: minisign.**
-2. Exact wheel-internal path for `pypi_profile.toml` — needs decision before publishing any profile packages.
-   3. should be resources/ 
-3. Should schema version be independent of package version? Suggest yes; add `schema_version = "1"` to `[profile]`.
-   4. yes
-4. Formal JSON Schema artifact — generate from Pydantic with `model_json_schema()` and publish as `pypi_profile/schema.json`.
-   5. yes
-5. PyPI classifier for profile packages — propose `Topic :: System :: Software Distribution :: Profile` or similar; file with PyPI.
-   6. uh, don't think we can make up new ones
-6. How much live PyPI metadata to fetch and compare — see "Live PyPI metadata enrichment" above.
-   7. ALL OF IT. All that we can fetch. which probably is going to be package list.
-7. Static export contract for plugin-provided dynamic features — defer plugin static export to a post-v1 milestone.
-   8. Just expect that plugin stuff will have breaks if it is too dynamic?
-8. Distribute the component library (`pypi_ds`) separately — give `pypi_ds` its own `pyproject.toml` and workspace membership so it can be published and depended on normally.
-   9. Nah, not yet. 
-9. Built-in plugins for GitHub, GitLab, Mastodon — defer to post-v1 unless a simple read-only fetcher can ship as part of `fetch`.
-   10. Support all three on day one. Future will be extras.
-10. Expired or rotated verification keys — add `key_id` field and an `[[old_keys]]` table to `[verification]`; mark claims signed by old keys as `expired`.
-    11. Sure if that is something minisign supports
+1. Exact wheel-internal path for `pypi_profile.toml` — needs decision before publishing any profile packages.
+   3\. should be resources/
+1. Should schema version be independent of package version? Suggest yes; add `schema_version = "1"` to `[profile]`.
+   4\. yes
+1. Formal JSON Schema artifact — generate from Pydantic with `model_json_schema()` and publish as `pypi_profile/schema.json`.
+   5\. yes
+1. PyPI classifier for profile packages — propose `Topic :: System :: Software Distribution :: Profile` or similar; file with PyPI.
+   6\. uh, don't think we can make up new ones
+1. How much live PyPI metadata to fetch and compare — see "Live PyPI metadata enrichment" above.
+   7\. ALL OF IT. All that we can fetch. which probably is going to be package list.
+1. Static export contract for plugin-provided dynamic features — defer plugin static export to a post-v1 milestone.
+   8\. Just expect that plugin stuff will have breaks if it is too dynamic?
+1. Distribute the component library (`pypi_ds`) separately — give `pypi_ds` its own `pyproject.toml` and workspace membership so it can be published and depended on normally.
+   9\. Nah, not yet.
+1. Built-in plugins for GitHub, GitLab, Mastodon — defer to post-v1 unless a simple read-only fetcher can ship as part of `fetch`.
+   10\. Support all three on day one. Future will be extras.
+1. Expired or rotated verification keys — add `key_id` field and an `[[old_keys]]` table to `[verification]`; mark claims signed by old keys as `expired`.
+   11\. Sure if that is something minisign supports
 
----
+______________________________________________________________________
 
 ## Before publishing any profile package to PyPI
 

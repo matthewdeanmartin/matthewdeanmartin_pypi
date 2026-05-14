@@ -25,14 +25,14 @@ the current authoring, serving, and verification workflow.
 ## Start here
 
 1. Read [Installation](../installation.md) to pick an install method and optional extras.
-2. Follow [Quick start](../usage/quickstart.md) to create and preview a profile.
-3. Read [Security](../security.md) before publishing signed proofs or enabling code execution.
+1. Follow [Quick start](../usage/quickstart.md) to create and preview a profile.
+1. Read [Security](../security.md) before publishing signed proofs or enabling code execution.
 
 ## Core workflow
 
 For most users, the day-to-day loop is:
 
 1. create `pypi_profile.toml`
-2. run `pypi-profile validate`
-3. run `pypi-profile serve`
-4. optionally use `inspect`, `dump`, `fetch`, `build`, or `verify`
+1. run `pypi-profile validate`
+1. run `pypi-profile serve`
+1. optionally use `inspect`, `dump`, `fetch`, `build`, or `verify`
