@@ -446,7 +446,7 @@ COMMANDS: list[GuiCommand] = [
             "--site: the platform to add (pick from the list)\n"
             "--url: the full URL to your profile on that platform\n"
             "--label: display label (defaults to the platform name)\n"
-            "--rel-me: set rel_me = true (for IndieWeb / webfinger verification)\n\n"
+            "--rel-me: set rel_me = true (for IndieWeb / webfinger verification)\n\n"  # nosec: B608
             "Supported platforms:\n" + "\n".join(f"  {s['label']}: {s['notes']}" for s in IDENTITY_SITES)
         ),
         "args": [
