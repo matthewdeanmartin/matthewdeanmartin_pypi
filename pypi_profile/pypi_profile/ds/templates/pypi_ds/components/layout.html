@@ -11,14 +11,14 @@
   site_state="production",
   asset_base="/static/pypi_ds"
 ) -%}
-  {% if not nav_items %}
+  {% if nav_items is none %}
     {% set nav_items = [
       {"label": "Help", "href": "/help"},
       {"label": "Docs", "href": "/docs"},
       {"label": "Sponsors", "href": "/sponsors"}
     ] %}
   {% endif %}
-  {% if not secondary_items %}
+  {% if secondary_items is none %}
     {% set secondary_items = [
       {"label": "Log in", "href": "/login"},
       {"label": "Register", "href": "/register"}
@@ -89,7 +89,7 @@
   supporting_note=None,
   asset_base="/static/pypi_ds"
 ) -%}
-  {% if not footer_menus %}
+  {% if footer_menus is none %}
     {% set footer_menus = [
       {
         "title": "Help",

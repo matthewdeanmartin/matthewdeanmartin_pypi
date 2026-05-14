@@ -1,21 +1,22 @@
 [project]
 name = "pypi-profile"
 version = "0.1.0"
-description = "The missing PyPI profile page — pipx-installable, plugin-extensible."
+description = "The missing PyPI(tm) profile page — pipx-installable, plugin-extensible. Not associated with PSF."
 readme = "README.md"
 authors = [{ name = "Matthew Martin", email = "matthewdeanmartin@gmail.com" }]
 keywords = ["pypi", "profile", "cli"]
-license = "MIT"
+license = "Apache"
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [

@@ -1,7 +1,7 @@
 [profile]
 kind = "individual"
 display_name = "Matthew Martin"
-summary = "Python developer and open-source maintainer. I publish dozens of packages related to AI tooling, packaging, code quality, and developer utilities."
+summary = "Python developer and open-source maintainer. I publish dozens of packages related to packaging, code quality, and developer utilities."
 
 [identity]
 legal_name = "Matthew Martin"

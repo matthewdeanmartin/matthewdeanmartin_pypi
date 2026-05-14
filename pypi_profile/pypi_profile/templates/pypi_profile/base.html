@@ -2,6 +2,35 @@
 {% import "pypi_ds/components/layout.html" as layout %}
 {% set _base = base_url | default("") %}
 {% set asset_base = _base ~ "/static/pypi_ds" %}
+{% set footer_menus = [
+  {
+    "title": "Resources",
+    "links": [
+      {"label": "Docs", "href": "https://matthewdeanmartin-pypi.readthedocs.io/en/latest/"},
+      {"label": "README", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/README.md"},
+      {"label": "Changelog", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/pypi_profile/CHANGELOG.md"},
+      {"label": "PyPI Profile package", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/tree/main/pypi_profile"}
+    ]
+  },
+  {
+    "title": "GitHub",
+    "links": [
+      {"label": "Repository", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi"},
+      {"label": "Issues", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues"},
+      {"label": "Pull requests", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/pulls"},
+      {"label": "Releases", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/releases"}
+    ]
+  },
+  {
+    "title": "Project pages",
+    "links": [
+      {"label": "Contributing", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/docs/contributing.md"},
+      {"label": "Security", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/pypi_profile/SECURITY.md"},
+      {"label": "Code of Conduct", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/pypi_profile/CODE_OF_CONDUCT.md"},
+      {"label": "License", "href": "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/pypi_profile/LICENSE"}
+    ]
+  }
+] %}
 {% block title %}{% block profile_title %}{% endblock %} · PyPI Profile{% endblock %}
 {% block head_extra %}
 <script>
@@ -34,6 +63,7 @@
   ) }}
   {% block content %}{% endblock %}
   {{ layout.site_footer(
+    footer_menus=footer_menus,
     footer_note="Powered by pypi-profile — the missing PyPI profile page.",
     supporting_note="Profile data is self-asserted unless explicitly verified.",
     asset_base=asset_base
