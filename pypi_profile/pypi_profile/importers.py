@@ -11,7 +11,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, cast
 
-from schema_resume import validate_resume
+from schema_resume import validate_resume  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 

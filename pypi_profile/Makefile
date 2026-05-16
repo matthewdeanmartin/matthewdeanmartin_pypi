@@ -166,7 +166,7 @@ smoke-dry-run:
 	@$(UV) run bash scripts/tests_dry_run.sh
 
 test:
-	@$(UV) run pytest -q \
+	@$(UV) run pytest -q -n 4 \
 		--cov=$(PACKAGE) \
 		--cov-report=html \
 		--junitxml=junit.xml \
