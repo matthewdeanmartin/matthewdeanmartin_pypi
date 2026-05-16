@@ -1,33 +1,33 @@
 [profile]
 kind = "individual"
-display_name = "Matthew Martin"
-summary = "Python developer and open-source maintainer. I publish dozens of packages related to packaging, code quality, and developer utilities."
+display_name = "Matthew Dean Martin"
+summary = "Python developer and open-source maintainer. Author of 50+ packages on PyPI covering packaging, code quality, and developer utilities. Available for consulting and contracting work."
 
 [identity]
-legal_name = "Matthew Martin"
-display_name = "Matthew Martin"
+legal_name = "Matthew Dean Martin"
+display_name = "Matthew Dean Martin"
 pypi_username = "matthewdeanmartin"
 pronouns = ""
-timezone = "America/New_York"
-location = "United States"
+timezone = "UTC"
+location = "Virginia, US"
 
 [[humans]]
 id = "matthewdeanmartin"
-display_name = "Matthew Martin"
+display_name = "Matthew Dean Martin"
 role = "Owner"
 
 [[profiles]]
 kind = "github"
 label = "GitHub"
 url = "https://github.com/matthewdeanmartin"
-stored_proof = "pypi-profile-proof: eyJwcm9maWxlX3BhY2thZ2UiOiJweXBpLXByb2ZpbGUtbWF0dGhld2RlYW5tYXJ0aW4iLCJweXBpX3VzZXJuYW1lIjoibWF0dGhld2RlYW5tYXJ0aW4iLCJjbGFpbSI6ImNvbnRyb2xzLXVybCIsInN1YmplY3QiOiJodHRwczovL2dpdGh1Yi5jb20vbWF0dGhld2RlYW5tYXJ0aW4iLCJpc3N1ZWRfYXQiOiIyMDI2LTA1LTEzVDAwOjU1OjEzWiIsImV4cGlyZXNfYXQiOiIyMDI3LTA1LTEzVDAwOjU1OjEzWiIsIm5vbmNlIjoiNGZlYzFjNDctMGY2NS00NDUzLTk3N2ItMDdlNDg4MjdjNGQ3Iiwia2V5X2lkIjoiN0E0MjI5NzlDOEEyRTExQSIsInNpZ25hdHVyZV9iYWNrZW5kIjoibWluaXNpZ24iLCJzaWduYXR1cmUiOiJSVVI2UWlsNXlLTGhHdlgwT1BmWFU0d3BWeXVGQmlrTXkwQjVRbGc0QVVCTURRODBqdDgyTlJya29YSlhVQWZ5dHNrS3d5ZGtkNDc1SEp3bndVMVgxSXFNd0dSMHRiWHNkd1E9In0"
+stored_proof = "pypi-profile-proof: eyJwcm9maWxlX3BhY2thZ2UiOiJweXBpLXByb2ZpbGUtbWF0dGhld2RlYW5tYXJ0aW4iLCJweXBpX3VzZXJuYW1lIjoibWF0dGhld2RlYW5tYXJ0aW4iLCJjbGFpbSI6ImNvbnRyb2xzLXVybCIsInN1YmplY3QiOiJodHRwczovL2dpdGh1Yi5jb20vbWF0dGhld2RlYW5tYXJ0aW4iLCJpc3N1ZWRfYXQiOiIyMDI2LTA1LTE2VDE0OjU4OjI3WiIsImV4cGlyZXNfYXQiOiIyMDI3LTA1LTE2VDE0OjU4OjI3WiIsIm5vbmNlIjoiMGM0YWQxZDItZmUwYi00YTAzLThkYTQtMjlhZmUyODM3YzI2Iiwia2V5X2lkIjoiODRCOUIwMDRBMzVCRTlCMyIsInNpZ25hdHVyZV9iYWNrZW5kIjoibWluaXNpZ24iLCJzaWduYXR1cmUiOiJSVVNFdWJBRW8xdnBzeEMwUGNpUUR5Sm5BaXlHM1NpbnVvTTBkWlE2M2MzSXkwYmQxRG8rN3ROaWpsQkl0S1VkN25rSFNnSDN6amlWOXhuUko2UlJZMHY4bjYrcmhEb1NtUVU9In0"
 verification = "self_asserted"
 
 [[profiles]]
 kind = "mastodon"
 label = "Mastodon"
 url = "https://mastodon.social/@mistersql/116564001894006752"
-stored_proof = "pypi-profile-proof: eyJwIjoicHlwaS1wcm9maWxlLW1hdHRoZXdkZWFubWFydGluIiwidSI6Im1hdHRoZXdkZWFubWFydGluIiwicyI6Imh0dHBzOi8vbWFzdG9kb24uc29jaWFsL0BtaXN0ZXJzcWwvMTE2NTY0MDAxODk0MDA2NzUyIiwiaSI6MTc3ODYzMzcxMywiZSI6MTgxMDE2OTcxMywibiI6Imw0SmpscHB3VVhlWWphcUE2RUszdGciLCJnIjoiRW1xZHNMSVdLbDEyQjllamFicGk5R2lZb3dyLWdvVDlBdkMyMy1YZ3NvOVY2MnRvVm5tclctYUdWT0ZIVmhDVzd5MnY4NWlTc1RXcnRlTXphbXlEQncifQ"
+stored_proof = "pypi-profile-proof: eyJwIjoicHlwaS1wcm9maWxlLW1hdHRoZXdkZWFubWFydGluIiwidSI6Im1hdHRoZXdkZWFubWFydGluIiwicyI6Imh0dHBzOi8vbWFzdG9kb24uc29jaWFsL0BtaXN0ZXJzcWwvMTE2NTY0MDAxODk0MDA2NzUyIiwiaSI6MTc3ODk0MzUwNywiZSI6MTgxMDQ3OTUwNywibiI6IktYbUlwdjk4RndWMEhoYVlEUGc0MmciLCJnIjoiSF9KX0JZdmkzOFh3MDZrcHRCUkwwZ1RSaEJ5cXFpcWlRU2JDVEdmcTk3eEEzWU5STUtYVDN6REtPYU5yZGpNbmFBblBNQ0VyUzFtRk0yUXpiWFRmQUEifQ"
 verification = "self_asserted"
 
 [[contact_methods]]
@@ -37,51 +37,501 @@ value = "matthewdeanmartin@gmail.com"
 audience = ["hiring", "consulting", "security"]
 visibility = "public"
 
-[[packages]]
-name = "pypi-profile"
-role = "owner"
-state = "active"
-summary = "The missing PyPI profile page — pipx-installable, plugin-extensible."
-
-[[packages]]
-name = "matthewdeanmartin"
-role = "owner"
-state = "active"
-summary = "Profile package for matthewdeanmartin on PyPI."
+[[contact_methods]]
+kind = "website"
+label = "Personal website"
+value = "https://matthewdeanmartin.github.io/matthewdeanmartin/"
+audience = ["general"]
+visibility = "public"
 
 [[packages]]
 name = "ai-shell"
 role = "owner"
 state = "active"
-summary = "AI-powered shell command assistant."
+summary = "Filesystem Shell interface that an OpenAI Assitant can use as a tool."
+url = "https://pypi.org/project/ai-shell/"
+
+[[packages]]
+name = "awscli-local-win"
+role = "owner"
+state = "active"
+summary = "Thin wrapper around the 'aws' command line interface for use with LocalStack *for Windows*."
+url = "https://pypi.org/project/awscli-local-win/"
+
+[[packages]]
+name = "bash2gitlab"
+role = "owner"
+state = "active"
+summary = "Compile bash to gitlab pipeline yaml"
+url = "https://pypi.org/project/bash2gitlab/"
+
+[[packages]]
+name = "bash2yaml"
+role = "owner"
+state = "active"
+summary = "Compile bash to pipeline yaml- Gitlab, GitHub and more"
+url = "https://pypi.org/project/bash2yaml/"
+
+[[packages]]
+name = "bitrab"
+role = "owner"
+state = "active"
+summary = "Run GitLab CI pipelines locally"
+url = "https://pypi.org/project/bitrab/"
+
+[[packages]]
+name = "bug-trail"
+role = "owner"
+state = "active"
+summary = "Local static html error logger to use while developing python code."
+url = "https://pypi.org/project/bug-trail/"
+
+[[packages]]
+name = "bug-trail-core"
+role = "owner"
+state = "active"
+summary = "Local static html error logger to use while developing python code."
+url = "https://pypi.org/project/bug-trail-core/"
+
+[[packages]]
+name = "caniuseonlywheels"
+role = "owner"
+state = "active"
+summary = "Can I switch to installing only using wheels and never sdist?"
+url = "https://pypi.org/project/caniuseonlywheels/"
+
+[[packages]]
+name = "cli-tool-audit"
+role = "owner"
+state = "active"
+summary = "Audit for existence and version number of cli tools."
+url = "https://pypi.org/project/cli-tool-audit/"
+
+[[packages]]
+name = "dashc"
+role = "owner"
+state = "active"
+summary = "Tool to generate python -c bash as if it were a package format."
+url = "https://pypi.org/project/dashc/"
+
+[[packages]]
+name = "dedlin"
+role = "owner"
+state = "active"
+summary = "Line editor, edlin clone with many improvements"
+url = "https://pypi.org/project/dedlin/"
+
+[[packages]]
+name = "dont-be-lazy"
+role = "owner"
+state = "active"
+summary = "Tool that finds evidence of past skipped linting"
+url = "https://pypi.org/project/dont-be-lazy/"
+
+[[packages]]
+name = "examexam"
+role = "owner"
+state = "active"
+summary = "Let LLM generate tests, validate test, and then you take them. Useful for certs."
+url = "https://pypi.org/project/examexam/"
+
+[[packages]]
+name = "find-known-secrets"
+role = "owner"
+state = "active"
+summary = "Lossy python to markdown serializer"
+url = "https://pypi.org/project/find-known-secrets/"
+
+[[packages]]
+name = "ftplib-gui"
+role = "owner"
+state = "active"
+summary = "Desktop FTP/FTPS client with a Tkinter GUI, saved profiles, and transfer queue"
+url = "https://pypi.org/project/ftplib-gui/"
+
+[[packages]]
+name = "git-mirror"
+role = "owner"
+state = "active"
+summary = "Make your local git repos look like github or gitlab."
+url = "https://pypi.org/project/git-mirror/"
+
+[[packages]]
+name = "hermetic-seal"
+role = "owner"
+state = "active"
+summary = "User-space sandbox runner for Python console scripts"
+url = "https://pypi.org/project/hermetic-seal/"
+
+[[packages]]
+name = "hissbytenotation"
+role = "owner"
+state = "active"
+summary = "Serialize and deserialize data to ordinary python source notation (hbn)"
+url = "https://pypi.org/project/hissbytenotation/"
+
+[[packages]]
+name = "insecure-tree"
+role = "owner"
+state = "active"
+summary = "Audit GitHub Actions security posture of your Python dependency tree using zizmor"
+url = "https://pypi.org/project/insecure-tree/"
+
+[[packages]]
+name = "jiggle-version"
+role = "owner"
+state = "active"
+summary = "Increment version number found in source code without regex"
+url = "https://pypi.org/project/jiggle-version/"
+
+[[packages]]
+name = "keepachangelog-manager-fork"
+role = "owner"
+state = "active"
+summary = "Python package allowing you to manage your CHANGELOG.md files"
+url = "https://pypi.org/project/keepachangelog-manager-fork/"
+
+[[packages]]
+name = "lights-off"
+role = "owner"
+state = "active"
+summary = "An accessible Mastodon client for screen reader users, fork of Quinter"
+url = "https://pypi.org/project/lights-off/"
+
+[[packages]]
+name = "mainframer"
+role = "owner"
+state = "active"
+summary = "GnuCOBOL environment and package manager."
+url = "https://pypi.org/project/mainframer/"
+
+[[packages]]
+name = "markdown-to-json"
+role = "owner"
+state = "active"
+summary = "Markdown to dict and json deserializer"
+url = "https://pypi.org/project/markdown-to-json/"
+
+[[packages]]
+name = "markmodule"
+role = "owner"
+state = "active"
+summary = "Import python code in markdown as module"
+url = "https://pypi.org/project/markmodule/"
+
+[[packages]]
+name = "markpickle"
+role = "owner"
+state = "active"
+summary = "Lossy python to markdown serializer"
+url = "https://pypi.org/project/markpickle/"
+
+[[packages]]
+name = "mastodon-finder"
+role = "owner"
+state = "active"
+summary = "Search for mastodon profiles, use mechanical and LLM filtering."
+url = "https://pypi.org/project/mastodon-finder/"
+
+[[packages]]
+name = "mastodon-is-my-blog"
+role = "owner"
+state = "active"
+summary = "A personal Mastodon reader and blog management tool"
+url = "https://pypi.org/project/mastodon-is-my-blog/"
 
 [[packages]]
 name = "metametameta"
 role = "owner"
 state = "active"
-summary = "Automated pyproject.toml metadata fixer."
+summary = "Generate __about__.py with dunder meta."
+url = "https://pypi.org/project/metametameta/"
 
+[[packages]]
+name = "navio-builder-win"
+role = "owner"
+state = "active"
+summary = "navio-builder, without sh dependency, works on windows."
+url = "https://pypi.org/project/navio-builder-win/"
+
+[[packages]]
+name = "openmock"
+role = "owner"
+state = "active"
+summary = "Python OpenSearch Mock for test purposes"
+url = "https://pypi.org/project/openmock/"
+
+[[packages]]
+name = "pathkeeper"
+role = "owner"
+state = "active"
+summary = "PATH backup, restore, and repair tool"
+url = "https://pypi.org/project/pathkeeper/"
+
+[[packages]]
+name = "pyanide"
+role = "owner"
+state = "active"
+summary = "Tools for killing processes and keeping them dead."
+url = "https://pypi.org/project/pyanide/"
+
+[[packages]]
+name = "pycodetags"
+role = "owner"
+state = "active"
+summary = "TODOs in source code as a first class construct, follows PEP350"
+url = "https://pypi.org/project/pycodetags/"
+
+[[packages]]
+name = "pycodetags-issue-tracker"
+role = "owner"
+state = "active"
+summary = "Plugin for pycodetags to track issues, e.g. bugs, TODO, etc in your code"
+url = "https://pypi.org/project/pycodetags-issue-tracker/"
+
+[[packages]]
+name = "pydoc-fork"
+role = "owner"
+state = "active"
+summary = "Fork of cpython's pydoc module to do just html document generation"
+url = "https://pypi.org/project/pydoc-fork/"
+
+[[packages]]
+name = "pypi-librarian"
+role = "owner"
+state = "active"
+summary = "Pypi metadata client. Client for metadata related API endpoints for Pypi."
+url = "https://pypi.org/project/pypi-librarian/"
+
+[[packages]]
+name = "pypi-profile"
+role = "owner"
+state = "active"
+summary = "The missing PyPI profile page. pipx-installable, plugin-extensible. Not associated with PSF."
+url = "https://pypi.org/project/pypi-profile/"
+
+[[packages]]
+name = "python3-alias"
+role = "owner"
+state = "active"
+summary = "Hack to deal with a missing python3 alias on Windows"
+url = "https://pypi.org/project/python3-alias/"
+
+[[packages]]
+name = "random-names"
+role = "owner"
+state = "active"
+summary = "Convert int to random name, like tree_dance and convert it back to same int."
+url = "https://pypi.org/project/random-names/"
+
+[[packages]]
+name = "raypack"
+role = "owner"
+state = "active"
+summary = "Unofficial AWS Glue Ray.io packaging tool. Pure python or cross platform."
+url = "https://pypi.org/project/raypack/"
+
+[[packages]]
+name = "rmarc"
+role = "owner"
+state = "active"
+summary = "Pymarc compatible reimplementation in Rust."
+url = "https://pypi.org/project/rmarc/"
+
+[[packages]]
+name = "safari-writer"
+role = "owner"
+state = "active"
+summary = "A UI-compatible clone of AtariWriter, built with Textual"
+url = "https://pypi.org/project/safari-writer/"
+
+[[packages]]
+name = "skip-trace"
+role = "owner"
+state = "active"
+summary = "Ownership Attribution for Python Packages"
+url = "https://pypi.org/project/skip-trace/"
+
+[[packages]]
+name = "so-pip"
+role = "owner"
+state = "active"
+summary = "Generate packages from Stackoverflow answers"
+url = "https://pypi.org/project/so-pip/"
+
+[[packages]]
+name = "sparkle-log"
+role = "owner"
+state = "active"
+summary = "Write sparkline graphs of CPU and memory usage to your logs."
+url = "https://pypi.org/project/sparkle-log/"
+
+[[packages]]
+name = "termcolor-whl"
+role = "owner"
+state = "active"
+summary = "ANSI Color formatting for output in terminal, fork of termcolor, maintained as of 2023 by Matthew Martin"
+url = "https://pypi.org/project/termcolor-whl/"
+
+[[packages]]
+name = "terminaltables-whl"
+role = "owner"
+state = "active"
+summary = "Generate simple tables in terminals from a nested list of strings. (has wheels!)"
+url = "https://pypi.org/project/terminaltables-whl/"
+
+[[packages]]
+name = "terminaltables3"
+role = "owner"
+state = "active"
+summary = "Generate simple tables in terminals from a nested list of strings. Fork of terminaltables."
+url = "https://pypi.org/project/terminaltables3/"
+
+[[packages]]
+name = "totalhelp"
+role = "owner"
+state = "active"
+summary = "Print help for all commands and subcommands for argparse applications"
+url = "https://pypi.org/project/totalhelp/"
+
+[[packages]]
+name = "troml-dev-status"
+role = "owner"
+state = "active"
+summary = "Objectively infer PyPI Development Status classifiers from code and release artifacts."
+url = "https://pypi.org/project/troml-dev-status/"
+
+[[packages]]
+name = "tuochat"
+role = "owner"
+state = "active"
+summary = "Nonagentic coding client for GitLab Duo"
+url = "https://pypi.org/project/tuochat/"
+
+[[packages]]
+name = "untruncate-json"
+role = "owner"
+state = "active"
+summary = "Cleans up truncated json files."
+url = "https://pypi.org/project/untruncate-json/"
+
+[[packages]]
+name = "urllib-gui"
+role = "owner"
+state = "active"
+summary = "A gui for urllib. Something between curl and postman and a browser. Almost all stdlib"
+url = "https://pypi.org/project/urllib-gui/"
+
+[[packages]]
+name = "whats-that-code"
+role = "owner"
+state = "active"
+summary = "Guess programming language from a string or file."
+url = "https://pypi.org/project/whats-that-code/"
+
+[[packages]]
+name = "xkcd-random-four"
+role = "owner"
+state = "active"
+summary = "Drop in replacement for random that always returns 4 or 4/6"
+url = "https://pypi.org/project/xkcd-random-four/"
+
+[[work_experience]]
+organization = "Booz Allen Hamilton"
+title = "DevOps Engineer"
+start_date = "2025-02"
+end_date = "present"
+summary = "Wrote infrastructure as code for a federal financial institution using Typescript CDK, Gitlab, and Bash, including unit, integration and snapshot tests. Python serverless application development using Lambda, SQS, SNS, S3, Eventbridge, and DynamoDB. Created and maintained deployment pipelines integrating Angular, Java, and Python applications with AWS services deployed to ECS. Established quality gates to shift-left problem detection. Also participated in a short project using AWS Glue."
+
+[[work_experience]]
+organization = "Apex Systems (Capital One)"
+title = "AWS Cloud Developer"
+start_date = "2024-11"
+end_date = "2024-12"
+summary = "Worked at Capital One in McLean as part of a larger team doing AWS Cybersecurity. Python development with Cloud Custodian, internal tools, boto3 and most AWS services. Incidental Bash development. Laid off for budget reasons after landing several merge requests."
+
+[[work_experience]]
+organization = "ARETUM"
+title = "Technical Lead and Python Developer"
+start_date = "2019-09"
+end_date = "2024-09"
+summary = "Technical lead for a Python-based search engine for legal documents at the Library of Congress, USCO (formerly Artemis Consulting, renamed Aretum in 2024). Wrote, refactored and upgraded three microservices, two ETL processes, and several AWS Lambdas for search, emailing, and bookmarking. Selected AWS services and wrote Terraform. Led a team in a cloud-native application using SAFe-style Agile with 3-month PI planning and 3-week sprints. Managed full Federal SDLC including A&A, ATO, POAMs, and Change Requests. Participated in technical interviewing, onboarding, mentoring, and PIPs."
+
+[[work_experience]]
+organization = "ASRC Federal"
+title = "Systems Architect"
+start_date = "2019-03"
+end_date = "2019-09"
+summary = "Support contract for USPTO. Worked with the Architecture Division to introduce new technologies. Proof of concepts for Docker, Kubernetes, Jenkins, Azure LUIS chatbot, UIPath RPA, and Xibo kiosk application on EC2."
+
+[[work_experience]]
+organization = "BCW Global"
+title = "Senior Development Engineer"
+start_date = "2016-07"
+end_date = "2019-03"
+summary = "Supervised team, wrote code, managed build server and AWS infrastructure for 30-60 servers. Maintained and created machine learning models with scikit-learn (random forest). Used pandas for data processing. Evaluated and migrated architecture components (SQS to Redis, Celery to Step Functions). Wrote infrastructure as code with Ansible. Built comprehensive bash/python build scripts. Split monolith into five components including two microservices using Swagger REST APIs on Docker. Managed Ubuntu and CentOS/RHEL servers. (Company formerly Burson-Marsteller.)"
+
+[[work_experience]]
+organization = "Fors Marsh"
+title = "Senior Software Engineer I"
+start_date = "2015-01"
+end_date = "2016-06"
+summary = "Python application development for a NIST contract: maintained a Python 3 GUI application for a password research study, refactored and put under automated unit tests, created an internal library over TKInter, and produced a packaged application runnable without a pre-existing Python runtime. Also .NET development for Veterans Administration: entity framework auth store, WIF SSO, ASP.NET WebAPI, WCF services with async Task library, TFS automated build pipeline."
+
+[[work_experience]]
+organization = "Benten Technologies, Inc."
+title = "Senior .NET Developer"
+start_date = "2014-07"
+end_date = "2014-12"
+summary = "Staffing agency placement at Fors Marsh. Contract converted to direct employment at Fors Marsh."
+
+[[work_experience]]
+organization = "CACI International Inc"
+title = "JavaScript and C# Software Developer III"
+start_date = "2013-02"
+end_date = "2014-07"
+summary = "Application development and maintenance for a budgeting application at the Pentagon (Secret Clearance required). Migrated UI from Oracle Forms to ASP.NET WebForms/MVC/SPA with Oracle/PL-SQL backend. Improved response times from 10-15 seconds to near-instant. Also fixed severe Word document generation performance: solved multi-threading races and deadlocks using Parallel Task Library and WCF, reducing overnight failures to 3-5 minute runs despite 50x more workload."
+
+[[work_experience]]
+organization = "AboutWeb, LLC"
+title = "JavaScript and C# Software Developer III"
+start_date = "2012-08"
+end_date = "2013-02"
+summary = "Staffing agency placement at CACI. Contract converted to direct employment at CACI."
+
+[[work_experience]]
+organization = "Procentrix"
+title = "Senior Consultant"
+start_date = "2008-05"
+end_date = "2012-08"
+summary = "Application and maintenance development for TSA. Full-stack .NET maintenance on a line-of-business application upgraded from .NET 1.1 to 3.5. Set up a complete continuous integration system evolving from VSS/Luntbuild to Subversion/TeamCity. Lead developer on a 3-person team moving ~15 releases through TSA's SDLC. Refactored a .NET/LLBGen travel scheduler for reuse by a new department. Extracted data to a star schema for SQL Server Analysis Services cubes. Created a SharePoint proof-of-concept web part. Reduced logged errors from hundreds/day to several/week via automated tests."
+
+[[work_experience]]
+organization = "Engility (formerly Dynamics Research Corporation)"
+title = "Software Developer III"
+start_date = "2005-05"
+end_date = "2008-05"
+summary = "DBA and application maintenance for USAF. Migrated ASP Classic application to ASP.NET 2.0, including a 508-accessible interface. Wrote a web-based data interface tool between Oracle scheduling and SQL Server for a simulation model. Upgraded all DTS packages to SSIS. Wrote TSQL for new metrics. Automated SQL Server backup scripts. Created prototype SSAS cubes with MDX."
+
+[[work_experience]]
+organization = "Prince William County"
+title = "Systems Developer I"
+start_date = "1998-10"
+end_date = "2005-05"
+summary = "Application support and development for the county tax office. Maintenance on a closed-source client-server tax application with report writing (mailing tens of thousands of tax bills) and SQL Server interop via triggers and stored procedures. Built a large integrated tax billing application using MS Access, XML, SQL Server, and custom unit tests. Wrote numerous TSQL procedures, DTS, MS-Access, and custom import/export packages for interfaces with banks and other government agencies. Data quality analysis using MS-Access cross-tabs on a Visual FoxPro system."
 
 [hiring]
-open_to_work_since = "2026-07-15"
-employment_types = ["employment", "contracting", "consulting"]
-work_model = ["remote", "hybrid"]
-jurisdiction = ["US"]
+open_to_work_since = ""
+employment_types = []
+work_model = []
+jurisdiction = []
 speaking = false
-sponsorship = true
-
-[contracting]
-legal_entity = ""
-engagement_types = []
-
-[contact_preferences]
-do_contact_about = [ "package-maintenance", "security"]
-do_not_contact_about = ["consulting","cryptocurrency", "unpaid-custom-work"]
+sponsorship = false
 
 [succession]
-policy = "If unreachable for 90 days, open a GitHub issue on any affected repository."
-last_reviewed = "2026-05-09"
+policy = ""
+last_reviewed = ""
 
 [verification]
-public_key = "RWRDcrgceTEEEvIzBBielJiZ6n//kkEFQ5Qs2CDsDGmJGhHKSjipUnjq"
+public_key = "RWSEubAEo1vps9JdXW3SFQJTrr8ujEpLU6yL8gjzbuD2usCRsPrgsiQt"
 preferred_signature_backend = "minisign"

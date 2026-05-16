@@ -31,13 +31,51 @@ KEYRING_SERVICE = "pypi-profile"
 _ENV_DEFAULT = object()
 
 
+def pypi_username_from_nearby_toml() -> str:
+    """Return the pypi_username from a pypi_profile.toml in cwd, or ''."""
+    import sys
+
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        try:
+            import tomllib
+        except ImportError:
+            import tomli as tomllib  # type: ignore[no-redef]
+
+    for candidate in (Path("pypi_profile.toml"), Path("matthewdeanmartin/pypi_profile.toml")):
+        if candidate.exists():
+            try:
+                with open(candidate, "rb") as fh:
+                    data = tomllib.load(fh)
+                username = data.get("identity", {}).get("pypi_username", "")
+                if username:
+                    return username
+            except Exception:
+                pass
+    return ""
+
+
+def disk_key_path_for_username(username: str, key_dir: Path | None = None) -> Path:
+    """Return the conventional disk path for a named PyPI account's secret key.
+
+    Convention: ~/.pypi_profile/minisign.<username>.key
+    Falls back to the legacy single-key path if username is empty.
+    """
+    d = key_dir or DEFAULT_KEY_DIR
+    if username:
+        return d / f"minisign.{username}.key"
+    return d / DEFAULT_SK_NAME
+
+
 def keyring_username(identity: str | None = None) -> str:
     """Return the keyring username for a given identity name.
 
     Resolution order:
     1. Explicit *identity* argument (non-empty string).
     2. ``PYPI_PROFILE_KEYRING_USERNAME`` environment variable.
-    3. ``"default"`` — the fallback single-identity name.
+    3. The pypi_username from a nearby ``pypi_profile.toml`` (auto-detect).
+    4. ``"default"`` — the fallback single-identity name.
 
     Pass the PyPI username as *identity* so each account's key is stored
     separately (e.g. ``"matthewdeanmartin"`` vs ``"work-account"``).
@@ -45,7 +83,13 @@ def keyring_username(identity: str | None = None) -> str:
     """
     if identity:
         return identity
-    return os.environ.get("PYPI_PROFILE_KEYRING_USERNAME", "default")
+    env_val = os.environ.get("PYPI_PROFILE_KEYRING_USERNAME", "")
+    if env_val:
+        return env_val
+    detected = pypi_username_from_nearby_toml()
+    if detected:
+        return detected
+    return "default"
 
 
 def keyring_is_usable() -> bool:
@@ -114,8 +158,14 @@ def generate_keypair(
         key_dir = DEFAULT_KEY_DIR
     key_dir.mkdir(parents=True, exist_ok=True)
 
-    sk_path = key_dir / DEFAULT_SK_NAME
-    pk_path = key_dir / DEFAULT_PK_NAME
+    # Use per-username disk filename when an identity is known.
+    effective_username = keyring_username(keyring_identity)
+    if effective_username and effective_username != "default":
+        sk_path = key_dir / f"minisign.{effective_username}.key"
+        pk_path = key_dir / f"minisign.{effective_username}.pub"
+    else:
+        sk_path = key_dir / DEFAULT_SK_NAME
+        pk_path = key_dir / DEFAULT_PK_NAME
 
     if sk_path.exists() and not force:
         raise FileExistsError(f"Secret key already exists at {sk_path}. Use force=True to overwrite.")
@@ -189,7 +239,17 @@ def load_secret_key(
                 sk.decrypt(password)
             return sk
 
-    # Fall back to default disk path.
+    # Fall back to disk: try per-username path first, then legacy single-key path.
+    username = keyring_username(keyring_identity)
+    if username and username != "default":
+        named_path = disk_key_path_for_username(username)
+        if named_path.exists():
+            logger.debug("Loading secret key from named disk path %s", named_path)
+            sk = minisign.SecretKey.from_file(named_path)
+            if password:
+                sk.decrypt(password)
+            return sk
+
     disk_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
     if not disk_path.exists():
         logger.error("Secret key not found at %s", disk_path)

@@ -199,7 +199,7 @@ def key_list(extra_dirs: list[Path] | None = None) -> list[dict[str, Any]]:
     for d in search_dirs:
         if not d.is_dir():
             continue
-        for kfile in sorted(d.glob("*.key")):
+        for kfile in sorted(d.glob("minisign*.key")):
             if not kfile.exists():
                 continue
             try:
