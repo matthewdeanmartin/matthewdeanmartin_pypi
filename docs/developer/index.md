@@ -8,9 +8,9 @@ understand the code, fix a bug, add a feature, or build on top of the tool.
 `pypi-profile` is a **profile site generator** for PyPI package publishers. It lets you:
 
 1. Keep your profile data in a single TOML file (`pypi_profile.toml`).
-2. Generate a live or static website from that data.
-3. Cryptographically prove you control external accounts (GitHub, Mastodon, etc.).
-4. Publish your profile as a Python package that others can install.
+1. Generate a live or static website from that data.
+1. Cryptographically prove you control external accounts (GitHub, Mastodon, etc.).
+1. Publish your profile as a Python package that others can install.
 
 The code is structured as a **uv workspace** with four sub-packages:
 

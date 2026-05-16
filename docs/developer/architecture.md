@@ -124,8 +124,8 @@ Every field in `pypi_profile.toml` maps to a Pydantic model in `models.py`. Pyda
 things here:
 
 1. Validates that required fields are present and have the right types.
-2. Fills in sensible defaults (most fields are optional with empty defaults).
-3. Provides `model_dump()` so the API endpoints can serialize the whole profile to JSON with one call.
+1. Fills in sensible defaults (most fields are optional with empty defaults).
+1. Provides `model_dump()` so the API endpoints can serialize the whole profile to JSON with one call.
 
 If you add a field to the TOML schema you need to add it to the matching Pydantic class. The
 validator on `ProfileData.profile` shows how to add a custom validator if the field needs coercion
@@ -147,16 +147,15 @@ during CI builds.
 
 `pluggy` is a plugin framework originally built for pytest. It lets third-party packages register
 themselves as providers of certain functionality by declaring an entry point in their
-`pyproject.toml`. `pypi-profile` uses it so that installing a profile package (e.g. `pip install
-matthewdeanmartin`) automatically makes that profile discoverable without any manual configuration.
+`pyproject.toml`. `pypi-profile` uses it so that installing a profile package (e.g. `pip install matthewdeanmartin`) automatically makes that profile discoverable without any manual configuration.
 
 The discovery chain is:
 
 1. `importlib.metadata.entry_points(group="pypi_profile.plugins")` — finds all installed packages
    that registered themselves.
-2. For each, `resources.files(module_name).joinpath("pypi_profile.toml")` — locates the bundled
+1. For each, `resources.files(module_name).joinpath("pypi_profile.toml")` — locates the bundled
    TOML file inside the installed package.
-3. `load_profile(toml_path)` — reads and validates it.
+1. `load_profile(toml_path)` — reads and validates it.
 
 ### tomllib / tomli for TOML parsing
 
@@ -181,7 +180,7 @@ This pattern is common in projects that need to support Python 3.10 without drop
 The server sets up a `FileSystemLoader` with two directories in priority order:
 
 1. `pypi_profile/templates/` — app-specific templates (can override anything)
-2. `pypi_ds/templates/` — design system base templates
+1. `pypi_ds/templates/` — design system base templates
 
 When a template is referenced, Jinja2 searches directory 1 first. This allows a future custom
 profile package to ship its own templates in directory 1 and have them take precedence over the

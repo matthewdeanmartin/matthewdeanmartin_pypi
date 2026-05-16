@@ -162,10 +162,10 @@ Three things to pay attention to:
    When someone installs your package and runs `pypi-profile serve`, your profile appears in the
    hub automatically.
 
-2. **`[tool.hatch.build.targets.wheel] include`**: The `pypi_profile.toml` must be explicitly
+1. **`[tool.hatch.build.targets.wheel] include`**: The `pypi_profile.toml` must be explicitly
    listed here. Hatchling does not automatically include data files unless you tell it to.
 
-3. **`[project.scripts]`**: The optional CLI alias means `pip install your-name` also gives the
+1. **`[project.scripts]`**: The optional CLI alias means `pip install your-name` also gives the
    user a `your-name-profile` command that runs the same CLI as `pypi-profile`.
 
 ## Step 3 — Sign your external accounts
@@ -227,8 +227,8 @@ Open `dist/index.html` in a browser to confirm the layout looks correct.
 In your repository settings:
 
 1. Go to **Settings → Pages**.
-2. Under **Source**, select **GitHub Actions**.
-3. Leave everything else at the defaults.
+1. Under **Source**, select **GitHub Actions**.
+1. Leave everything else at the defaults.
 
 GitHub Pages with source "GitHub Actions" does not need a `gh-pages` branch or a special
 configuration file. The workflow uploads the `dist/` directory as an artifact and deploys it
@@ -366,8 +366,8 @@ install your profile with `pip install your-name` and see it in the hub when the
 First, set up Trusted Publishing on PyPI:
 
 1. Log in to PyPI.
-2. Go to your account settings and then **Publishing**.
-3. Add a new trusted publisher: provider GitHub Actions, repository
+1. Go to your account settings and then **Publishing**.
+1. Add a new trusted publisher: provider GitHub Actions, repository
    `yourusername/your-repo`, workflow `publish.yml`, environment name `pypi`.
 
 Trusted Publishing uses OIDC (a token exchange protocol) so you never need to store a PyPI API key
@@ -434,21 +434,21 @@ This workflow is triggered manually (`workflow_dispatch`). When you are ready to
 version:
 
 1. Update the `version` in `pyproject.toml` and in `your_name/__about__.py`.
-2. Commit and push to `main`.
-3. Go to the Actions tab, select "Publish to PyPI", and click "Run workflow".
+1. Commit and push to `main`.
+1. Go to the Actions tab, select "Publish to PyPI", and click "Run workflow".
 
 ## What happens on a push
 
 After setting up both workflows:
 
 1. You edit `your_name/pypi_profile.toml` (e.g. add a new package or update your availability).
-2. You commit and push to `main`.
-3. The `pages.yml` workflow runs automatically:
+1. You commit and push to `main`.
+1. The `pages.yml` workflow runs automatically:
    - Installs `pypi-profile` and your package.
    - Runs `pypi-profile build` which renders every page and JSON endpoint.
    - Uploads the `dist/` directory as a GitHub Pages artifact.
    - Deploys it to `https://yourusername.github.io/your-repo/`.
-4. Within a minute or two, the live site reflects your change.
+1. Within a minute or two, the live site reflects your change.
 
 ## Including `resume.json`
 

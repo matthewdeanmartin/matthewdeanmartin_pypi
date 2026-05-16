@@ -129,8 +129,7 @@ underscore to indicate "private". This convention is not used here. If something
 the public API, that is fine — just do not mark it with `_`. The one exception is truly unused
 variables where a `_` as the whole name (not prefix) is idiomatic Python.
 
-**uv run, always**: Never call bare `python` or `pip`. Always use `uv run python` or `uv run
-pytest`. The project uses a uv workspace and the system Python does not have the dependencies.
+**uv run, always**: Never call bare `python` or `pip`. Always use `uv run python` or `uv run pytest`. The project uses a uv workspace and the system Python does not have the dependencies.
 
 **No new files unless necessary**: Prefer editing existing modules. Do not create abstraction
 layers, helper utilities, or wrapper modules for one-shot changes. Three similar lines is better
@@ -159,11 +158,11 @@ are harder to review.
 The TOML schema is defined in `pypi_profile/models.py` as Pydantic models. To add a new field:
 
 1. Add the field to the appropriate Pydantic class with a default value.
-2. If the field needs validation (e.g. it must be one of a fixed set of values), use a `Literal`
+1. If the field needs validation (e.g. it must be one of a fixed set of values), use a `Literal`
    type annotation.
-3. Update any templates that should render the new field.
-4. Add a test that loads a TOML with the new field and checks the value.
-5. Document the field in [Data model](../developer/data-model.md).
+1. Update any templates that should render the new field.
+1. Add a test that loads a TOML with the new field and checks the value.
+1. Document the field in [Data model](../developer/data-model.md).
 
 Example: adding `languages: list[str] = []` to `IdentitySection`:
 
@@ -187,9 +186,9 @@ without error.
 All commands live in `cli.py`. The pattern is:
 
 1. Add a subparser in the section that defines subparsers.
-2. Write a `cmd_yourcommand(args: argparse.Namespace) -> int` function.
-3. Register it: `subparsers_map["yourcommand"] = cmd_yourcommand`.
-4. Write tests in `pypi_profile/tests/test_cli_commands.py`.
+1. Write a `cmd_yourcommand(args: argparse.Namespace) -> int` function.
+1. Register it: `subparsers_map["yourcommand"] = cmd_yourcommand`.
+1. Write tests in `pypi_profile/tests/test_cli_commands.py`.
 
 Commands should return `0` on success and `1` on user error. They should check `args.dry_run`
 before doing any write or network operation.
@@ -197,7 +196,7 @@ before doing any write or network operation.
 ## Adding a route to the server
 
 1. Open `server.py`.
-2. Add a route handler inside `build_app()` following the existing pattern:
+1. Add a route handler inside `build_app()` following the existing pattern:
 
 ```python
 @app.get("/myroute", response_class=HTMLResponse)
@@ -206,8 +205,8 @@ async def myroute(request: Request) -> HTMLResponse:
 ```
 
 3. Create `pypi_profile/templates/pypi_profile/myroute.html`.
-4. Add the route to `STATIC_ROUTES` in `builder.py` so the static builder renders it.
-5. Add a test in `test_server.py` that calls the route via `TestClient`.
+1. Add the route to `STATIC_ROUTES` in `builder.py` so the static builder renders it.
+1. Add a test in `test_server.py` that calls the route via `TestClient`.
 
 ## The static builder
 
@@ -248,10 +247,10 @@ GitHub Actions runs the quality gate on every push or pull request that touches 
 The CI job:
 
 1. Checks out the code with pinned action SHAs (for supply-chain safety).
-2. Sets up Python 3.14 and uv.
-3. Runs `uv sync` to install dependencies.
-4. Runs `uv run make check-ci`.
-5. Runs `uv build` to verify the wheel builds.
+1. Sets up Python 3.14 and uv.
+1. Runs `uv sync` to install dependencies.
+1. Runs `uv run make check-ci`.
+1. Runs `uv build` to verify the wheel builds.
 
 If you want to run the same checks locally before pushing:
 
@@ -262,10 +261,10 @@ uv run make -C pypi_profile check-ci
 ## Submitting a change
 
 1. Create a branch from `main`.
-2. Make your changes.
-3. Run `uv run make -C pypi_profile check` to confirm everything passes.
-4. Open a pull request against `main`.
-5. The CI job will run automatically. Fix any failures before asking for review.
+1. Make your changes.
+1. Run `uv run make -C pypi_profile check` to confirm everything passes.
+1. Open a pull request against `main`.
+1. The CI job will run automatically. Fix any failures before asking for review.
 
 The project does not currently have a formal RFC process. For large changes (new features, schema
 changes, new commands), open an issue first to discuss the approach before writing the code.

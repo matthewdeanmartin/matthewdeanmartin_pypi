@@ -12,7 +12,7 @@ mirrors what you find there.
 A profile plugin is a regular Python package with two additions:
 
 1. A `pypi_profile.toml` file bundled inside the wheel.
-2. An entry point in the `pypi_profile.plugins` group that points to a module implementing the
+1. An entry point in the `pypi_profile.plugins` group that points to a module implementing the
    `get_profile_data()` hook.
 
 When the plugin is installed (via `pip install your-profile-package`), `pypi-profile` can

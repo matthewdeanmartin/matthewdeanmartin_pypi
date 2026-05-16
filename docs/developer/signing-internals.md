@@ -85,10 +85,10 @@ The `is_compact_claim(claim)` function detects the format by checking for the `"
 After building an unsigned claim, the signing code:
 
 1. Serialises the dict to compact JSON bytes (`separators=(",", ":")`, no spaces).
-2. Calls `minisign.sign(message_bytes, secret_key)` which applies the Ed25519 algorithm.
-3. Takes the resulting signature bytes and encodes them as base64.
-4. Adds the `"signature"` field to the claim dict (or `"g"` in compact format).
-5. Serialises the whole signed claim to base64url and prepends `"pypi-profile-proof: "`.
+1. Calls `minisign.sign(message_bytes, secret_key)` which applies the Ed25519 algorithm.
+1. Takes the resulting signature bytes and encodes them as base64.
+1. Adds the `"signature"` field to the claim dict (or `"g"` in compact format).
+1. Serialises the whole signed claim to base64url and prepends `"pypi-profile-proof: "`.
 
 ```python
 from pypi_profile.signing import sign_controls_url
@@ -176,8 +176,8 @@ paragraph, a code block, a comment, or an HTML attribute — as long as it is in
 For each token, the verifier:
 
 1. Decodes it with `decode_claim`.
-2. Checks that `subject` (or `"s"` in compact format) matches the URL being verified.
-3. Checks that `pypi_username` (or `"u"`) matches the profile's `identity.pypi_username`.
+1. Checks that `subject` (or `"s"` in compact format) matches the URL being verified.
+1. Checks that `pypi_username` (or `"u"`) matches the profile's `identity.pypi_username`.
 
 ### Step 4: Check expiry
 
@@ -200,8 +200,7 @@ ok = verify_claim_signature(claim, public_key_b64="RWRCcrgc...")
 ```
 
 `verify_claim_signature` extracts the `"signature"` (or `"g"`) field from the claim, strips it
-out to reconstruct the unsigned payload, and calls `minisign.verify(message_bytes, signature_bytes,
-public_key)`. The `minisign` package is `py-minisign`, which wraps the Ed25519 operations from the
+out to reconstruct the unsigned payload, and calls `minisign.verify(message_bytes, signature_bytes, public_key)`. The `minisign` package is `py-minisign`, which wraps the Ed25519 operations from the
 `cryptography` library.
 
 ### Status values

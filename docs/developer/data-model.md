@@ -55,8 +55,8 @@ print(len(profile.packages))            # number of [[packages]] entries
 `load_profile` does three things:
 
 1. Reads the file with `tomllib` (binary mode, as required by the spec).
-2. If the file is `pyproject.toml`, extracts the `[tool.pypi-profile]` sub-table.
-3. Passes the dict to `ProfileData.model_validate(raw)`.
+1. If the file is `pyproject.toml`, extracts the `[tool.pypi-profile]` sub-table.
+1. Passes the dict to `ProfileData.model_validate(raw)`.
 
 ## Section-by-section reference
 
