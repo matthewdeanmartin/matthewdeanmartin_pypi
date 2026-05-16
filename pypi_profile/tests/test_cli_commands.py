@@ -24,19 +24,17 @@ def test_cmd_validate_success(capsys: Any, tmp_path: Path) -> None:
 
 
 def test_cmd_validate_invalid(capsys: Any, tmp_path: Path) -> None:
-    from pypi_profile.cli import cmd_validate
+    from pypi_profile.cli import CliError, cmd_validate
 
     toml = tmp_path / "pypi_profile.toml"
     # Invalid: 'kind' must be one of the literals
     toml.write_text('[profile]\nkind = "not-a-kind"', encoding="utf-8")
 
     args = argparse.Namespace(path=str(toml))
-    with pytest.raises(SystemExit) as exc:
+    with pytest.raises(CliError) as exc:
         cmd_validate(args)
-    assert exc.value.code == 1
-
-    captured = capsys.readouterr()
-    assert "INVALID:" in captured.err
+    assert exc.value.exit_code == 2
+    assert "INVALID:" in str(exc.value)
 
 
 def test_cmd_validate_dry_run_skips_public_key_autopatch(capsys: Any, tmp_path: Path, mocker: Any) -> None:
@@ -429,7 +427,7 @@ def test_main_gui_dry_run(mocker: Any, capsys: Any) -> None:
     launch = mocker.patch("pypi_profile.cli.launch_gui")
     mocker.patch("sys.argv", ["pypi-profile", "gui", "--dry-run"])
 
-    main()
+    assert main() == 0
 
     launch.assert_not_called()
     captured = capsys.readouterr()

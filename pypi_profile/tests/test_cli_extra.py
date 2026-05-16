@@ -33,7 +33,7 @@ def test_cli_key_info(capsys, mocker):
     )
 
     with patch.object(sys, "argv", ["pypi-profile", "key-info"]):
-        main()
+        assert main() == 0
 
     out, _ = capsys.readouterr()
     assert "MOCK-KID" in out
@@ -49,7 +49,7 @@ def test_cli_key_list(capsys, mocker):
     )
 
     with patch.object(sys, "argv", ["pypi-profile", "key-list"]):
-        main()
+        assert main() == 0
 
     out, _ = capsys.readouterr()
     assert "KID" in out
@@ -70,7 +70,7 @@ def test_cli_key_export(capsys, mocker, tmp_path):
     )
 
     with patch.object(sys, "argv", ["pypi-profile", "key-export", "--output", str(out_path)]):
-        main()
+        assert main() == 0
 
     out, _ = capsys.readouterr()
     assert "KID" in out

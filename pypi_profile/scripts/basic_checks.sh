@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
-# Smoke test: exercises the CLI arg parser and verifies basic invocations exit cleanly.
-# Counts successes and failures; exits non-zero if any check failed.
-# Source an already-active venv before running, or call via `uv run bash scripts/basic_checks.sh`.
+# Smoke test: exercises the installed console entry point and verifies help/version render cleanly.
 
 set -ou pipefail
 
 PASS=0
 FAIL=0
-CLI_PYTHON="${PYTHON:-python}"
-
-run_cli() {
-    "$CLI_PYTHON" -m pypi_profile "$@"
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${PACKAGE_DIR}/.." && pwd)"
+CLI=(uv run pypi-profile)
+SCRIPT=(uv run python "${REPO_ROOT}/scripts/delete_failed_github_actions.py")
 
 check() {
     local desc="$1"
@@ -39,15 +37,27 @@ check_fails() {
 
 echo "=== pypi_profile basic_checks ==="
 echo ""
-echo "using: ${CLI_PYTHON} -m pypi_profile"
+printf 'using:'
+printf ' %q' "${CLI[@]}"
+echo
 echo ""
 
 echo "--- global flags ---"
-check "pypi_profile --help"    run_cli --help
-check "pypi_profile --version" run_cli --version
+check "pypi-profile --help" "${CLI[@]}" --help
+check "pypi-profile --version" "${CLI[@]}" --version
 
-# TODO: add subcommand smoke checks here, e.g.:
-# check "pypi_profile <subcommand> --help"  run_cli <subcommand> --help
+echo "--- subcommand help ---"
+for command in \
+    serve validate init inspect doctor fetch-claims fetch dump keygen sign verify \
+    update-proofs build find-profiles gui key-info key-list key-rotate key-recover \
+    key-export key-import
+do
+    check "pypi-profile ${command} --help" "${CLI[@]}" "${command}" --help
+done
+
+echo "--- standalone script ---"
+check "delete_failed_github_actions.py --help" "${SCRIPT[@]}" --help
+check "delete_failed_github_actions.py --version" "${SCRIPT[@]}" --version
 
 echo ""
 echo "=== Results: ${PASS} passed, ${FAIL} failed ==="

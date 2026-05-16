@@ -18,6 +18,7 @@ cleanup() {
 trap cleanup EXIT
 
 CLI=(uv run pypi-profile)
+SCRIPT=(uv run python "${REPO_ROOT}/scripts/delete_failed_github_actions.py")
 EXAMPLE_PROFILE="${REPO_ROOT}/john_doe/john_doe/pypi_profile.toml"
 JSON_RESUME="${REPO_ROOT}/john_doe/resume.json"
 INIT_DEST="${WORK_DIR}/generated-pypi_profile.toml"
@@ -63,6 +64,15 @@ echo
 
 run_case "global help" "${CLI[@]}" --help
 run_case "global version" "${CLI[@]}" --version
+for command in \
+    serve validate init inspect doctor fetch-claims fetch dump keygen sign verify \
+    update-proofs build find-profiles gui key-info key-list key-rotate key-recover \
+    key-export key-import
+do
+    run_case "${command} help" "${CLI[@]}" "${command}" --help
+done
+run_case "script help" "${SCRIPT[@]}" --help
+run_case "script version" "${SCRIPT[@]}" --version
 run_case "serve dry-run" "${CLI[@]}" serve --dry-run "${EXAMPLE_PROFILE}" --host 0.0.0.0 --port 8010
 run_case "validate dry-run" "${CLI[@]}" validate --dry-run "${EXAMPLE_PROFILE}"
 run_case \
