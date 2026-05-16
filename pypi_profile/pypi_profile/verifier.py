@@ -40,13 +40,6 @@ SCRAPER_HOSTILE_DOMAINS = frozenset(
 )
 
 
-def import_httpx() -> Any:
-    """Import and return httpx on demand."""
-    import httpx
-
-    return httpx
-
-
 def import_minisign() -> Any:
     try:
         import minisign  # type: ignore[import-untyped]
@@ -63,20 +56,13 @@ def fetch_page(url: str) -> str:
     if parsed_url.scheme not in {"http", "https"}:
         raise ValueError(f"Unsupported URL scheme: {parsed_url.scheme}")
 
+    opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler())
+    req = urllib.request.Request(url, headers={"User-Agent": "pypi-profile/0.1"})
     try:
-        httpx = import_httpx()
-
-        resp = httpx.get(url, follow_redirects=True, timeout=15)
-        resp.raise_for_status()
-        return str(resp.text)
-    except ImportError:
-        try:
-            # Only HTTP(S) URLs are allowed above.
-            with urllib.request.urlopen(url, timeout=15) as r:  # nosec B310
-                return cast(bytes, r.read()).decode(errors="replace")
-        except urllib.error.URLError as exc:
-            raise OSError(str(exc)) from exc
-    except httpx.HTTPError as exc:
+        # Only HTTP(S) URLs are allowed above.
+        with opener.open(req, timeout=15) as r:  # nosec B310
+            return cast(bytes, r.read()).decode(errors="replace")
+    except urllib.error.URLError as exc:
         raise OSError(str(exc)) from exc
 
 

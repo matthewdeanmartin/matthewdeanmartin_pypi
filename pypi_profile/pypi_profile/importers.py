@@ -285,7 +285,7 @@ def fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
         client = xmlrpc.client.ServerProxy("https://pypi.org/pypi")
         role_pkg_pairs = cast(list[list[str]], client.user_packages(username))
     except (OSError, xmlrpc.client.Error):
-        logger.warning("Failed to fetch PyPI package list for %r", username, exc_info=True)
+        logger.warning("Failed to fetch PyPI package list for %r", username, exc_info=False)
         return []
 
     for role, name in role_pkg_pairs:
@@ -309,7 +309,7 @@ def fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
             urllib.error.URLError,
             ValueError,
         ):
-            logger.warning("Failed to fetch PyPI metadata for package %r", name, exc_info=True)
+            logger.warning("Failed to fetch PyPI metadata for package %r", name, exc_info=False)
             results.append(
                 {
                     "name": name,
@@ -336,7 +336,8 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
             "author_email": info.get("author_email", ""),
             "home_page": info.get("home_page", ""),
             "project_url": info.get("project_url", ""),
-            "maintainers": [m.get("username", "") for m in (info.get("maintainers") or [])],
+            "maintainers": [m.get("username", "") for m in (info.get("maintainers") or [])]
+            + ([info["author"]] if info.get("author") else []),
             "classifiers": info.get("classifiers", []),
             "requires_python": info.get("requires_python", ""),
         }
@@ -348,7 +349,7 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
         urllib.error.URLError,
         ValueError,
     ):
-        logger.warning("Failed to fetch PyPI metadata for package %r", package_name, exc_info=True)
+        logger.warning("Failed to fetch PyPI metadata for package %r", package_name, exc_info=False)
         return {}
 
 
@@ -391,7 +392,7 @@ def fetch_github_profile(username: str, token: str | None = None) -> dict[str, A
         urllib.error.URLError,
         ValueError,
     ):
-        logger.warning("Failed to fetch GitHub profile for %r", username, exc_info=True)
+        logger.warning("Failed to fetch GitHub profile for %r", username, exc_info=False)
         return {}
 
 
@@ -440,7 +441,7 @@ def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str
         logger.warning(
             "Failed to fetch GitHub repos for %r (partial results may be returned)",
             username,
-            exc_info=True,
+            exc_info=False,
         )
     return results
 
@@ -536,7 +537,7 @@ def fetch_gitlab_profile(username: str, token: str | None = None) -> dict[str, A
         urllib.error.URLError,
         ValueError,
     ):
-        logger.warning("Failed to fetch GitLab profile for %r", username, exc_info=True)
+        logger.warning("Failed to fetch GitLab profile for %r", username, exc_info=False)
         return {}
 
 
@@ -584,7 +585,7 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
         urllib.error.URLError,
         ValueError,
     ):
-        logger.warning("Failed to fetch Mastodon profile for %r", account_url, exc_info=True)
+        logger.warning("Failed to fetch Mastodon profile for %r", account_url, exc_info=False)
         return {}
 
 

@@ -169,16 +169,26 @@ def test_cmd_fetch_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
 
 
 def test_cmd_doctor(capsys: Any, tmp_path: Path, mocker: Any) -> None:
+    from pathlib import Path
+
     from pypi_profile.cli import cmd_doctor
 
-    mocker.patch("importlib.import_module")
-    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
-    mocker.patch("pypi_profile.loader.load_profile")
+    templates_dir = tmp_path / "templates" / "pypi_ds"
+    templates_dir.mkdir(parents=True)
+    (templates_dir / "base.html").write_text("<html/>", encoding="utf-8")
+    static_dir = tmp_path / "static"
+    (static_dir / "css").mkdir(parents=True)
+    (static_dir / "css" / "pypi_ds.css").write_text("body{}", encoding="utf-8")
+    (static_dir / "images").mkdir(parents=True)
+    (static_dir / "images" / "favicon.ico").write_bytes(b"\x00")
 
-    toml = tmp_path / "pypi_profile.toml"
-    toml.write_text('[profile]\ndisplay_name = "Alice"', encoding="utf-8")
+    mocker.patch("pypi_profile.finder.find_profile_files", return_value=[])
+    mocker.patch("pypi_profile.signing.keyring_is_usable", return_value=False)
+    mocker.patch("pypi_profile.cli.Path", side_effect=lambda *a, **kw: Path(*a, **kw))
+    mocker.patch("pypi_profile.ds.paths.template_root_path", return_value=tmp_path / "templates")
+    mocker.patch("pypi_profile.ds.paths.static_root_path", return_value=tmp_path / "static")
 
-    args = argparse.Namespace(source=str(toml))
+    args = argparse.Namespace(dry_run=False)
     cmd_doctor(args)
 
     captured = capsys.readouterr()
@@ -280,8 +290,8 @@ def test_cmd_verify_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
     mocker.patch("pypi_profile.loader.load_profile")
     mock_verify = mocker.patch(
-        "pypi_profile.verifier.verify_all_profiles",
-        return_value=[{"label": "GH", "url": "url", "status": "verified"}],
+        "pypi_profile.verifier.diagnose_all_profiles",
+        return_value=[{"label": "GH", "url": "url", "status": "verified", "detail": []}],
     )
 
     args = argparse.Namespace(source=str(tmp_path / "pypi_profile.toml"), verbose=False, profile_package=None)

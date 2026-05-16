@@ -128,7 +128,9 @@ def cmd_validate(args: argparse.Namespace) -> None:
     except ValidationError as exc:
         logger.error("Profile validation failed: %s", exc)
         print(f"INVALID: {path}", file=sys.stderr)
-        print(exc, file=sys.stderr)
+        for err in exc.errors():
+            loc = " → ".join(str(p) for p in err["loc"]) if err.get("loc") else "(root)"
+            print(f"  {loc}: {err['msg']}", file=sys.stderr)
         sys.exit(1)
     except FileNotFoundError as exc:
         logger.error("Profile file not found: %s", exc)
@@ -510,52 +512,69 @@ def cmd_inspect(args: argparse.Namespace) -> None:
 
 def cmd_doctor(args: argparse.Namespace) -> None:
     """Diagnose local configuration and profile health."""
-    import importlib
+    if is_dry_run(args):
+        print_dry_run(
+            "doctor would inspect config files, signing keys, and bundled resources.",
+            ["checks=config file, public key, signing key, bundled templates/static assets, optional deps"],
+        )
+        return
 
     ok = True
 
-    def check(label: str, importable: str) -> None:
+    def report(status: str, label: str, detail: str = "") -> None:
+        suffix = f" — {detail}" if detail else ""
+        print(f"  {status}  {label}{suffix}")
+
+    def ok_check(label: str, detail: str = "") -> None:
+        report("OK", label, detail)
+
+    def warn_check(label: str, detail: str = "") -> None:
         nonlocal ok
-        try:
-            importlib.import_module(importable)
-            print(f"  OK  {label}")
-        except ImportError:
-            print(f"  !!  {label} — not installed")
-            ok = False
+        report("!!", label, detail)
+        ok = False
 
-    def check_optional(label: str, importable: str) -> None:
-        try:
-            importlib.import_module(importable)
-            print(f"  OK  {label} (optional)")
-        except ImportError:
-            print(f"  --  {label} — not installed (optional)")
-
-    if is_dry_run(args):
-        print_dry_run(
-            "doctor would inspect installed dependencies and signing setup.",
-            ["checks=required dependencies, optional dependencies, signing setup"],
-        )
-        return
+    def info_check(label: str, detail: str = "") -> None:
+        report("--", label, detail)
 
     print("pypi-profile doctor")
     print(f"  version: {__version__}")
     print(f"  python:  {sys.version}")
     print()
-    print("Required dependencies:")
-    check("fastapi", "fastapi")
-    check("uvicorn", "uvicorn")
-    check("jinja2", "jinja2")
-    check("pydantic", "pydantic")
-    check("pluggy", "pluggy")
-    check("pypi_ds", "pypi_ds")
-    check("keyring", "keyring")
-    check("py-minisign", "minisign")
+
+    # --- Config file ---
+    print("Configuration:")
+    from pypi_profile.finder import find_profile_files
+
+    found_configs = find_profile_files()
+    if found_configs:
+        for p in found_configs:
+            ok_check("profile config", str(p))
+        if len(found_configs) > 1:
+            info_check("multiple configs found", "only the first will be used by most commands")
+    else:
+        info_check("no pypi_profile.toml found in current directory", "run: pypi-profile init")
     print()
-    print("Optional dependencies:")
-    check_optional("httpx (faster HTTP)", "httpx")
-    check_optional("pyyaml (FUNDING.yml)", "yaml")
+
+    # --- Public key in TOML ---
+    print("Public key (in TOML):")
+    toml_path = Path("pypi_profile.toml")
+    if toml_path.exists():
+        try:
+            from pypi_profile.loader import load_profile
+
+            profile = load_profile(toml_path, autopatch_public_key=False)
+            if profile.verification.public_key:
+                ok_check("public_key present in [verification]")
+            else:
+                info_check("public_key missing from [verification]", "run: pypi-profile keygen")
+        except Exception:
+            info_check("could not parse pypi_profile.toml to check public key")
+    else:
+        info_check("no pypi_profile.toml to check")
     print()
-    print("Signing setup:")
+
+    # --- Signing key ---
+    print("Signing key:")
     from pypi_profile.signing import (
         DEFAULT_KEY_DIR,
         DEFAULT_SK_NAME,
@@ -568,23 +587,58 @@ def cmd_doctor(args: argparse.Namespace) -> None:
         import keyring as kr
 
         backend_name = type(kr.get_keyring()).__name__
-        print(f"  OK  Keyring backend: {backend_name} (username={keyring_username()!r})")
+        ok_check(f"keyring backend: {backend_name}", f"username={keyring_username()!r}")
         if load_key_bytes_from_keyring() is not None:
-            print("  OK  Secret key found in keyring")
+            ok_check("secret key found in keyring")
         else:
-            print("  --  No secret key in keyring (run: pypi-profile keygen)")
+            info_check("no secret key in keyring", "run: pypi-profile keygen")
     else:
-        print("  --  No usable keyring backend; falling back to disk")
+        info_check("no usable keyring backend; falling back to disk")
         sk_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
         if sk_path.exists():
-            print(f"  OK  Secret key found at {sk_path}")
+            ok_check("secret key on disk", str(sk_path))
         else:
-            print(f"  --  No secret key at {sk_path} (run: pypi-profile keygen)")
+            info_check(f"no secret key at {sk_path}", "run: pypi-profile keygen")
     print()
+
+    # --- Bundled resources ---
+    print("Bundled resources:")
+    from pypi_profile.ds.paths import static_root_path, template_root_path
+
+    tmpl_dir = template_root_path()
+    static_dir = static_root_path()
+    if tmpl_dir.is_dir() and any(tmpl_dir.rglob("*.html")):
+        ok_check("templates", str(tmpl_dir))
+    else:
+        warn_check("templates missing or empty", str(tmpl_dir))
+
+    css_file = static_dir / "css" / "pypi_ds.css"
+    if css_file.exists():
+        ok_check("static assets (CSS)", str(css_file))
+    else:
+        warn_check("pypi_ds.css missing", str(css_file))
+
+    favicon = static_dir / "images" / "favicon.ico"
+    if favicon.exists():
+        ok_check("static assets (favicon)", str(favicon))
+    else:
+        warn_check("favicon.ico missing", str(favicon))
+    print()
+
+    # --- Optional deps ---
+    print("Optional dependencies:")
+    try:
+        import yaml as _yaml  # noqa: F401
+
+        ok_check("pyyaml (FUNDING.yml support)")
+    except ImportError:
+        info_check("pyyaml not installed", "needed for FUNDING.yml import")
+    print()
+
     if ok:
         print("All required checks passed.")
     else:
-        print("Some required checks failed. Install missing dependencies.")
+        print("Some required checks failed.")
         sys.exit(1)
 
 
@@ -686,6 +740,24 @@ def cmd_keygen(args: argparse.Namespace) -> None:
     password = args.password or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "")
 
     keyring_identity_arg = getattr(args, "keyring_identity", "")
+    # Default keyring identity to the PyPI username from any local profile TOML,
+    # so each account's key is stored separately without explicit --keyring-identity.
+    if not keyring_identity_arg:
+        toml_path_check = Path("pypi_profile.toml")
+        if toml_path_check.exists():
+            try:
+                if sys.version_info >= (3, 11):
+                    import tomllib as _tl
+                else:
+                    try:
+                        import tomllib as _tl
+                    except ImportError:
+                        import tomli as _tl  # type: ignore[no-redef]
+                with open(toml_path_check, "rb") as _fh:
+                    _data = _tl.load(_fh)
+                keyring_identity_arg = _data.get("identity", {}).get("pypi_username", "")
+            except Exception:
+                pass
     keyring_identity: str | None = keyring_identity_arg or None
     store_in_keyring: bool = not getattr(args, "no_keyring", False)
 
@@ -698,7 +770,7 @@ def cmd_keygen(args: argparse.Namespace) -> None:
             f"secret_key={sk_path}",
             f"public_key={pk_path}",
             f"store_in_keyring={store_in_keyring}",
-            f"keyring_identity={keyring_identity or 'default'}",
+            f"keyring_identity={keyring_identity or '(pypi username or default)'}",
             f"force={args.force}",
         ]
         if Path("pypi_profile.toml").exists():
@@ -882,10 +954,10 @@ def cmd_verify(args: argparse.Namespace) -> None:
                 file=sys.stderr,
             )
 
-    from pypi_profile.verifier import verify_all_profiles
+    from pypi_profile.verifier import diagnose_all_profiles
 
     try:
-        results = verify_all_profiles(profile, profile_package=profile_package)
+        results = diagnose_all_profiles(profile, profile_package=profile_package)
     except ImportError as exc:
         logger.error("Missing dependency for verification: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -905,6 +977,9 @@ def cmd_verify(args: argparse.Namespace) -> None:
     for item in results:
         icon = status_icons.get(item["status"], "❓")
         print(f"  {icon} {item['label']} ({item['url']}) — {item['status']}")
+        if item["status"] not in ("verified", "self_asserted"):
+            for step in item.get("detail", []):
+                print(f"      {step}")
 
     verified = sum(1 for r in results if r["status"] == "verified")
     print()

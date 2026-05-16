@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 # The GUI launches the local pypi-profile CLI without shell=True.
 import subprocess  # nosec B404
 import sys
@@ -24,6 +26,11 @@ else:
         import tomli as tomllib
 
 TkVar = Union[tk.StringVar, tk.BooleanVar]
+
+# Sentinel shown in the key picker when the keyring is the active source.
+# When this value is selected we do NOT pass PYPI_PROFILE_KEY_PATH, which lets
+# load_secret_key fall through to the keyring automatically.
+_KEYRING_SENTINEL = "(keyring)"
 
 
 def _get_string_var(var: TkVar | None, default: str = "") -> str:
@@ -93,6 +100,147 @@ def _load_toml_info(path_str: str) -> dict[str, str]:
     if isinstance(verification, dict):
         result["public_key"] = str(verification.get("public_key", ""))
     return result
+
+
+def _has_signing_key() -> bool:
+    """Return True if a signing key is available (keyring or default disk path)."""
+    try:
+        import keyring
+        import keyring.backends.fail
+
+        backend = keyring.get_keyring()
+        if not isinstance(backend, keyring.backends.fail.Keyring):
+            _encoded = keyring.get_password("pypi-profile", keyring.get_keyring().__class__.__name__)
+            # Any non-fail backend counts — we can't easily check without knowing the username yet
+            # so just confirm the backend is usable; load_secret_key will resolve the rest.
+            return True
+    except Exception:
+        pass
+    return Path("~/.pypi_profile/minisign.key").expanduser().exists()
+
+
+def _profile_text(path_str: str) -> str:
+    """Render a profile TOML as a human-readable markdown-style text summary."""
+    if not path_str.strip():
+        return "(No profile selected.)"
+    p = Path(path_str.strip()).expanduser()
+    if not p.exists():
+        return f"(File not found: {p})"
+    try:
+        with open(p, "rb") as fh:
+            data = tomllib.load(fh)
+    except Exception as exc:
+        return f"(Could not parse TOML: {exc})"
+
+    lines: list[str] = []
+
+    prof = data.get("profile", {})
+    ident = data.get("identity", {})
+    verif = data.get("verification", {})
+
+    display_name = prof.get("display_name") or ident.get("display_name") or "Unknown"
+    kind = prof.get("kind", "individual")
+    summary = prof.get("summary", "")
+    pypi_user = ident.get("pypi_username", "")
+    location = ident.get("location", "")
+    timezone = ident.get("timezone", "")
+    pronouns = ident.get("pronouns", "")
+
+    lines.append(f"# {display_name}  ({kind})")
+    if summary:
+        lines.append(f"\n{summary}")
+    lines.append("")
+
+    meta_parts = []
+    if pypi_user:
+        meta_parts.append(f"PyPI: {pypi_user}")
+    if location:
+        meta_parts.append(f"Location: {location}")
+    if timezone:
+        meta_parts.append(f"TZ: {timezone}")
+    if pronouns:
+        meta_parts.append(f"Pronouns: {pronouns}")
+    if meta_parts:
+        lines.append("  " + "  ·  ".join(meta_parts))
+        lines.append("")
+
+    pub_key = verif.get("public_key", "")
+    if pub_key:
+        lines.append(f"  Signing key: {pub_key[:20]}…  (public key present)")
+    else:
+        lines.append("  Signing key: (none — run Keygen)")
+    lines.append("")
+
+    packages = data.get("packages", [])
+    if packages:
+        lines.append(f"## Packages ({len(packages)})")
+        for pkg in packages:
+            state = pkg.get("state", "")
+            role = pkg.get("role", "")
+            tag = f"[{state}]" if state else ""
+            summ = (pkg.get("summary") or "")[:72]
+            lines.append(f"  - **{pkg.get('name', '?')}**  {role} {tag}")
+            if summ:
+                lines.append(f"      {summ}")
+        lines.append("")
+
+    profiles = data.get("profiles", [])
+    if profiles:
+        lines.append(f"## External Profiles ({len(profiles)})")
+        for lnk in profiles:
+            vstat = lnk.get("verification", "self_asserted")
+            proof = "✓" if lnk.get("stored_proof") else "·"
+            lines.append(f"  {proof} {lnk.get('label', lnk.get('kind', '?'))}: {lnk.get('url', '')}")
+            if vstat not in ("self_asserted", ""):
+                lines.append(f"      verification: {vstat}")
+        lines.append("")
+
+    contacts = data.get("contact_methods", [])
+    if contacts:
+        lines.append(f"## Contact ({len(contacts)})")
+        for c in contacts:
+            vis = c.get("visibility", "public")
+            aud = ", ".join(c.get("audience", []))
+            lines.append(f"  - {c.get('label', c.get('kind', '?'))}: {c.get('value', '')}  [{vis}] {aud}")
+        lines.append("")
+
+    hiring = data.get("hiring", {})
+    if hiring.get("open_to_work_since"):
+        lines.append("## Hiring")
+        lines.append(f"  Open to work since: {hiring['open_to_work_since']}")
+        if hiring.get("employment_types"):
+            lines.append(f"  Employment types: {', '.join(hiring['employment_types'])}")
+        if hiring.get("work_model"):
+            lines.append(f"  Work model: {', '.join(hiring['work_model'])}")
+        lines.append("")
+
+    projects = data.get("projects", [])
+    if projects:
+        lines.append(f"## Projects ({len(projects)})")
+        for proj in projects:
+            lines.append(f"  - **{proj.get('name', '?')}**  {proj.get('role', '')}  [{proj.get('state', '')}]")
+            if proj.get("url"):
+                lines.append(f"      {proj['url']}")
+        lines.append("")
+
+    work = data.get("work_experience", [])
+    if work:
+        lines.append(f"## Work Experience ({len(work)})")
+        for w in work:
+            lines.append(
+                f"  - {w.get('organization', '?')}  —  {w.get('title', '')}  ({w.get('start_date', '')} – {w.get('end_date', '')})"
+            )
+        lines.append("")
+
+    succession = data.get("succession", {})
+    if succession.get("policy"):
+        lines.append("## Succession")
+        lines.append(f"  Policy: {succession['policy']}")
+        if succession.get("last_reviewed"):
+            lines.append(f"  Last reviewed: {succession['last_reviewed']}")
+        lines.append("")
+
+    return "\n".join(lines)
 
 
 ArgKind = Literal["file", "dir", "bool", "password", "choice", "str"]
@@ -202,9 +350,6 @@ IDENTITY_SITES: list[dict[str, str]] = [
 IDENTITY_SITE_LABELS = [s["label"] for s in IDENTITY_SITES]
 IDENTITY_SITE_BY_LABEL = {s["label"]: s for s in IDENTITY_SITES}
 
-# Flags that take a profile file path — seeded from the active profile picker
-_SOURCE_FLAGS = {"source", "path"}
-
 # Flags that take a signing-key path — seeded from the global key picker
 _KEY_FLAGS = {"--key"}
 
@@ -212,32 +357,19 @@ _KEY_FLAGS = {"--key"}
 COMMANDS: list[GuiCommand] = [
     # ── Setup group (no active profile required) ──────────────────────────
     {
-        "name": "doctor",
-        "label": "Doctor",
-        "group": "setup",
-        "help": (
-            "Diagnose local configuration and profile health.\n\n"
-            "Checks that all required and optional Python dependencies are installed "
-            "and that a minisign secret key exists.\n\n"
-            "No arguments required — runs automatically."
-        ),
-        "args": [],
-        "readonly": True,
-    },
-    {
         "name": "init",
         "label": "Init",
         "group": "setup",
         "help": (
-            "Create a starter pypi_profile.toml.\n\n"
-            "Generates a skeleton profile file.  Use --fetch to pre-fill data from "
-            "PyPI and GitHub.  Use --from-json-resume to import from a JSON Resume file.\n\n"
+            "Create a skeleton pypi_profile.toml.\n\n"
+            "Generates a minimal profile file you can fill in by hand.  "
+            "Use --force to bulldoze an existing file and start fresh.\n\n"
+            "To populate the profile from live data or a JSON Resume, use the "
+            "Import command after Init.\n\n"
             "--username: your PyPI username\n"
             "--kind: individual / team / company / llc / foundation / collective / project / other\n"
             "--output: output path (default: pypi_profile.toml)\n"
-            "--force: overwrite an existing file\n"
-            "--fetch: fetch live data from PyPI / GitHub\n"
-            "--from-json-resume: path to a resume.json file"
+            "--force: overwrite (bulldoze) an existing file"
         ),
         "args": [
             {"flag": "--username", "label": "PyPI username", "default": "", "kind": "str"},
@@ -258,9 +390,28 @@ COMMANDS: list[GuiCommand] = [
                 ],
             },
             {"flag": "--output", "label": "Output path", "default": "pypi_profile.toml", "kind": "str"},
-            {"flag": "--force", "label": "Force overwrite", "default": False, "kind": "bool"},
-            {"flag": "--fetch", "label": "Fetch live data", "default": False, "kind": "bool"},
+            {"flag": "--force", "label": "Force overwrite (bulldoze)", "default": False, "kind": "bool"},
+        ],
+        "extra_argv": ["--no-interactive"],
+        "readonly": False,
+    },
+    {
+        "name": "import",
+        "label": "Import",
+        "group": "setup",
+        "help": (
+            "Import data into an existing pypi_profile.toml.\n\n"
+            "Merges live PyPI/GitHub package data and/or a JSON Resume file into "
+            "the active profile.  Run Init first to create the skeleton.\n\n"
+            "--fetch: pull live package and profile data from PyPI and GitHub\n"
+            "--from-json-resume: path to a resume.json file to merge in\n"
+            "--force: overwrite the output file even if it already exists\n\n"
+            "Uses the profile selected in the top bar."
+        ),
+        "args": [
+            {"flag": "--fetch", "label": "Fetch live data (PyPI / GitHub)", "default": True, "kind": "bool"},
             {"flag": "--from-json-resume", "label": "JSON Resume path", "default": "", "kind": "file"},
+            {"flag": "--force", "label": "Force overwrite", "default": True, "kind": "bool"},
         ],
         "extra_argv": ["--no-interactive"],
         "readonly": False,
@@ -272,13 +423,11 @@ COMMANDS: list[GuiCommand] = [
         "help": (
             "Generate a minisign keypair for signing profile claims.\n\n"
             "Creates a secret key and a public key.  The public key's base-64 value "
-            "should be placed in the [verification] public_key field of your profile.\n\n"
+            "is written automatically into [verification] public_key in your profile.\n\n"
             "--key-dir: directory to write the key files (default: ~/.pypi_profile/)\n"
             "--keyring-identity: name for this key in the system keyring.\n"
-            "  Use distinct names for multiple PyPI accounts, e.g. 'work' or 'personal'.\n"
-            "  If left blank the name defaults to 'default'.\n"
+            "  Defaults to your PyPI username so multiple accounts stay separate.\n"
             "--no-keyring: skip keyring storage and keep the key as a disk file only.\n"
-            "  Not recommended — prefer keyring so the secret key is not a plaintext file.\n"
             "--password: optional password to encrypt the on-disk secret key file.\n"
             "--force: overwrite existing key files"
         ),
@@ -286,7 +435,7 @@ COMMANDS: list[GuiCommand] = [
             {"flag": "--key-dir", "label": "Key directory", "default": "~/.pypi_profile/", "kind": "dir"},
             {
                 "flag": "--keyring-identity",
-                "label": "Keyring identity name",
+                "label": "Keyring identity (blank = PyPI username)",
                 "default": "",
                 "kind": "str",
             },
@@ -296,7 +445,22 @@ COMMANDS: list[GuiCommand] = [
         ],
         "readonly": False,
     },
-    # ── Active-profile group ──────────────────────────────────────────────
+    # ── Profile group (active profile required) ───────────────────────────
+    {
+        "name": "display-text",
+        "label": "Display Text",
+        "group": "profile",
+        "help": (
+            "Display a human-readable summary of the active profile.\n\n"
+            "Renders the profile as plain text with markdown-style formatting — "
+            "a quick overview of who you are, your packages, external profiles, "
+            "and signing/verification status.\n\n"
+            "Uses the profile selected in the top bar.\n"
+            "No network calls are made."
+        ),
+        "args": [],
+        "readonly": True,
+    },
     {
         "name": "inspect",
         "label": "Inspect",
@@ -305,12 +469,9 @@ COMMANDS: list[GuiCommand] = [
             "Inspect a profile package or TOML file without executing any plugin code.\n\n"
             "Prints a quick summary: principal name, PyPI username, number of packages, "
             "projects, humans, and whether a signing key is configured.\n\n"
-            "Source: path to a pypi_profile.toml file, a directory containing one, "
-            "or an installed profile package name."
+            "Uses the profile selected in the top bar."
         ),
-        "args": [
-            {"flag": "source", "label": "Source (path or package)", "default": "pypi_profile.toml", "kind": "file"},
-        ],
+        "args": [],
         "readonly": True,
     },
     {
@@ -321,41 +482,9 @@ COMMANDS: list[GuiCommand] = [
             "Validate a pypi_profile.toml file against the Pydantic schema.\n\n"
             "Reports OK with a brief summary on success, or prints detailed "
             "validation errors on failure.\n\n"
-            "Path: the .toml file to validate (default: pypi_profile.toml in the current directory)."
+            "Uses the profile selected in the top bar."
         ),
-        "args": [
-            {"flag": "path", "label": "Path to .toml", "default": "pypi_profile.toml", "kind": "file"},
-        ],
-        "readonly": True,
-    },
-    {
-        "name": "display-toml",
-        "label": "Display TOML",
-        "group": "profile",
-        "help": (
-            "Display the raw contents of the active pypi_profile.toml file.\n\n"
-            "Shows the file exactly as stored on disk — useful for reviewing what "
-            "is committed to source control or verifying that Update Proofs wrote "
-            "the correct stored_proof values.\n\n"
-            "Source: path to a pypi_profile.toml, a directory, or a package name."
-        ),
-        "args": [
-            {"flag": "source", "label": "Source (path or package)", "default": "pypi_profile.toml", "kind": "file"},
-        ],
-        "readonly": True,
-    },
-    {
-        "name": "dump",
-        "label": "Display JSON",
-        "group": "profile",
-        "help": (
-            "Display the parsed profile as pretty-printed JSON.\n\n"
-            "Useful for debugging the data model or piping into other tools.\n\n"
-            "Source: path to a pypi_profile.toml, a directory, or a package name."
-        ),
-        "args": [
-            {"flag": "source", "label": "Source (path or package)", "default": "pypi_profile.toml", "kind": "file"},
-        ],
+        "args": [],
         "readonly": True,
     },
     {
@@ -366,11 +495,10 @@ COMMANDS: list[GuiCommand] = [
             "Fetch live metadata from PyPI, GitHub, GitLab, and Mastodon.\n\n"
             "Compares the packages declared in the profile against what is actually "
             "published on PyPI and prints a reconciliation report.\n\n"
-            "Source: path to a pypi_profile.toml, a directory, or a package name.\n"
+            "Uses the profile selected in the top bar.\n"
             "--json: also print the raw API responses as JSON."
         ),
         "args": [
-            {"flag": "source", "label": "Source (path or package)", "default": "pypi_profile.toml", "kind": "file"},
             {"flag": "--json", "label": "Print raw JSON", "default": False, "kind": "bool"},
         ],
         "readonly": True,
@@ -383,35 +511,13 @@ COMMANDS: list[GuiCommand] = [
             "Verify proof-of-control claims for all [[profiles]] entries.\n\n"
             "Fetches each declared URL and looks for the signed proof string embedded "
             "in the page.  Requires a public_key in the [verification] section.\n\n"
-            "Source: path to a pypi_profile.toml, a directory, or a package name.\n"
+            "Uses the profile selected in the top bar.\n"
             "--profile-package: override the profile package name used in the claim message."
         ),
         "args": [
-            {"flag": "source", "label": "Source (path or package)", "default": "pypi_profile.toml", "kind": "file"},
             {"flag": "--profile-package", "label": "Profile package name override", "default": "", "kind": "str"},
         ],
         "readonly": True,
-    },
-    {
-        "name": "serve",
-        "label": "Serve",
-        "group": "profile",
-        "help": (
-            "Start the FastAPI profile web server.\n\n"
-            "Opens a local HTTP server so you can preview your profile in a browser.  "
-            "Press Ctrl-C (or Stop) to shut it down.\n\n"
-            "Source: path to a pypi_profile.toml, a directory, or a package name.\n"
-            "--host: bind address (default: 127.0.0.1)\n"
-            "--port: port number (default: 8000)\n"
-            "--allow-code: enable plugin code execution (off by default for safety)"
-        ),
-        "args": [
-            {"flag": "source", "label": "Source (path or package)", "default": "pypi_profile.toml", "kind": "file"},
-            {"flag": "--host", "label": "Host", "default": "127.0.0.1", "kind": "str"},
-            {"flag": "--port", "label": "Port", "default": "8000", "kind": "str"},
-            {"flag": "--allow-code", "label": "Allow plugin code", "default": False, "kind": "bool"},
-        ],
-        "readonly": False,
     },
     {
         "name": "sign",
@@ -421,18 +527,17 @@ COMMANDS: list[GuiCommand] = [
             "Sign a controls-url claim and print the proof string.\n\n"
             "Use this to prove you control an external URL (GitHub profile, website, etc.).  "
             "Copy the printed proof string and place it at the target URL.\n\n"
-            "Source: path to a pypi_profile.toml, a directory, or a package name.\n"
+            "Uses the profile selected in the top bar.\n"
             "--url: the URL you are asserting control over (required)\n"
-            "--key: path to your secret key file (defaults to the key selected in the top bar)\n"
+            "--key: path to your secret key file (leave blank to use the keyring)\n"
             "--profile-package: override the profile package name\n\n"
             "Key password: leave blank — the signing key is loaded from your system "
             "keyring automatically.  Only enter a password if you are on a system "
             "without keyring support and your key file is password-protected."
         ),
         "args": [
-            {"flag": "source", "label": "Source (path or package)", "default": "pypi_profile.toml", "kind": "file"},
             {"flag": "--url", "label": "URL to sign (required)", "default": "", "kind": "str"},
-            {"flag": "--key", "label": "Secret key path", "default": "", "kind": "file"},
+            {"flag": "--key", "label": "Secret key path (blank = keyring)", "default": "", "kind": "file"},
             {"flag": "--password", "label": "Key password (keyring fallback only)", "default": "", "kind": "password"},
             {"flag": "--profile-package", "label": "Profile package name override", "default": "", "kind": "str"},
         ],
@@ -450,16 +555,15 @@ COMMANDS: list[GuiCommand] = [
             "pypi_profile.toml under stored_proof.\n\n"
             "After running this command, commit the updated TOML so that the static "
             "build can embed the proofs without needing your private key.\n\n"
-            "Source: path to a pypi_profile.toml, a directory, or a package name.\n"
-            "--key: path to your secret key file (defaults to the key selected in the top bar)\n"
+            "Uses the profile selected in the top bar.\n"
+            "--key: path to your secret key file (leave blank to use the keyring)\n"
             "--profile-package: override the profile package name\n"
             "--force: re-sign URLs that already have a stored_proof\n\n"
             "Key password: leave blank — the signing key is loaded from your system "
             "keyring automatically."
         ),
         "args": [
-            {"flag": "source", "label": "Source (path or package)", "default": "pypi_profile.toml", "kind": "file"},
-            {"flag": "--key", "label": "Secret key path", "default": "", "kind": "file"},
+            {"flag": "--key", "label": "Secret key path (blank = keyring)", "default": "", "kind": "file"},
             {"flag": "--password", "label": "Key password (keyring fallback only)", "default": "", "kind": "password"},
             {"flag": "--profile-package", "label": "Profile package name override", "default": "", "kind": "str"},
             {"flag": "--force", "label": "Re-sign existing proofs", "default": False, "kind": "bool"},
@@ -476,7 +580,7 @@ COMMANDS: list[GuiCommand] = [
             "only need to substitute your username.  The entry is written into the TOML "
             "file immediately; run Update Proofs afterwards to generate and embed the "
             "signed proof.\n\n"
-            "Source: path to a pypi_profile.toml, a directory, or a package name.\n"
+            "Uses the profile selected in the top bar.\n"
             "--site: the platform to add (pick from the list)\n"
             "--url: the full URL to your profile on that platform\n"
             "--label: display label (defaults to the platform name)\n"
@@ -484,7 +588,6 @@ COMMANDS: list[GuiCommand] = [
             "Supported platforms:\n" + "\n".join(f"  {s['label']}: {s['notes']}" for s in IDENTITY_SITES)
         ),
         "args": [
-            {"flag": "source", "label": "Source (path or package)", "default": "pypi_profile.toml", "kind": "file"},
             {
                 "flag": "--site",
                 "label": "Platform",
@@ -497,6 +600,109 @@ COMMANDS: list[GuiCommand] = [
             {"flag": "--rel-me", "label": "Set rel_me = true", "default": True, "kind": "bool"},
         ],
         "readonly": False,
+    },
+    # ── Website group ────────────────────────────────────────────────────
+    {
+        "name": "build",
+        "label": "Build Static Site",
+        "group": "website",
+        "help": (
+            "Generate a static HTML site from the active profile.\n\n"
+            "Output goes to  ./site/<pypi_username>/  by default, matching the layout "
+            "expected by GitHub Pages (one subdirectory per user).\n\n"
+            "Uses the profile selected in the top bar.\n"
+            "--output: override the output directory\n"
+            "--base-url: URL prefix for asset paths, e.g. /myuser for GitHub Pages\n"
+            "--resume-file: path to a JSON Resume file (auto-discovered if omitted)\n\n"
+            "After building, press Open to view the site in your browser, or commit "
+            "the ./site/ directory and push to GitHub Pages."
+        ),
+        "args": [
+            {"flag": "--output", "label": "Output directory", "default": "", "kind": "dir"},
+            {"flag": "--base-url", "label": "Base URL (e.g. /myuser)", "default": "", "kind": "str"},
+            {"flag": "--resume-file", "label": "JSON Resume path (optional)", "default": "", "kind": "file"},
+        ],
+        "readonly": False,
+    },
+    {
+        "name": "serve-static",
+        "label": "Serve Static Site",
+        "group": "website",
+        "help": (
+            "Serve the built static site with Python's built-in HTTP server.\n\n"
+            "Run 'Build Static Site' first to generate the output.  "
+            "This command then starts a lightweight file server so you can browse "
+            "the result exactly as it will appear on GitHub Pages.\n\n"
+            "The Open button (and auto-open on Run) will launch the site in your "
+            "default browser.\n\n"
+            "--port: port to listen on (default: 8001 to avoid clashing with Live Preview)\n"
+            "--directory: override the directory to serve (default: site/<pypi_username>/)"
+        ),
+        "args": [
+            {"flag": "--port", "label": "Port", "default": "8001", "kind": "str"},
+            {"flag": "--directory", "label": "Directory (blank = auto)", "default": "", "kind": "dir"},
+        ],
+        "readonly": False,
+    },
+    {
+        "name": "serve",
+        "label": "Live Preview",
+        "group": "website",
+        "help": (
+            "Start the FastAPI profile web server for live preview.\n\n"
+            "Opens a local HTTP server so you can preview your profile in a browser.  "
+            "The Open button launches your default browser automatically.\n"
+            "Press Stop to shut down the server.\n\n"
+            "Uses the profile selected in the top bar.\n"
+            "--host: bind address (default: 127.0.0.1)\n"
+            "--port: port number (default: 8000)\n"
+            "--allow-code: enable plugin code execution (off by default for safety)"
+        ),
+        "args": [
+            {"flag": "--host", "label": "Host", "default": "127.0.0.1", "kind": "str"},
+            {"flag": "--port", "label": "Port", "default": "8000", "kind": "str"},
+            {"flag": "--allow-code", "label": "Allow plugin code", "default": False, "kind": "bool"},
+        ],
+        "readonly": False,
+    },
+    # ── Diagnostics group ─────────────────────────────────────────────────
+    {
+        "name": "doctor",
+        "label": "Doctor",
+        "group": "diagnostics",
+        "help": (
+            "Diagnose local configuration and profile health.\n\n"
+            "Checks the config file, signing key, public key in TOML, and bundled "
+            "template/static resources.  No arguments required — runs automatically."
+        ),
+        "args": [],
+        "readonly": True,
+    },
+    {
+        "name": "display-toml",
+        "label": "Display TOML",
+        "group": "diagnostics",
+        "help": (
+            "Display the raw contents of the active pypi_profile.toml file.\n\n"
+            "Shows the file exactly as stored on disk — useful for reviewing what "
+            "is committed to source control or verifying that Update Proofs wrote "
+            "the correct stored_proof values.\n\n"
+            "Uses the profile selected in the top bar."
+        ),
+        "args": [],
+        "readonly": True,
+    },
+    {
+        "name": "dump",
+        "label": "Display JSON",
+        "group": "diagnostics",
+        "help": (
+            "Display the parsed profile as pretty-printed JSON.\n\n"
+            "Useful for debugging the data model or piping into other tools.\n\n"
+            "Uses the profile selected in the top bar."
+        ),
+        "args": [],
+        "readonly": True,
     },
 ]
 
@@ -529,13 +735,17 @@ class PypiProfileGui(tk.Tk):
         self.running_proc: subprocess.Popen[str] | None = None
         self.current_cmd: GuiCommand | None = None
         self.arg_widgets: dict[str, TkVar] = {}
+        self._open_url: str = ""  # URL/path the Open button will launch
+        self._auto_open: bool = False  # open automatically when command succeeds
 
         # Active profile — source of truth for all profile commands
         self.active_source = tk.StringVar(value="")
         self.active_source.trace_add("write", self._on_source_changed)
 
-        # Global signing key — source of truth for all signing commands
-        default_key = str(Path("~/.pypi_profile/minisign.key").expanduser())
+        # Global signing key — source of truth for all signing commands.
+        # Default to keyring if available; fall back to disk path.
+        keyring_available = _detect_keyring_status().startswith("active")
+        default_key = _KEYRING_SENTINEL if keyring_available else str(Path("~/.pypi_profile/minisign.key").expanduser())
         self.global_key_path = tk.StringVar(value=default_key)
         self.global_key_path.trace_add("write", self._on_key_changed)
         self.global_key_password = tk.StringVar(value="")
@@ -543,6 +753,7 @@ class PypiProfileGui(tk.Tk):
         self.build_ui()
         self.select_command(COMMANDS[0])
         self.after(100, self._refresh_profile_list)
+        self.after(200, self._select_startup_command)
 
     # ── UI construction ───────────────────────────────────────────────────
 
@@ -640,14 +851,14 @@ class PypiProfileGui(tk.Tk):
         )
 
         keyring_status = _detect_keyring_status()
-        # "active" means the backend exists, not that a key has been stored in it
         keyring_note = f"Keyring backend: {keyring_status}"
-        tk.Label(
+        self._keyring_label = tk.Label(
             top_bar,
             text=keyring_note,
             font=("Helvetica", 8),
             anchor="w",
-        ).grid(row=2, column=4, sticky="w", pady=2, padx=(0, 8))
+        )
+        self._keyring_label.grid(row=2, column=4, sticky="w", pady=2, padx=(0, 8))
 
         # ── Row 3: Public key from TOML + key password ──
         lbl(top_bar, "TOML key:", 3, 0)
@@ -677,7 +888,13 @@ class PypiProfileGui(tk.Tk):
         self.cmd_buttons: dict[str, tk.Button] = {}
         row_i = 0
 
-        for group, heading in [("setup", "── Setup ──"), ("profile", "── Profile ──")]:
+        groups = [
+            ("setup", "── Setup ──"),
+            ("profile", "── Profile ──"),
+            ("website", "── Website ──"),
+            ("diagnostics", "── Diagnostics ──"),
+        ]
+        for group, heading in groups:
             tk.Label(
                 left,
                 text=heading,
@@ -734,7 +951,9 @@ class PypiProfileGui(tk.Tk):
         self.stop_btn = tk.Button(
             btn_bar, text="Stop", width=10, command=self.stop_command, bg="#7c0e0e", fg="black", state=tk.DISABLED
         )
-        self.stop_btn.pack(side=tk.LEFT)
+        self.stop_btn.pack(side=tk.LEFT, padx=(0, 4))
+        self.open_btn = tk.Button(btn_bar, text="Open", width=10, command=self._open_in_browser, state=tk.DISABLED)
+        self.open_btn.pack(side=tk.LEFT, padx=(0, 4))
         self.status_var = tk.StringVar(value="")
         self.status_label = tk.Label(btn_bar, textvariable=self.status_var, fg="#888888")
         self.status_label.pack(side=tk.LEFT, padx=8)
@@ -757,6 +976,7 @@ class PypiProfileGui(tk.Tk):
 
     def _on_source_changed(self, *_: object) -> None:
         self._refresh_status_bar()
+        self._update_keyring_identity_hint()
 
     def _refresh_status_bar(self) -> None:
         source = self.active_source.get()
@@ -771,6 +991,31 @@ class PypiProfileGui(tk.Tk):
         self.bar_user_var.set(info["pypi_username"] or "—")
         pub = info["public_key"]
         self.bar_key_var.set((pub[:44] + "…") if len(pub) > 44 else (pub or "—"))
+
+    def _update_keyring_identity_hint(self) -> None:
+        """Update the keyring status label to show which identity will be used."""
+        pypi_user = self.bar_user_var.get().strip()
+        base_status = _detect_keyring_status()
+        if base_status.startswith("active") and pypi_user and pypi_user != "—":
+            label_text = f"Keyring: {base_status} · identity: {pypi_user!r}"
+        else:
+            label_text = f"Keyring backend: {base_status}"
+        if hasattr(self, "_keyring_label"):
+            self._keyring_label.config(text=label_text)
+
+    def _select_startup_command(self) -> None:
+        """Choose the most useful command based on what's configured on disk."""
+        has_profile = bool(self.active_source.get().strip())
+        has_key = _has_signing_key()
+        if not has_profile:
+            target = "init"
+        elif not has_key:
+            target = "keygen"
+        else:
+            target = "display-text"
+        cmd = next((c for c in COMMANDS if c["name"] == target), None)
+        if cmd is not None:
+            self.select_command(cmd)
 
     def _refresh_profile_list(self) -> None:
         from pypi_profile.finder import find_profile_files
@@ -820,11 +1065,16 @@ class PypiProfileGui(tk.Tk):
 
     def _propagate_key_to_form(self) -> None:
         key_var = self.arg_widgets.get("--key")
-        _set_var(key_var, self.global_key_path.get())
+        path = self.global_key_path.get()
+        _set_var(key_var, "" if path == _KEYRING_SENTINEL else path)
 
     def _refresh_key_list(self) -> None:
-        """Populate the key picker with keys found in default locations."""
+        """Populate the key picker: keyring sentinel first (if available), then disk key files."""
         candidates: list[str] = []
+
+        if _detect_keyring_status().startswith("active"):
+            candidates.append(_KEYRING_SENTINEL)
+
         search_dirs = [
             Path("~/.pypi_profile/").expanduser(),
             Path.cwd(),
@@ -836,6 +1086,7 @@ class PypiProfileGui(tk.Tk):
                     s = str(p)
                     if s not in candidates:
                         candidates.append(s)
+
         current = self.key_picker_var.get().strip()
         if current and current not in candidates:
             candidates.insert(0, current)
@@ -889,6 +1140,9 @@ class PypiProfileGui(tk.Tk):
     def select_command(self, cmd: GuiCommand) -> None:
         self.stop_command()
         self.current_cmd = cmd
+        self._open_url = ""
+        self._auto_open = False
+        self.open_btn.config(state=tk.DISABLED)
 
         for name, btn in self.cmd_buttons.items():
             is_active = name == cmd["name"]
@@ -923,9 +1177,7 @@ class PypiProfileGui(tk.Tk):
             label_text = arg["label"]
 
             # Determine live default for this field
-            if flag in _SOURCE_FLAGS and self.active_source.get():
-                default: str | bool = self.active_source.get()
-            elif flag in _KEY_FLAGS:
+            if flag in _KEY_FLAGS:
                 default = self.global_key_path.get()
             else:
                 default = arg["default"]
@@ -986,23 +1238,12 @@ class PypiProfileGui(tk.Tk):
                 )
                 self.arg_widgets[flag] = path_var
 
-                # Keep source/path fields in sync with the status bar
-                if flag in _SOURCE_FLAGS:
-                    path_var.trace_add("write", self._on_form_source_changed)
-
             else:
                 text_var = tk.StringVar(value=str(default))
                 tk.Entry(self.args_frame, textvariable=text_var, width=36).grid(
                     row=row_i, column=1, sticky="ew", pady=3, padx=(0, 8)
                 )
                 self.arg_widgets[flag] = text_var
-
-    def _on_form_source_changed(self, *_: object) -> None:
-        src_var = self.arg_widgets.get("source") or self.arg_widgets.get("path")
-        if src_var is not None:
-            val = _get_string_var(src_var).strip()
-            if val:
-                self.active_source.set(val)
 
     # ── Help ──────────────────────────────────────────────────────────────
 
@@ -1026,6 +1267,25 @@ class PypiProfileGui(tk.Tk):
 
         argv.extend(cmd.get("extra_argv", []))
 
+        # For profile-group commands inject the active source as a positional arg.
+        # The source field no longer appears in the args form; it comes from the top bar.
+        _NEEDS_SOURCE = {
+            "inspect",
+            "validate",
+            "dump",
+            "fetch",
+            "verify",
+            "serve",
+            "build",
+            "sign",
+            "update-proofs",
+            "add-identity-site",
+        }
+        if cmd["name"] in _NEEDS_SOURCE:
+            source = self.active_source.get().strip()
+            if source:
+                argv.append(source)
+
         for arg in cmd["args"]:
             flag = arg["flag"]
             kind = arg["kind"]
@@ -1042,6 +1302,11 @@ class PypiProfileGui(tk.Tk):
                     extra_env["PYPI_PROFILE_KEY_PASSWORD"] = value
             elif flag.startswith("--"):
                 value = _get_string_var(var).strip()
+                # For build --output, derive the default from the profile username when blank.
+                if not value and cmd["name"] == "build" and flag == "--output":
+                    info = _load_toml_info(self.active_source.get())
+                    username = info.get("pypi_username", "")
+                    value = str(Path("site") / username) if username else "site"
                 if value:
                     argv += [flag, value]
             else:
@@ -1049,10 +1314,11 @@ class PypiProfileGui(tk.Tk):
                 if value:
                     argv.append(value)
 
-        # Global key settings — only apply if the per-command --key field was empty
+        # Global key: only set PYPI_PROFILE_KEY_PATH if a disk key was explicitly chosen
+        # (i.e. not the keyring sentinel). Leaving it unset lets load_secret_key use the keyring.
         key_path = self.global_key_path.get().strip()
         key_password = self.global_key_password.get().strip()
-        if key_path:
+        if key_path and key_path != _KEYRING_SENTINEL:
             extra_env.setdefault("PYPI_PROFILE_KEY_PATH", key_path)
         if key_password:
             extra_env.setdefault("PYPI_PROFILE_KEY_PASSWORD", key_password)
@@ -1066,13 +1332,38 @@ class PypiProfileGui(tk.Tk):
 
         self.output.delete("1.0", tk.END)
 
+        if cmd["name"] == "display-text":
+            self._run_display_text()
+            return
+
         if cmd["name"] == "display-toml":
             self._run_display_toml()
+            return
+
+        if cmd["name"] == "import":
+            self._run_import()
             return
 
         if cmd["name"] == "add-identity-site":
             self._run_add_identity_site()
             return
+
+        if cmd["name"] == "serve-static":
+            self._run_serve_static()
+            return
+
+        # Configure Open button before launching so it's ready when the process finishes.
+        self._open_url = ""
+        self._auto_open = False
+        if cmd["name"] == "serve":
+            host_var = self.arg_widgets.get("--host")
+            port_var = self.arg_widgets.get("--port")
+            host = _get_string_var(host_var, "127.0.0.1") or "127.0.0.1"
+            port = _get_string_var(port_var, "8000") or "8000"
+            self._open_url = f"http://{host}:{port}/"
+            self._auto_open = True
+        elif cmd["name"] == "build":
+            self._open_url = self._resolve_build_output_url()
 
         argv, env = self.build_argv_and_env(cmd)
         self.append_output(f"$ {' '.join(argv)}\n\n")
@@ -1080,6 +1371,10 @@ class PypiProfileGui(tk.Tk):
         self.status_label.config(fg="#888888")
         self.run_btn.config(state=tk.DISABLED)
         self.stop_btn.config(state=tk.NORMAL)
+        # For serve: enable Open immediately and auto-open after the server has had time to start.
+        if cmd["name"] == "serve" and self._open_url:
+            self.open_btn.config(state=tk.NORMAL)
+            self.after(1500, self._open_in_browser)
 
         def worker() -> None:
             try:
@@ -1107,9 +1402,140 @@ class PypiProfileGui(tk.Tk):
 
         threading.Thread(target=worker, daemon=True).start()
 
+    def _run_serve_static(self) -> None:
+        """Serve the static build output with Python's http.server in a daemon thread."""
+        import http.server
+        import socketserver
+
+        port_var = self.arg_widgets.get("--port")
+        dir_var = self.arg_widgets.get("--directory")
+        port_str = _get_string_var(port_var, "8001").strip() or "8001"
+        dir_str = _get_string_var(dir_var).strip()
+
+        try:
+            port = int(port_str)
+        except ValueError:
+            self.append_output(f"ERROR: invalid port {port_str!r}\n")
+            self.after(0, lambda: self._finish_current_command(1))
+            return
+
+        if not dir_str:
+            info = _load_toml_info(self.active_source.get())
+            username = info.get("pypi_username", "")
+            dir_str = str(Path("site") / username) if username else "site"
+
+        serve_dir = Path(dir_str).expanduser().resolve()
+        if not serve_dir.is_dir():
+            self.append_output(
+                f"ERROR: directory not found: {serve_dir}\n" f"Run 'Build Static Site' first to generate the output.\n"
+            )
+            self.after(0, lambda: self._finish_current_command(1))
+            return
+
+        url = f"http://127.0.0.1:{port}/"
+        self._open_url = url
+        self._auto_open = True
+
+        self.append_output(f"Serving {serve_dir}\n  at {url}\n  Press Stop to shut down.\n\n")
+        self.status_var.set("Serving…")
+        self.status_label.config(fg="#888888")
+        self.run_btn.config(state=tk.DISABLED)
+        self.stop_btn.config(state=tk.NORMAL)
+        self.open_btn.config(state=tk.NORMAL)
+
+        serve_dir_str = str(serve_dir)
+
+        class _QuietHandler(http.server.SimpleHTTPRequestHandler):
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                super().__init__(*args, directory=serve_dir_str, **kwargs)  # type: ignore[call-arg]
+
+            def log_message(self, fmt: str, *args: object) -> None:
+                pass  # suppress per-request stdout noise
+
+        try:
+            httpd = socketserver.TCPServer(("127.0.0.1", port), _QuietHandler)
+        except OSError as exc:
+            self.append_output(f"ERROR: could not bind port {port}: {exc}\n")
+            self.run_btn.config(state=tk.NORMAL)
+            self.stop_btn.config(state=tk.DISABLED)
+            self.after(0, lambda: self._finish_current_command(1))
+            return
+
+        self._static_httpd = httpd
+
+        cmd_ref = self.current_cmd
+
+        def worker() -> None:
+            httpd.serve_forever()
+            self.after(0, lambda: self.on_done(0, cmd_ref))  # type: ignore[arg-type]
+
+        self._static_thread = threading.Thread(target=worker, daemon=True)
+        self._static_thread.start()
+
+        self.after(800, self._open_in_browser)
+
+    def _run_display_text(self) -> None:
+        source = self.active_source.get().strip()
+        text = _profile_text(source)
+        self.append_output(text)
+        self.after(0, lambda: self._finish_current_command(0))
+
+    def _run_import(self) -> None:
+        """Run init with --force plus any import flags against the active profile path."""
+        fetch_var = self.arg_widgets.get("--fetch")
+        resume_var = self.arg_widgets.get("--from-json-resume")
+        source = self.active_source.get().strip()
+
+        argv = [sys.executable, "-m", "pypi_profile.cli", "init", "--no-interactive", "--force"]
+        if source:
+            argv += ["--output", source]
+        if _get_bool_var(fetch_var):
+            argv.append("--fetch")
+        resume = _get_string_var(resume_var).strip()
+        if resume:
+            argv += ["--from-json-resume", resume]
+
+        import os
+
+        env = {**os.environ}
+        self.append_output(f"$ {' '.join(argv)}\n\n")
+        self.status_var.set("Running…")
+        self.status_label.config(fg="#888888")
+        self.run_btn.config(state=tk.DISABLED)
+        self.stop_btn.config(state=tk.NORMAL)
+
+        def worker() -> None:
+            try:
+                with subprocess.Popen(  # nosec B603
+                    argv,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    cwd=str(Path.cwd()),
+                    env=env,
+                ) as proc:
+                    self.running_proc = proc
+                    assert proc.stdout is not None
+                    for line in proc.stdout:
+                        self.append_output(line)
+                    rc = proc.wait()
+                self.running_proc = None
+                cmd = self.current_cmd
+                self.after(0, lambda: self.on_done(rc, cmd))  # type: ignore[arg-type]
+                if rc == 0:
+                    self.after(200, self._refresh_profile_list)
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                self.append_output(f"\nERROR: {exc}\n")
+                self.running_proc = None
+                cmd = self.current_cmd
+                self.after(0, lambda: self.on_done(1, cmd))  # type: ignore[arg-type]
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def _run_display_toml(self) -> None:
-        source_var = self.arg_widgets.get("source")
-        source = _get_string_var(source_var, self.active_source.get()).strip()
+        source = self.active_source.get().strip()
         self.append_output(f"# {source}\n\n")
         try:
             p = Path(source).expanduser()
@@ -1124,13 +1550,12 @@ class PypiProfileGui(tk.Tk):
             self.after(0, lambda: self._finish_current_command(1))
 
     def _run_add_identity_site(self) -> None:
-        source_var = self.arg_widgets.get("source")
         site_var = self.arg_widgets.get("--site")
         url_var = self.arg_widgets.get("--url")
         label_var = self.arg_widgets.get("--label")
         rel_me_var = self.arg_widgets.get("--rel-me")
 
-        source = _get_string_var(source_var, self.active_source.get()).strip()
+        source = self.active_source.get().strip()
         chosen_label = _get_string_var(site_var).strip()
         url = _get_string_var(url_var).strip()
         display_label = _get_string_var(label_var).strip()
@@ -1193,14 +1618,46 @@ class PypiProfileGui(tk.Tk):
         self.status_label.config(fg="#0e7c0e" if rc == 0 else "#7c0e0e")
         self.append_output(f"\n[{msg}]\n")
         self.after(5000, lambda: self.status_var.set(""))
-        if rc == 0 and cmd.get("name") == "init":
+        if rc == 0 and cmd.get("name") in ("init", "import"):
             self.after(200, self._refresh_profile_list)
+        # Enable Open button for build on success; serve already enables it at launch.
+        if self._open_url and cmd.get("name") == "build":
+            self.open_btn.config(state=tk.NORMAL)
+            if rc == 0:
+                self.after(0, self._open_in_browser)
+
+    def _open_in_browser(self) -> None:
+        """Open self._open_url in the system default browser."""
+        import webbrowser
+
+        if self._open_url:
+            webbrowser.open(self._open_url)
+
+    def _resolve_build_output_url(self) -> str:
+        """Return a file:// URL for the build output index.html."""
+        output_var = self.arg_widgets.get("--output")
+        output_str = _get_string_var(output_var).strip()
+        if not output_str:
+            # Default: ./site/<pypi_username>/
+            info = _load_toml_info(self.active_source.get())
+            username = info.get("pypi_username", "")
+            if username:
+                output_str = str(Path("site") / username)
+            else:
+                output_str = "site"
+        index = Path(output_str).expanduser().resolve() / "index.html"
+        return index.as_uri()
 
     def stop_command(self) -> None:
         if self.running_proc is not None:
             with suppress(OSError):
                 self.running_proc.terminate()
             self.running_proc = None
+        httpd = getattr(self, "_static_httpd", None)
+        if httpd is not None:
+            with suppress(Exception):
+                httpd.shutdown()
+            self._static_httpd = None
         self.stop_btn.config(state=tk.DISABLED)
         if self.current_cmd and not self.current_cmd["readonly"]:
             self.run_btn.config(state=tk.NORMAL)
@@ -1217,7 +1674,8 @@ class PypiProfileGui(tk.Tk):
 
 def main() -> None:
     app = PypiProfileGui()
-    app.mainloop()
+    with contextlib.suppress(KeyboardInterrupt):
+        app.mainloop()
 
 
 if __name__ == "__main__":

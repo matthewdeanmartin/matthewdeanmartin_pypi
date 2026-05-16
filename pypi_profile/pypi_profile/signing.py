@@ -37,10 +37,11 @@ def keyring_username(identity: str | None = None) -> str:
     Resolution order:
     1. Explicit *identity* argument (non-empty string).
     2. ``PYPI_PROFILE_KEYRING_USERNAME`` environment variable.
-    3. ``"default"`` — the legacy single-identity name.
+    3. ``"default"`` — the fallback single-identity name.
 
-    Two PyPI accounts can coexist in the keyring by using distinct names,
-    e.g. ``"work"`` and ``"personal"``.
+    Pass the PyPI username as *identity* so each account's key is stored
+    separately (e.g. ``"matthewdeanmartin"`` vs ``"work-account"``).
+    Two PyPI accounts can coexist in the keyring by using distinct identities.
     """
     if identity:
         return identity

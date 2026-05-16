@@ -16,48 +16,33 @@ from pypi_profile.models import (
 from pypi_profile.verifier import fetch_page, verify_all_profiles, verify_profile_link
 
 
-def test_fetch_page_httpx_success(mocker: Any) -> None:
-    mock_httpx = mocker.patch("httpx.get")
+def test_fetch_page_success(mocker: Any) -> None:
+    mock_opener = MagicMock()
     mock_resp = MagicMock()
-    mock_resp.text = "page content"
-    mock_httpx.return_value = mock_resp
+    mock_resp.read.return_value = b"page content"
+    mock_resp.__enter__.return_value = mock_resp
+    mock_resp.__exit__.return_value = False
+    mock_opener.open.return_value = mock_resp
+    mocker.patch("urllib.request.build_opener", return_value=mock_opener)
 
     content = fetch_page("https://example.com")
     assert content == "page content"
-    mock_httpx.assert_called_once()
 
 
-def test_fetch_page_httpx_error(mocker: Any) -> None:
-    import httpx
+def test_fetch_page_url_error(mocker: Any) -> None:
+    import urllib.error
 
-    mocker.patch("httpx.get", side_effect=httpx.HTTPError("fail"))
+    mock_opener = MagicMock()
+    mock_opener.open.side_effect = urllib.error.URLError("connection refused")
+    mocker.patch("urllib.request.build_opener", return_value=mock_opener)
 
-    with pytest.raises(OSError, match="fail"):
+    with pytest.raises(OSError, match="connection refused"):
         fetch_page("https://example.com")
 
 
-def test_fetch_page_urllib_fallback(mocker: Any) -> None:
-    mocker.patch("pypi_profile.verifier.import_httpx", side_effect=ImportError("no httpx"))
-    mock_urlopen = mocker.patch("urllib.request.urlopen")
-    mock_resp = MagicMock()
-    mock_resp.read.return_value = b"urllib content"
-    mock_resp.__enter__.return_value = mock_resp
-    mock_urlopen.return_value = mock_resp
-
-    content = fetch_page("https://example.com")
-    assert content == "urllib content"
-
-
-def test_fetch_page_urllib_success(mocker: Any) -> None:
-    mocker.patch("pypi_profile.verifier.import_httpx", side_effect=ImportError("no httpx"))
-    mock_urlopen = mocker.patch("urllib.request.urlopen")
-    mock_resp = MagicMock()
-    mock_resp.read.return_value = b"urllib content"
-    mock_resp.__enter__.return_value = mock_resp
-    mock_urlopen.return_value = mock_resp
-
-    content = fetch_page("https://example.com")
-    assert content == "urllib content"
+def test_fetch_page_rejects_non_http_scheme() -> None:
+    with pytest.raises(ValueError, match="Unsupported URL scheme"):
+        fetch_page("ftp://example.com/file")
 
 
 def test_verify_claim_signature_no_sig() -> None:
