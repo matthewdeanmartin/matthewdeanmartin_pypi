@@ -103,7 +103,7 @@ def discover_installed_profiles() -> list[tuple[str, Path, ProfileData]]:
             continue
         if candidate.exists():
             resolved = candidate.resolve()
-            pkg_name = entry_point.dist.name if entry_point.dist else entry_point.name  # type: ignore[union-attr]
+            pkg_name = entry_point.dist.name if entry_point.dist else entry_point.name
             seen_paths.setdefault(resolved, pkg_name)
 
     # Fall back to scanning all distributions for a shipped pypi_profile.toml.
@@ -114,7 +114,8 @@ def discover_installed_profiles() -> list[tuple[str, Path, ProfileData]]:
             candidate = Path(str(dist.locate_file(package_file)))
             if candidate.exists():
                 resolved = candidate.resolve()
-                seen_paths.setdefault(resolved, dist.metadata.get("Name", str(resolved)))
+                name = dist.metadata["Name"] or str(resolved)
+                seen_paths.setdefault(resolved, name)
 
     results: list[tuple[str, Path, ProfileData]] = []
     for path in sorted(seen_paths):
