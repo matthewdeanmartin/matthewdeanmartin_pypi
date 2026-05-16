@@ -11,6 +11,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any, cast
 
+from schema_resume import validate_resume
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,11 +43,6 @@ def get_text(url: str) -> str:
 
 def validate_json_resume(raw: dict[str, Any]) -> None:
     """Warn if raw dict does not conform to the JSON Resume schema."""
-    try:
-        from schema_resume import validate_resume  # type: ignore[import-untyped]
-    except ModuleNotFoundError:
-        logger.debug("schema_resume not installed; skipping JSON Resume validation")
-        return
     result = validate_resume(raw)
     if not result["valid"]:
         import warnings
