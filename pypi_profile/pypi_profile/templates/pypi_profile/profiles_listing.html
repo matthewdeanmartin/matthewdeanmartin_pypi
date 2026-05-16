@@ -1,0 +1,73 @@
+{% extends "pypi_profile/base.html" %}
+{% import "pypi_ds/components/layout.html" as layout %}
+{% import "pypi_ds/components/feedback.html" as feedback %}
+{% import "pypi_ds/components/navigation.html" as navigation %}
+
+{% block profile_title %}All Profiles{% endblock %}
+
+{% block content %}
+  {% call layout.horizontal_section("horizontal-section--grey horizontal-section--thin") %}
+    <div class="package-summary">
+      <p class="package-summary__text">{{ profiles | length }} profile(s) installed in this environment.</p>
+    </div>
+  {% endcall %}
+
+  {% call layout.horizontal_section() %}
+    <div class="project-layout">
+      <aside class="project-layout__navigation">
+        {{ navigation.vertical_tabs([
+          {"id": "profiles", "label": "All Profiles", "href": _base ~ "/profiles"},
+          {"id": "search", "label": "Search", "href": _base ~ "/profiles/search"}
+        ], active_id="profiles", aria_label="Profile hub navigation") }}
+      </aside>
+
+      <div class="project-layout__content">
+        {% call layout.card("Installed Profiles", "project-panel") %}
+          {% if profiles %}
+            <div class="file-list">
+              {% for prof in profiles %}
+                <article class="file-card">
+                  <div class="file-card__body">
+                    <h3 class="file-card__title">{{ prof.display_name or prof.pypi_username }}</h3>
+                    <p class="file-card__meta">
+                      Package: <strong>{{ prof.package_name }}</strong>
+                      &nbsp;·&nbsp;
+                      {% if prof.kind == "individual" %}
+                        {{ feedback.status_badge("Individual", tone="good") }}
+                      {% else %}
+                        {{ feedback.status_badge(prof.kind | title, tone="unknown") }}
+                      {% endif %}
+                    </p>
+                    {% if prof.summary %}
+                      <p>{{ prof.summary }}</p>
+                    {% endif %}
+                    <p class="file-card__meta">
+                      {% if prof.location %}{{ prof.location }} &nbsp;·&nbsp;{% endif %}
+                      {{ prof.package_count }} package(s)
+                    </p>
+                    <p class="file-card__meta">
+                      <a href="{{ prof.profile_url }}">View pypi-profile</a>
+                      {% if prof.pypi_username %}
+                        &nbsp;·&nbsp;
+                        <a href="https://pypi.org/user/{{ prof.pypi_username }}/">PyPI</a>
+                      {% endif %}
+                    </p>
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>No profiles found. Install a <code>pypi-profile-*</code> package to see profiles here.</p>
+          {% endif %}
+        {% endcall %}
+      </div>
+
+      <aside class="project-layout__sidebar">
+        {% call layout.sidebar_section("Hub") %}
+          <p class="sidebar-copy">{{ profiles | length }} profile(s) in this environment.</p>
+          <p><a href="{{ _base }}/profiles/search">Search profiles →</a></p>
+        {% endcall %}
+      </aside>
+    </div>
+  {% endcall %}
+{% endblock %}

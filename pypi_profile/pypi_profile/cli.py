@@ -47,6 +47,40 @@ def add_dry_run_argument(command_parser: argparse.ArgumentParser) -> None:
 
 def cmd_serve(args: argparse.Namespace) -> None:
     """Start the FastAPI profile server."""
+    import uvicorn
+
+    from pypi_profile.server import build_app
+
+    if not args.source:
+        # Hub mode: no source given — discover all installed profiles.
+        from pypi_profile.loader import discover_installed_profiles
+
+        if is_dry_run(args):
+            entries = discover_installed_profiles()
+            print_dry_run(
+                "serve would start the hub server listing all installed profiles.",
+                [
+                    f"profiles_found={len(entries)}",
+                    f"host={args.host}",
+                    f"port={args.port}",
+                ],
+            )
+            return
+
+        # Build a minimal stub profile just to anchor the app, then let hub routes take over.
+        entries = discover_installed_profiles()
+        if not entries:
+            print(
+                "ERROR: No installed profiles found. Pass a source or install a pypi-profile-* package.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        _pkg_name, toml_path, first_profile = entries[0]
+        logger.info("Starting hub server on %s:%s (%d profiles)", args.host, args.port, len(entries))
+        app = build_app(first_profile, allow_code=args.allow_code, include_hub=True)
+        uvicorn.run(app, host=args.host, port=args.port)
+        return
+
     from pypi_profile.loader import find_profile, load_profile
 
     toml_path = find_profile(args.source)
@@ -64,12 +98,8 @@ def cmd_serve(args: argparse.Namespace) -> None:
         )
         return
 
-    import uvicorn
-
-    from pypi_profile.server import build_app
-
     logger.info("Starting server for %r on %s:%s", profile.profile.display_name, args.host, args.port)
-    app = build_app(profile, allow_code=args.allow_code)
+    app = build_app(profile, allow_code=args.allow_code, include_hub=True)
     uvicorn.run(app, host=args.host, port=args.port)
 
 
@@ -1462,7 +1492,12 @@ def main() -> None:
 
     serve_p = subparsers.add_parser("serve", help="Start the profile web server")
     add_dry_run_argument(serve_p)
-    serve_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    serve_p.add_argument(
+        "source",
+        nargs="?",
+        default="",
+        help="Profile package name, directory, or .toml path (omit to list all installed profiles)",
+    )
     serve_p.add_argument("--host", default="127.0.0.1")
     serve_p.add_argument("--port", type=int, default=8000)
     serve_p.add_argument("--allow-code", action="store_true", help="Enable plugin code execution")

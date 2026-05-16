@@ -130,6 +130,8 @@ def build_app(
     profile_package: str = "",
     static_mode: bool = False,
     base_url: str = "",
+    hub_base: str = "",
+    include_hub: bool = False,
 ) -> FastAPI:
     """Construct the FastAPI application for a loaded profile."""
     app = FastAPI(title="pypi-profile", docs_url=None, redoc_url=None)
@@ -161,6 +163,7 @@ def build_app(
         tmpl = env.get_template(template_name)
         context.setdefault("static_mode", static_mode)
         context.setdefault("base_url", static_base)
+        context.setdefault("hub_base", hub_base)
         html = tmpl.render(**context)
         return HTMLResponse(html)
 
@@ -243,5 +246,69 @@ def build_app(
                 "claim_results": claim_results,
             }
         )
+
+    if not include_hub:
+        return app
+
+    from pypi_profile.loader import discover_installed_profiles
+
+    def _profiles_summary() -> list[dict[str, Any]]:
+        return [
+            {
+                "package_name": pkg_name,
+                "display_name": p.profile.display_name or p.identity.display_name,
+                "pypi_username": p.identity.pypi_username,
+                "kind": p.profile.kind,
+                "summary": p.profile.summary,
+                "location": p.identity.location,
+                "package_count": len(p.packages),
+                "profile_url": f"{static_base}/profiles/{p.identity.pypi_username or pkg_name}",
+            }
+            for pkg_name, _path, p in discover_installed_profiles()
+        ]
+
+    @app.get("/profiles", response_class=HTMLResponse)
+    async def profiles_listing(request: Request) -> HTMLResponse:
+        return render(
+            "pypi_profile/profiles_listing.html",
+            {"request": request, "profiles": _profiles_summary()},
+        )
+
+    @app.get("/profiles/search", response_class=HTMLResponse)
+    async def profiles_search(request: Request, q: str = "") -> HTMLResponse:
+        all_profs = _profiles_summary()
+        query = q.strip().lower()
+        if query:
+            results = [
+                prof
+                for prof in all_profs
+                if query in (prof["display_name"] or "").lower()
+                or query in (prof["pypi_username"] or "").lower()
+                or query in (prof["summary"] or "").lower()
+                or query in (prof["location"] or "").lower()
+            ]
+        else:
+            results = all_profs
+        return render(
+            "pypi_profile/profiles_search.html",
+            {"request": request, "results": results, "query": q},
+        )
+
+    @app.get("/api/profiles.json")
+    async def api_profiles() -> JSONResponse:
+        return JSONResponse(_profiles_summary())
+
+    # Mount each installed profile as a sub-app at /profiles/{username}
+    for pkg_name, _toml_path, installed_profile in discover_installed_profiles():
+        username = installed_profile.identity.pypi_username or pkg_name
+        sub_base = f"{static_base}/profiles/{username}"
+        sub_app = build_app(
+            installed_profile,
+            allow_code=allow_code,
+            static_mode=static_mode,
+            base_url=sub_base,
+            hub_base=static_base,
+        )
+        app.mount(f"/profiles/{username}", sub_app)
 
     return app

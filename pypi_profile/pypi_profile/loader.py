@@ -85,6 +85,50 @@ def find_installed_profile_files() -> list[Path]:
     return sorted(found)
 
 
+def discover_installed_profiles() -> list[tuple[str, Path, ProfileData]]:
+    """Return (package_name, toml_path, profile) for every installed profile in the current environment.
+
+    Discovers profiles via:
+    - ``pypi_profile.plugins`` entry points (preferred — explicit registration)
+    - Any installed distribution that ships a ``pypi_profile.toml`` resource
+    """
+    seen_paths: dict[Path, str] = {}
+
+    # Entry-point-registered plugins get a clean package name from the dist metadata.
+    for entry_point in meta.entry_points(group="pypi_profile.plugins"):
+        module_name = entry_point.value.partition(":")[0]
+        try:
+            candidate = Path(str(resources.files(module_name).joinpath("pypi_profile.toml")))
+        except (ModuleNotFoundError, TypeError):
+            continue
+        if candidate.exists():
+            resolved = candidate.resolve()
+            pkg_name = entry_point.dist.name if entry_point.dist else entry_point.name  # type: ignore[union-attr]
+            seen_paths.setdefault(resolved, pkg_name)
+
+    # Fall back to scanning all distributions for a shipped pypi_profile.toml.
+    for dist in meta.distributions():
+        for package_file in dist.files or []:
+            if package_file.name != "pypi_profile.toml":
+                continue
+            candidate = Path(str(dist.locate_file(package_file)))
+            if candidate.exists():
+                resolved = candidate.resolve()
+                seen_paths.setdefault(resolved, dist.metadata.get("Name", str(resolved)))
+
+    results: list[tuple[str, Path, ProfileData]] = []
+    for path in sorted(seen_paths):
+        pkg_name = seen_paths[path]
+        try:
+            profile = load_profile(path, autopatch_public_key=False)
+        except Exception:
+            logger.warning("Could not load profile from %s", path, exc_info=True)
+            continue
+        results.append((pkg_name, path, profile))
+
+    return results
+
+
 def find_profile(source: str) -> Path:
     """Resolve a profile TOML path from a file path or package name.
 
