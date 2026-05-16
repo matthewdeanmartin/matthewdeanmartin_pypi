@@ -500,3 +500,321 @@ def test_patch_proofs_duplicate_detection(tmp_path, mocker):
 
     # File must be rolled back to original
     assert toml_path.read_text(encoding="utf-8") == original
+
+
+# --- tiny + fingerprint format tests ----------------------------------------
+
+
+def test_tiny_token_length_budget():
+    from pypi_profile.claims import encode_tiny_token
+
+    sig = b"\x00" * 64
+    tok = encode_tiny_token(sig)
+    assert tok.startswith("t:")
+    # Ed25519 sig = 86 b64url chars + "t:" prefix = 88 chars total.
+    assert len(tok) == 88
+
+
+def test_tiny_token_roundtrip_and_rejects_wrong_size():
+    from pypi_profile.claims import decode_tiny_token, encode_tiny_token
+
+    sig = bytes(range(64))
+    tok = encode_tiny_token(sig)
+    assert decode_tiny_token(tok) == sig
+    with pytest.raises(ValueError):
+        encode_tiny_token(b"\x00" * 63)
+    with pytest.raises(ValueError):
+        decode_tiny_token("not-a-tiny-token")
+
+
+def test_fingerprint_length_and_parse():
+    from pypi_profile.claims import fingerprint_of_full_proof, parse_fingerprint
+
+    fp = fingerprint_of_full_proof("pypi-profile-proof: ABC", "1234567890abcdef")
+    assert fp.startswith("f:")
+    assert len(fp) == 35
+    keyid, h = parse_fingerprint(fp)
+    assert keyid == "1234567890abcdef"
+    assert len(h) == 16
+
+
+def test_fingerprint_rejects_short_keyid():
+    from pypi_profile.claims import fingerprint_of_full_proof
+
+    with pytest.raises(ValueError):
+        fingerprint_of_full_proof("token", "abc")
+
+
+def test_tiny_sign_verify_roundtrip(tmp_path):
+    from pypi_profile.signing import generate_keypair, sign_controls_url
+    from pypi_profile.verifier import verify_tiny_token
+
+    sk_path, _pk, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+    tok = sign_controls_url(
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://github.com/testuser",
+        sk_path=sk_path,
+        format="tiny",
+    )
+    assert tok.startswith("t:")
+    assert len(tok) == 88
+    status = verify_tiny_token(
+        tok,
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://github.com/testuser",
+        public_key_b64=pub_b64,
+    )
+    assert status == "verified"
+
+
+def test_tiny_sign_verify_rejects_wrong_subject(tmp_path):
+    from pypi_profile.signing import generate_keypair, sign_controls_url
+    from pypi_profile.verifier import verify_tiny_token
+
+    sk_path, _pk, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+    tok = sign_controls_url(
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://github.com/testuser",
+        sk_path=sk_path,
+        format="tiny",
+    )
+    bad = verify_tiny_token(
+        tok,
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://github.com/somebody-else",
+        public_key_b64=pub_b64,
+    )
+    assert bad == "invalid"
+
+
+def test_tiny_sign_verify_rejects_wrong_key(tmp_path):
+    from pypi_profile.signing import generate_keypair, sign_controls_url
+    from pypi_profile.verifier import verify_tiny_token
+
+    sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, password="", force=True)
+    _sk2, _pk2, pub_b64_other = generate_keypair(key_dir=tmp_path / "other", password="", force=True)
+    tok = sign_controls_url(
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://github.com/testuser",
+        sk_path=sk_path,
+        format="tiny",
+    )
+    assert (
+        verify_tiny_token(
+            tok,
+            profile_package="pypi-profile-test",
+            pypi_username="testuser",
+            subject_url="https://github.com/testuser",
+            public_key_b64=pub_b64_other,
+        )
+        == "invalid"
+    )
+
+
+def test_tiny_accepts_prior_year(tmp_path):
+    """A token signed last year is still accepted within the rolling window."""
+    from datetime import datetime, timezone
+
+    from pypi_profile.claims import encode_tiny_token, tiny_message_bytes
+    from pypi_profile.signing import generate_keypair, load_secret_key
+    from pypi_profile.verifier import TINY_ACCEPTED_YEARS_BACK, verify_tiny_token
+
+    sk_path, _pk, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+    sk = load_secret_key(sk_path, password="")
+
+    now = datetime.now(tz=timezone.utc)
+    past_year = now.year - TINY_ACCEPTED_YEARS_BACK
+    msg = tiny_message_bytes(
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://github.com/testuser",
+        year=past_year,
+    )
+    sig = sk.sign(msg, prehash=True)
+    tok = encode_tiny_token(sig._signature)
+
+    assert (
+        verify_tiny_token(
+            tok,
+            profile_package="pypi-profile-test",
+            pypi_username="testuser",
+            subject_url="https://github.com/testuser",
+            public_key_b64=pub_b64,
+        )
+        == "verified"
+    )
+
+
+def test_tiny_rejects_token_older_than_window(tmp_path):
+    from datetime import datetime, timezone
+
+    from pypi_profile.claims import encode_tiny_token, tiny_message_bytes
+    from pypi_profile.signing import generate_keypair, load_secret_key
+    from pypi_profile.verifier import TINY_ACCEPTED_YEARS_BACK, verify_tiny_token
+
+    sk_path, _pk, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+    sk = load_secret_key(sk_path, password="")
+
+    too_old_year = datetime.now(tz=timezone.utc).year - (TINY_ACCEPTED_YEARS_BACK + 1)
+    msg = tiny_message_bytes(
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://github.com/testuser",
+        year=too_old_year,
+    )
+    sig = sk.sign(msg, prehash=True)
+    tok = encode_tiny_token(sig._signature)
+
+    assert (
+        verify_tiny_token(
+            tok,
+            profile_package="pypi-profile-test",
+            pypi_username="testuser",
+            subject_url="https://github.com/testuser",
+            public_key_b64=pub_b64,
+        )
+        == "invalid"
+    )
+
+
+def test_fingerprint_resolver_match(tmp_path):
+    from pypi_profile.signing import generate_keypair, load_secret_key, sign_controls_url
+    from pypi_profile.verifier import verify_fingerprint_token
+
+    sk_path, _pk, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+
+    full = sign_controls_url(
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://github.com/testuser",
+        sk_path=sk_path,
+        format="full",
+    )
+
+    sk = load_secret_key(sk_path, password="")
+    from pypi_profile.claims import fingerprint_of_full_proof
+
+    keyid_hex = bytes(sk._keynum_sk.key_id).hex()
+    fp = fingerprint_of_full_proof(full, keyid_hex)
+    assert len(fp) == 35
+
+    status = verify_fingerprint_token(
+        fp,
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://github.com/testuser",
+        public_key_b64=pub_b64,
+        resolver=lambda: [full],
+    )
+    assert status == "verified"
+
+
+def test_fingerprint_resolver_no_match():
+    """A fingerprint pointing at a full proof the resolver can't find stays unverified."""
+    from pypi_profile.verifier import verify_fingerprint_token
+
+    fp = "f:0123456789abcdef:fedcba9876543210"
+    status = verify_fingerprint_token(
+        fp,
+        profile_package="pypi-profile-test",
+        pypi_username="testuser",
+        subject_url="https://example.com",
+        public_key_b64="",
+        resolver=lambda: ["pypi-profile-proof: somethingelse"],
+    )
+    assert status == "unverified"
+
+
+def test_fingerprint_without_resolver_unverified():
+    from pypi_profile.verifier import verify_fingerprint_token
+
+    fp = "f:0123456789abcdef:fedcba9876543210"
+    status = verify_fingerprint_token(
+        fp,
+        profile_package="x",
+        pypi_username="y",
+        subject_url="https://z",
+        public_key_b64="",
+        resolver=None,
+    )
+    assert status == "unverified"
+
+
+def test_find_proof_tokens_picks_up_all_three_formats(tmp_path):
+    from pypi_profile.signing import generate_keypair, load_secret_key, sign_controls_url
+    from pypi_profile.verifier import find_proof_tokens
+
+    sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, password="", force=True)
+
+    full = sign_controls_url(
+        profile_package="p",
+        pypi_username="u",
+        subject_url="https://example.com",
+        sk_path=sk_path,
+        format="full",
+    )
+    tiny = sign_controls_url(
+        profile_package="p",
+        pypi_username="u",
+        subject_url="https://example.com",
+        sk_path=sk_path,
+        format="tiny",
+    )
+    sk = load_secret_key(sk_path, password="")
+    from pypi_profile.claims import fingerprint_of_full_proof
+
+    fp = fingerprint_of_full_proof(full, bytes(sk._keynum_sk.key_id).hex())
+
+    page = f"bio: {full}\nposted: {tiny}\nptr: {fp}\n"
+    found = find_proof_tokens(page)
+    assert len(found) == 3
+    # Verify the prefixes are preserved so downstream dispatch works.
+    assert any(t.startswith("pypi-profile-proof:") for t in found)
+    assert any(t.startswith("t:") for t in found)
+    assert any(t.startswith("f:") for t in found)
+
+
+def test_sign_controls_url_rejects_invalid_format(tmp_path):
+    from pypi_profile.signing import generate_keypair, sign_controls_url
+
+    sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, password="", force=True)
+    with pytest.raises(ValueError):
+        sign_controls_url(
+            profile_package="p",
+            pypi_username="u",
+            subject_url="https://x",
+            sk_path=sk_path,
+            format="oversized",
+        )
+
+
+def test_compact_alias_still_works(tmp_path):
+    """compact=True remains equivalent to format='compact' for backwards compat."""
+    from pypi_profile.signing import generate_keypair, sign_controls_url
+    from pypi_profile.verifier import verify_claim_signature
+
+    sk_path, _pk, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+    legacy = sign_controls_url(
+        profile_package="p",
+        pypi_username="u",
+        subject_url="https://x",
+        sk_path=sk_path,
+        compact=True,
+    )
+    explicit = sign_controls_url(
+        profile_package="p",
+        pypi_username="u",
+        subject_url="https://x",
+        sk_path=sk_path,
+        format="compact",
+    )
+    # Both should be compact format, both should verify.
+    for tok in (legacy, explicit):
+        claim = decode_claim(tok)
+        assert is_compact_claim(claim)
+        assert verify_claim_signature(claim, pub_b64)

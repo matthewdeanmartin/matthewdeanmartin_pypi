@@ -248,6 +248,7 @@ def test_cmd_sign_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
         password="",
         profile_package=None,
         compact=False,
+        format=None,
     )
 
     cmd_sign(args)

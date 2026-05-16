@@ -913,6 +913,8 @@ def cmd_sign(args: argparse.Namespace) -> None:
     password = args.password or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "")
 
     resolved_profile_package = args.profile_package or f"pypi-profile-{profile_package}"
+    # Resolve --format / --compact precedence: explicit --format wins; else fall back to --compact alias.
+    chosen_format = args.format or ("compact" if args.compact else "full")
     if is_dry_run(args):
         print_dry_run(
             "sign would generate a proof-of-control token.",
@@ -922,7 +924,7 @@ def cmd_sign(args: argparse.Namespace) -> None:
                 f"pypi_username={pypi_username}",
                 f"url={args.url}",
                 f"key={sk_path or '(default key path)'}",
-                f"compact={args.compact}",
+                f"format={chosen_format}",
                 f"password_supplied={bool(password)}",
             ],
         )
@@ -937,7 +939,7 @@ def cmd_sign(args: argparse.Namespace) -> None:
             subject_url=args.url,
             sk_path=sk_path,
             password=password,
-            compact=args.compact,
+            format=chosen_format,
         )
     except FileNotFoundError as exc:
         logger.error("Secret key not found: %s", exc)
@@ -951,8 +953,14 @@ def cmd_sign(args: argparse.Namespace) -> None:
     print("Copy and paste the following proof string into your external profile page:")
     print()
     print(proof)
-    if args.compact:
-        print(f"\n({len(proof)} chars — compact format)")
+    print(f"\n({len(proof)} chars — {chosen_format} format)")
+    if chosen_format == "tiny" and len(proof) + len(pypi_username) + 1 > 100:
+        print(
+            f"WARNING: '{pypi_username}' + space + token = {len(proof) + len(pypi_username) + 1} chars; "
+            "PyPI display-name fields cap at ~100 chars. Place the token in a field with more room, "
+            "or shorten the surrounding text.",
+            file=sys.stderr,
+        )
     print()
     print(f"Place it at: {args.url}")
 
@@ -1629,10 +1637,20 @@ def main() -> None:
     sign_p.add_argument("--password", default="", help="Password for the secret key")
     sign_p.add_argument("--profile-package", default="", help="Profile package name override")
     sign_p.add_argument(
+        "--format",
+        choices=["full", "compact", "tiny", "fingerprint"],
+        default=None,
+        help=(
+            "Token format: full (~600 chars), compact (~360 chars, Mastodon-sized), "
+            "tiny (~88 chars, sig-only for PyPI display-name slot), or fingerprint "
+            "(~35 chars, pointer to a full proof published elsewhere)."
+        ),
+    )
+    sign_p.add_argument(
         "--compact",
         action="store_true",
         default=False,
-        help="Produce a compact token (~360 chars) suitable for Mastodon and other character-limited platforms",
+        help="Deprecated alias for --format compact",
     )
     sign_p.set_defaults(func=cmd_sign)
 

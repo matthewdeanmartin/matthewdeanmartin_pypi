@@ -11,9 +11,20 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from typing import Any, cast
 
-from pypi_profile.claims import decode_claim, is_compact_claim, is_expired
+from pypi_profile.claims import (
+    decode_claim,
+    decode_tiny_token,
+    fingerprint_of_full_proof,
+    is_compact_claim,
+    is_expired,
+    is_fingerprint_token,
+    is_tiny_token,
+    parse_fingerprint,
+    tiny_message_bytes,
+)
 from pypi_profile.models import ClaimStatus, ProfileData, ProfileLink
 
 logger = logging.getLogger(__name__)
@@ -22,6 +33,17 @@ PROOF_RE = re.compile(
     r"pypi-profile-proof:\s*([A-Za-z0-9_\-]+={0,3})",
     re.IGNORECASE,
 )
+
+# Tiny tokens look like "t:<86 chars base64url>". Anchor on the prefix and the
+# fixed-width sig body so we don't false-match arbitrary "t:..." strings.
+TINY_RE = re.compile(r"\bt:([A-Za-z0-9_\-]{86})\b")
+
+# Fingerprint tokens look like "f:<16 hex>:<16 hex>".
+FINGERPRINT_RE = re.compile(r"\bf:([0-9a-fA-F]{16}):([0-9a-fA-F]{16})\b")
+
+# How many prior years' tiny signatures the verifier will accept. Tiny tokens
+# carry no nonce and no per-second expiry — yearly grain only.
+TINY_ACCEPTED_YEARS_BACK = 2
 
 # Domains that actively block scrapers — we skip fetch-based verification and log at DEBUG.
 SCRAPER_HOSTILE_DOMAINS = frozenset(
@@ -67,8 +89,133 @@ def fetch_page(url: str) -> str:
 
 
 def find_proof_tokens(text: str) -> list[str]:
-    """Extract all pypi-profile-proof tokens from a page."""
-    return [m.group(0) for m in PROOF_RE.finditer(text)]
+    """Extract all proof tokens from a page (full, compact, tiny, fingerprint).
+
+    Returned strings retain their on-wire prefix so downstream code can
+    dispatch on format.
+    """
+    tokens: list[str] = [m.group(0) for m in PROOF_RE.finditer(text)]
+    tokens.extend(m.group(0) for m in TINY_RE.finditer(text))
+    tokens.extend(m.group(0) for m in FINGERPRINT_RE.finditer(text))
+    return tokens
+
+
+def verify_tiny_token(
+    token: str,
+    *,
+    profile_package: str,
+    pypi_username: str,
+    subject_url: str,
+    public_key_b64: str,
+    now: datetime | None = None,
+) -> ClaimStatus:
+    """Verify a tiny (sig-only) token by reconstructing the canonical message.
+
+    Tiny tokens carry only the 64-byte Ed25519 signature. The verifier rebuilds
+    the message from (profile_package, pypi_username, subject_url, year) and
+    accepts any year in the window
+    [current_year - TINY_ACCEPTED_YEARS_BACK, current_year].
+    """
+    import hashlib
+
+    try:
+        from cryptography.exceptions import InvalidSignature
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    except ImportError:
+        logger.debug("cryptography not available; cannot verify tiny token")
+        return "unverified"
+
+    try:
+        raw_sig = decode_tiny_token(token)
+    except (ValueError, binascii.Error):
+        logger.debug("Could not decode tiny token %r", token, exc_info=True)
+        return "invalid"
+
+    try:
+        pk_full = base64.standard_b64decode(public_key_b64)
+        if len(pk_full) != 42:
+            return "invalid"
+        raw_pk = pk_full[10:]
+    except (TypeError, ValueError, binascii.Error):
+        return "invalid"
+
+    if now is None:
+        now = datetime.now(tz=timezone.utc)
+    current_year = now.year
+
+    ed_pk = Ed25519PublicKey.from_public_bytes(raw_pk)
+    for offset in range(TINY_ACCEPTED_YEARS_BACK + 1):
+        year = current_year - offset
+        msg = tiny_message_bytes(
+            profile_package=profile_package,
+            pypi_username=pypi_username,
+            subject_url=subject_url,
+            year=year,
+        )
+        msg_hash = hashlib.blake2b(msg, digest_size=64).digest()
+        try:
+            ed_pk.verify(raw_sig, msg_hash)
+            return "verified"
+        except (InvalidSignature, ValueError):
+            continue
+    return "invalid"
+
+
+def verify_fingerprint_token(
+    token: str,
+    *,
+    profile_package: str,
+    pypi_username: str,
+    subject_url: str,
+    public_key_b64: str,
+    resolver: Any | None = None,
+) -> ClaimStatus:
+    """Verify a fingerprint pointer by resolving and re-checking the full proof.
+
+    The ``resolver`` callable, when provided, is invoked with no arguments and
+    must return a list of candidate full-proof strings (typically obtained
+    from the profile package's TOML on PyPI). If omitted, the verifier
+    cannot resolve and returns ``"unverified"``.
+    """
+    try:
+        keyid_hex, _hash_hex = parse_fingerprint(token)
+    except ValueError:
+        return "invalid"
+
+    if resolver is None:
+        logger.debug("No fingerprint resolver supplied; cannot verify %r", token)
+        return "unverified"
+
+    try:
+        candidates = list(resolver())
+    except (OSError, ValueError, TypeError):
+        logger.debug("Fingerprint resolver failed", exc_info=True)
+        return "unverified"
+
+    for candidate in candidates:
+        try:
+            derived = fingerprint_of_full_proof(candidate, keyid_hex)
+        except ValueError:
+            continue
+        if derived == token.strip():
+            # Fingerprint matches — now verify the underlying full proof.
+            try:
+                claim = decode_claim(candidate)
+            except (TypeError, ValueError):
+                continue
+            if claim.get("subject") != subject_url:
+                continue
+            if claim.get("pypi_username") != pypi_username:
+                continue
+            if claim.get("profile_package") != profile_package:
+                continue
+            if is_expired(claim):
+                return "expired"
+            if verify_claim_signature(claim, public_key_b64):
+                return "verified"
+            return "invalid"
+
+    return "unverified"
 
 
 def verify_claim_signature(
@@ -151,6 +298,23 @@ def status_from_tokens(
     Handles both full and compact claim formats.
     """
     for token_str in tokens:
+        if is_tiny_token(token_str):
+            status = verify_tiny_token(
+                token_str,
+                profile_package=profile_package,
+                pypi_username=pypi_username,
+                subject_url=subject_url,
+                public_key_b64=public_key_b64,
+            )
+            if status == "verified":
+                return status
+            continue
+        if is_fingerprint_token(token_str):
+            # status_from_tokens has no resolver; fingerprint tokens stay
+            # unverified through this path. Use verify_fingerprint_token
+            # directly when a resolver is available.
+            continue
+
         try:
             claim = decode_claim(token_str)
         except (TypeError, ValueError):
@@ -204,6 +368,28 @@ def diagnose_tokens(  # pylint: disable=too-many-return-statements
     steps.append(f"Found {len(tokens)} proof token(s) on page.")
 
     for i, token_str in enumerate(tokens, 1):
+        if is_tiny_token(token_str):
+            steps.append(f"Token {i} (tiny format): {len(token_str)} chars, sig-only.")
+            if not public_key_b64:
+                steps.append("  ↳ No public_key in [verification] — cannot verify tiny token.")
+                return "unverified", steps
+            status = verify_tiny_token(
+                token_str,
+                profile_package=profile_package,
+                pypi_username=pypi_username,
+                subject_url=subject_url,
+                public_key_b64=public_key_b64,
+            )
+            if status == "verified":
+                steps.append("  ↳ Tiny signature valid. ✓")
+                return "verified", steps
+            steps.append(f"  ↳ Tiny signature did not verify (status={status}).")
+            continue
+        if is_fingerprint_token(token_str):
+            steps.append(f"Token {i} (fingerprint): {token_str!r}")
+            steps.append("  ↳ Fingerprint tokens need a resolver to fetch the full proof; skipping here.")
+            continue
+
         try:
             claim = decode_claim(token_str)
         except (TypeError, ValueError) as exc:

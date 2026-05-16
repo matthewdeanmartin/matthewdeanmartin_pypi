@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
@@ -17,7 +18,16 @@ import keyring.backends.fail
 import minisign  # type: ignore[import-untyped]
 from keyring.errors import KeyringError
 
-from pypi_profile.claims import build_claim, build_compact_claim, encode_claim
+from pypi_profile.claims import (
+    build_claim,
+    build_compact_claim,
+    encode_claim,
+    encode_tiny_token,
+    fingerprint_of_full_proof,
+    tiny_message_bytes,
+)
+
+VALID_FORMATS = ("full", "compact", "tiny", "fingerprint")
 
 logger = logging.getLogger(__name__)
 
@@ -265,23 +275,61 @@ def sign_controls_url(
     sk_path: Path | None = None,
     password: str | None = None,
     compact: bool = False,
+    format: str | None = None,
 ) -> str:
     """Sign a controls-url claim and return the encoded proof string.
 
-    ``compact=True`` produces a shorter token (~360 chars) suitable for
-    character-limited platforms like Mastodon.  It omits redundant fields and
-    uses single-letter keys + Unix timestamps.  The default (False) produces
-    the full human-readable token.
+    ``format`` selects the on-wire format:
+      - ``"full"`` (default): full human-readable token, ~600 chars.
+      - ``"compact"``: shorter token (~360 chars) for Mastodon.
+      - ``"tiny"``: sig-only token (~88 chars) for the PyPI display-name slot.
+        Carries no nonce, no sub-year expiry; verifier reconstructs the
+        message from (package, username, subject, year).
+      - ``"fingerprint"``: a ~35-char pointer (`f:<keyid>:<hash>`) to a full
+        proof published elsewhere; the verifier resolves and re-checks.
+
+    ``compact=True`` is kept as a deprecated alias for ``format="compact"``.
     """
+    if format is None:
+        format = "compact" if compact else "full"
+    if format not in VALID_FORMATS:
+        raise ValueError(f"format must be one of {VALID_FORMATS}, got {format!r}")
+
     logger.debug(
-        "Signing controls-url claim for %s -> %s (compact=%s)",
+        "Signing controls-url claim for %s -> %s (format=%s)",
         pypi_username,
         subject_url,
-        compact,
+        format,
     )
     sk = load_secret_key(sk_path, password)
 
-    if compact:
+    if format == "tiny":
+        year = datetime.now(tz=timezone.utc).year
+        msg = tiny_message_bytes(
+            profile_package=profile_package,
+            pypi_username=pypi_username,
+            subject_url=subject_url,
+            year=year,
+        )
+        sig = sk.sign(msg, prehash=True)
+        return encode_tiny_token(sig._signature)
+
+    if format == "fingerprint":
+        # Fingerprint of a freshly-minted full proof. The verifier needs to
+        # discover the full proof out-of-band (e.g. via the profile package
+        # on PyPI's JSON API) and re-derive the same fingerprint.
+        full_proof = sign_controls_url(
+            profile_package=profile_package,
+            pypi_username=pypi_username,
+            subject_url=subject_url,
+            sk_path=sk_path,
+            password=password,
+            format="full",
+        )
+        key_id_bytes = bytes(sk._keynum_sk.key_id)
+        return fingerprint_of_full_proof(full_proof, key_id_bytes.hex())
+
+    if format == "compact":
         claim = build_compact_claim(
             profile_package=profile_package,
             pypi_username=pypi_username,
@@ -291,24 +339,25 @@ def sign_controls_url(
         sig = sk.sign(claim_json_bytes, prehash=True)
         # Compact: store only the raw 64-byte Ed25519 sig as base64url (no header).
         claim["g"] = base64.urlsafe_b64encode(sig._signature).rstrip(b"=").decode()
-    else:
-        key_id_bytes = bytes(sk._keynum_sk.key_id)
-        key_id_hex = key_id_bytes.hex().upper()
+        return encode_claim(claim)
 
-        claim = build_claim(
-            profile_package=profile_package,
-            pypi_username=pypi_username,
-            claim_type="controls-url",
-            subject_url=subject_url,
-            key_id=key_id_hex,
-            signature_backend="minisign",
-        )
-        claim_json_bytes = claim_to_bytes(claim)
-        sig = sk.sign(claim_json_bytes, prehash=True)
-        # Store only the 74-byte binary (algo + key_id + ed25519_sig), not the armored text format.
-        sig_b64 = base64.standard_b64encode(sig._signature_algorithm.value + sig._key_id + sig._signature).decode()
-        claim["signature"] = sig_b64
+    # format == "full"
+    key_id_bytes = bytes(sk._keynum_sk.key_id)
+    key_id_hex = key_id_bytes.hex().upper()
 
+    claim = build_claim(
+        profile_package=profile_package,
+        pypi_username=pypi_username,
+        claim_type="controls-url",
+        subject_url=subject_url,
+        key_id=key_id_hex,
+        signature_backend="minisign",
+    )
+    claim_json_bytes = claim_to_bytes(claim)
+    sig = sk.sign(claim_json_bytes, prehash=True)
+    # Store only the 74-byte binary (algo + key_id + ed25519_sig), not the armored text format.
+    sig_b64 = base64.standard_b64encode(sig._signature_algorithm.value + sig._key_id + sig._signature).decode()
+    claim["signature"] = sig_b64
     return encode_claim(claim)
 
 
