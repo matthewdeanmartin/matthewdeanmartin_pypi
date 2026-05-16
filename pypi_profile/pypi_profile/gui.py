@@ -665,6 +665,139 @@ COMMANDS: list[GuiCommand] = [
         ],
         "readonly": False,
     },
+    # ── Key Management group ──────────────────────────────────────────────
+    {
+        "name": "key-info",
+        "label": "Key Info",
+        "group": "keys",
+        "help": (
+            "Inspect the active signing key without modifying anything.\n\n"
+            "Shows the key source (keyring or disk), key ID, generation date, "
+            "public key (truncated), and whether it matches the public key in your "
+            "active pypi_profile.toml.\n\n"
+            "No arguments required — runs automatically."
+        ),
+        "args": [],
+        "readonly": True,
+    },
+    {
+        "name": "key-list",
+        "label": "List Keys",
+        "group": "keys",
+        "help": (
+            "List all known signing keys across the system keyring and disk.\n\n"
+            "Searches the keyring (if available) and all *.key files in "
+            "~/.pypi_profile/ and the current directory.  Each entry shows "
+            "its source, key ID, and whether it matches your profile TOML.\n\n"
+            "--json: emit machine-readable JSON instead of a table."
+        ),
+        "args": [
+            {"flag": "--json", "label": "JSON output", "default": False, "kind": "bool"},
+        ],
+        "readonly": True,
+    },
+    {
+        "name": "key-rotate",
+        "label": "Rotate Key",
+        "group": "keys",
+        "help": (
+            "Replace the active signing key and re-sign all profile proofs.\n\n"
+            "Generates a new keypair, updates [verification] public_key in the TOML, "
+            "and re-signs every [[profiles]] entry.  The old key is archived to a .bak "
+            "file unless --no-keep-old is set.\n\n"
+            "NOTE: stored_proof values already published on external pages will appear "
+            "invalid until those pages are updated with the new proof strings.\n\n"
+            "Uses the profile selected in the top bar.\n"
+            "--key-dir: directory for the new key files\n"
+            "--keyring-identity: name for the new key in the keyring\n"
+            "--no-keep-old: discard the old key instead of archiving it\n"
+            "--force: skip the interactive confirmation prompt"
+        ),
+        "args": [
+            {"flag": "--key-dir", "label": "Key directory", "default": "~/.pypi_profile/", "kind": "dir"},
+            {
+                "flag": "--keyring-identity",
+                "label": "Keyring identity (blank = default)",
+                "default": "",
+                "kind": "str",
+            },
+            {"flag": "--no-keep-old", "label": "Discard old key (no archive)", "default": False, "kind": "bool"},
+            {"flag": "--force", "label": "Skip confirmation prompt", "default": True, "kind": "bool"},
+        ],
+        "readonly": False,
+    },
+    {
+        "name": "key-recover",
+        "label": "Recover Key",
+        "group": "keys",
+        "help": (
+            "Recover from a lost signing key.\n\n"
+            "When your secret key is gone (disk deleted, keyring wiped, new machine), "
+            "this command generates a replacement keypair, updates [verification] "
+            "public_key in the TOML, and re-signs all [[profiles]] entries.\n\n"
+            "If the key is still present, the command exits early and tells you to "
+            "use Rotate Key instead.\n\n"
+            "After recovery, commit the TOML and update any external pages that "
+            "embedded the old proof strings.\n\n"
+            "Uses the profile selected in the top bar."
+        ),
+        "args": [
+            {"flag": "--key-dir", "label": "Key directory", "default": "~/.pypi_profile/", "kind": "dir"},
+            {
+                "flag": "--keyring-identity",
+                "label": "Keyring identity (blank = default)",
+                "default": "",
+                "kind": "str",
+            },
+        ],
+        "readonly": False,
+    },
+    {
+        "name": "key-export",
+        "label": "Export Key",
+        "group": "keys",
+        "help": (
+            "Export the secret key to a file for secure transfer.\n\n"
+            "Writes the raw secret key bytes to the specified output file.  "
+            "Use this to move your key to a new machine or set up CI/CD signing.\n\n"
+            "WARNING: The exported file is your secret key.  Treat it like a "
+            "password.  Never commit it to version control.\n\n"
+            "--output: destination file path (required)\n"
+            "--key: source key file (blank = keyring or default disk path)"
+        ),
+        "args": [
+            {"flag": "--output", "label": "Output file path", "default": "minisign.key.export", "kind": "file"},
+            {"flag": "--key", "label": "Source key (blank = default)", "default": "", "kind": "file"},
+        ],
+        "readonly": False,
+    },
+    {
+        "name": "key-import",
+        "label": "Import Key",
+        "group": "keys",
+        "help": (
+            "Install an exported key file into the keyring and/or disk.\n\n"
+            "Reads a previously exported key file (from key-export) and installs it "
+            "into the system keyring and the default disk path.\n\n"
+            "Use this to set up a key from another machine or import a CI signing key.\n\n"
+            "--file: path to the exported key file\n"
+            "--keyring-identity: name for the key in the keyring (blank = default)\n"
+            "--no-keyring: store only on disk, skip the keyring\n"
+            "--force: overwrite an existing key on disk"
+        ),
+        "args": [
+            {"flag": "file", "label": "Key file to import", "default": "", "kind": "file"},
+            {
+                "flag": "--keyring-identity",
+                "label": "Keyring identity (blank = default)",
+                "default": "",
+                "kind": "str",
+            },
+            {"flag": "--no-keyring", "label": "Disk only (skip keyring)", "default": False, "kind": "bool"},
+            {"flag": "--force", "label": "Overwrite existing key", "default": False, "kind": "bool"},
+        ],
+        "readonly": False,
+    },
     # ── Diagnostics group ─────────────────────────────────────────────────
     {
         "name": "doctor",
@@ -892,6 +1025,7 @@ class PypiProfileGui(tk.Tk):
             ("setup", "── Setup ──"),
             ("profile", "── Profile ──"),
             ("website", "── Website ──"),
+            ("keys", "── Key Management ──"),
             ("diagnostics", "── Diagnostics ──"),
         ]
         for group, heading in groups:
@@ -1280,6 +1414,8 @@ class PypiProfileGui(tk.Tk):
             "sign",
             "update-proofs",
             "add-identity-site",
+            "key-rotate",
+            "key-recover",
         }
         if cmd["name"] in _NEEDS_SOURCE:
             source = self.active_source.get().strip()
@@ -1620,6 +1756,8 @@ class PypiProfileGui(tk.Tk):
         self.after(5000, lambda: self.status_var.set(""))
         if rc == 0 and cmd.get("name") in ("init", "import"):
             self.after(200, self._refresh_profile_list)
+        if rc == 0 and cmd.get("name") in ("key-rotate", "key-recover", "key-import", "keygen"):
+            self.after(200, self._refresh_key_list)
         # Enable Open button for build on success; serve already enables it at launch.
         if self._open_url and cmd.get("name") == "build":
             self.open_btn.config(state=tk.NORMAL)

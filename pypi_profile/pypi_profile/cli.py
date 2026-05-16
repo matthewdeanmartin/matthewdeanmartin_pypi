@@ -1087,6 +1087,290 @@ def cmd_update_proofs(args: argparse.Namespace) -> None:
         print("No URLs needed updating (all already have stored_proof, or no key found).")
 
 
+def cmd_key_info(args: argparse.Namespace) -> None:
+    """Print information about the active signing key without modifying anything."""
+    from pypi_profile.key_management import key_info
+
+    sk_path = Path(args.key).expanduser() if getattr(args, "key", "") else None
+
+    if is_dry_run(args):
+        print_dry_run(
+            "key-info would display signing key details.",
+            [f"key={sk_path or '(default)'}"],
+        )
+        return
+
+    info = key_info(sk_path=sk_path)
+
+    if info.get("not_found"):
+        print("No signing key found.")
+        print(f"  ({info.get('source', 'unknown location')})")
+        print()
+        print("Run  pypi-profile keygen  to generate one.")
+        return
+
+    if info.get("error"):
+        print(f"Key found but unreadable: {info['error']}", file=sys.stderr)
+        sys.exit(2)
+
+    pub = info.get("public_key", "")
+    pub_display = (pub[:20] + "…") if len(pub) > 20 else pub
+
+    print("Signing key info")
+    print(f"  source:      {info['source']}")
+    print(f"  key ID:      {info.get('key_id', 'unknown')}")
+    print(f"  generated:   {info.get('generated', 'unknown')}")
+    print(f"  public key:  {pub_display}")
+    print()
+    print("Profile binding")
+    print(f"  {info.get('profile_binding', 'no profile found')}")
+
+
+def cmd_key_list(args: argparse.Namespace) -> None:
+    """List all known signing keys across the keyring and disk."""
+    from pypi_profile.key_management import key_list
+
+    if is_dry_run(args):
+        print_dry_run("key-list would enumerate all known signing keys.")
+        return
+
+    entries = key_list()
+
+    if not entries:
+        print("No signing keys found.")
+        return
+
+    if getattr(args, "json", False):
+        print(json.dumps(entries, indent=2, default=str))
+        return
+
+    col_w = 44
+    print(f"{'Identity / path':<{col_w}}  {'Key ID':<16}  {'Source'}")
+    print("-" * (col_w + 32))
+    for e in entries:
+        label = e["identity_or_path"]
+        if len(label) > col_w:
+            label = "…" + label[-(col_w - 1) :]
+        kid = e.get("key_id", "—")
+        source = e.get("source", "")
+        binding = e.get("binding", "")
+        suffix = f"  ({binding})" if binding else ""
+        print(f"{label:<{col_w}}  {kid:<16}  {source}{suffix}")
+
+
+def cmd_key_rotate(args: argparse.Namespace) -> None:
+    """Replace the active signing key and re-sign all profile proofs."""
+    import os
+
+    from pypi_profile.key_management import key_rotate
+    from pypi_profile.loader import find_profile, load_profile
+
+    try:
+        toml_path = find_profile(args.source)
+    except FileNotFoundError as exc:
+        logger.error("Profile not found: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    profile = load_profile(toml_path, autopatch_public_key=False)
+    pypi_username = profile.identity.pypi_username
+    profile_package = args.profile_package or f"pypi-profile-{pypi_username}"
+    key_dir = Path(args.key_dir).expanduser() if getattr(args, "key_dir", "") else None
+    keyring_identity = getattr(args, "keyring_identity", "") or None
+    password = getattr(args, "password", "") or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "") or None
+
+    if is_dry_run(args):
+        print_dry_run(
+            "key-rotate would generate a new keypair, update TOML, and re-sign all proofs.",
+            [
+                f"profile={toml_path}",
+                f"profile_package={profile_package}",
+                f"key_dir={key_dir or '(default ~/.pypi_profile/)'}",
+                f"keyring_identity={keyring_identity or '(default)'}",
+                f"no_keep_old={getattr(args, 'no_keep_old', False)}",
+            ],
+        )
+        return
+
+    if not getattr(args, "force", False):
+        answer = input("Rotating the key will re-sign all profile proofs. Continue? [y/N] ").strip().lower()
+        if answer != "y":
+            print("Aborted.")
+            sys.exit(0)
+
+    try:
+        result = key_rotate(
+            toml_path=toml_path,
+            profile_package=profile_package,
+            pypi_username=pypi_username,
+            key_dir=key_dir,
+            keyring_identity=keyring_identity,
+            password=password,
+            no_keep_old=getattr(args, "no_keep_old", False),
+        )
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        logger.error("key-rotate failed: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Old key ID:  {result['old_key_id']}")
+    print(f"New key ID:  {result['new_key_id']}")
+    if result.get("archived_path"):
+        print(f"Old key archived to: {result['archived_path']}")
+    if result.get("updated_urls"):
+        print(f"\nRe-signed {len(result['updated_urls'])} URL(s):")
+        for url in result["updated_urls"]:
+            print(f"  {url}")
+    print()
+    print("NOTE: stored_proof values published on external pages before this rotation")
+    print("      will appear invalid until those pages are updated with the new proof strings.")
+    print("Commit the updated TOML to source control.")
+
+
+def cmd_key_recover(args: argparse.Namespace) -> None:
+    """Guide the user through recovery when the secret key is lost."""
+    import os
+
+    from pypi_profile.key_management import key_recover
+    from pypi_profile.loader import find_profile, load_profile
+
+    try:
+        toml_path = find_profile(args.source)
+    except FileNotFoundError as exc:
+        logger.error("Profile not found: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    profile = load_profile(toml_path, autopatch_public_key=False)
+    pypi_username = profile.identity.pypi_username
+    profile_package = args.profile_package or f"pypi-profile-{pypi_username}"
+    key_dir = Path(args.key_dir).expanduser() if getattr(args, "key_dir", "") else None
+    keyring_identity = getattr(args, "keyring_identity", "") or None
+    password = getattr(args, "password", "") or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "") or None
+
+    if is_dry_run(args):
+        print_dry_run(
+            "key-recover would diagnose missing key and guide through recovery.",
+            [
+                f"profile={toml_path}",
+                f"profile_package={profile_package}",
+            ],
+        )
+        return
+
+    try:
+        result = key_recover(
+            toml_path=toml_path,
+            profile_package=profile_package,
+            pypi_username=pypi_username,
+            key_dir=key_dir,
+            keyring_identity=keyring_identity,
+            password=password,
+        )
+    except (FileNotFoundError, OSError, ValueError) as exc:
+        logger.error("key-recover failed: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if result.get("key_was_present"):
+        print("Key is present — no recovery needed.")
+        print(result.get("message", ""))
+        print("Use  pypi-profile key-rotate  to replace it.")
+        return
+
+    print(f"New key ID:      {result.get('new_key_id', 'unknown')}")
+    print(f"New public key:  {result.get('new_public_key', '')[:20]}…")
+    if result.get("updated_urls"):
+        print(f"\nRe-signed {len(result['updated_urls'])} URL(s):")
+        for url in result["updated_urls"]:
+            print(f"  {url}")
+    if result.get("urls_needing_update"):
+        print()
+        print("The following URLs had stored proofs from the lost key.")
+        print("Update those external pages with the new proof strings:")
+        for url in result["urls_needing_update"]:
+            print(f"  {url}")
+    print()
+    print("Commit the updated TOML to source control and push it.")
+
+
+def cmd_key_export(args: argparse.Namespace) -> None:
+    """Export the raw secret key to a file for secure transfer."""
+    from pypi_profile.key_management import key_export
+
+    sk_path = Path(args.key).expanduser() if getattr(args, "key", "") else None
+    output_path = Path(args.output).expanduser() if getattr(args, "output", "") else None
+
+    if output_path is None and not is_dry_run(args):
+        print("ERROR: --output FILE is required for key-export.", file=sys.stderr)
+        sys.exit(1)
+
+    if is_dry_run(args):
+        print_dry_run(
+            "key-export would write the secret key to a file.",
+            [
+                f"key={sk_path or '(default)'}",
+                f"output={output_path or '(stdout — not allowed without --dry-run)'}",
+            ],
+        )
+        return
+
+    try:
+        result = key_export(output_path=output_path, sk_path=sk_path)
+    except FileNotFoundError as exc:
+        logger.error("key-export: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Exported key ID {result['key_id']} to {result['written_to']}")
+    print()
+    print(f"WARNING: {result['warning']}")
+
+
+def cmd_key_import(args: argparse.Namespace) -> None:
+    """Install a previously exported key file into the keyring and/or disk."""
+    from pypi_profile.key_management import key_import
+
+    import_path = Path(args.file).expanduser()
+    key_dir = Path(args.key_dir).expanduser() if getattr(args, "key_dir", "") else None
+    keyring_identity = getattr(args, "keyring_identity", "") or None
+    no_keyring: bool = getattr(args, "no_keyring", False)
+    force: bool = getattr(args, "force", False)
+
+    if is_dry_run(args):
+        print_dry_run(
+            "key-import would install a secret key from a file.",
+            [
+                f"file={import_path}",
+                f"key_dir={key_dir or '(default ~/.pypi_profile/)'}",
+                f"keyring_identity={keyring_identity or '(default)'}",
+                f"no_keyring={no_keyring}",
+                f"force={force}",
+            ],
+        )
+        return
+
+    try:
+        result = key_import(
+            import_path=import_path,
+            keyring_identity=keyring_identity,
+            key_dir=key_dir,
+            no_keyring=no_keyring,
+            force=force,
+        )
+    except (FileNotFoundError, FileExistsError, OSError) as exc:
+        logger.error("key-import: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Imported key ID: {result['key_id']}")
+    print(f"Stored on disk:  {result['disk_path']}")
+    if result.get("stored_in_keyring"):
+        print(f"Stored in keyring: yes (identity={keyring_identity or 'default'})")
+    else:
+        print("Stored in keyring: no")
+
+
 def cmd_build(args: argparse.Namespace) -> None:
     """Generate a static site from a profile."""
     from pypi_profile.loader import find_profile, load_profile
@@ -1342,6 +1626,111 @@ def main() -> None:
     gui_p = subparsers.add_parser("gui", help="Launch the Tkinter GUI")
     add_dry_run_argument(gui_p)
     gui_p.set_defaults(func=cmd_gui)
+
+    key_info_p = subparsers.add_parser("key-info", help="Inspect the active signing key (read-only)")
+    add_dry_run_argument(key_info_p)
+    key_info_p.add_argument(
+        "--key",
+        default="",
+        metavar="PATH",
+        help="Path to secret key file (default: keyring or ~/.pypi_profile/minisign.key)",
+    )
+    key_info_p.set_defaults(func=cmd_key_info)
+
+    key_list_p = subparsers.add_parser("key-list", help="List all known signing keys")
+    add_dry_run_argument(key_list_p)
+    key_list_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
+    key_list_p.set_defaults(func=cmd_key_list)
+
+    key_rotate_p = subparsers.add_parser("key-rotate", help="Replace the active signing key and re-sign all proofs")
+    add_dry_run_argument(key_rotate_p)
+    key_rotate_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    key_rotate_p.add_argument(
+        "--key-dir",
+        default="",
+        metavar="PATH",
+        help="Directory for new key files (default: ~/.pypi_profile/)",
+    )
+    key_rotate_p.add_argument(
+        "--keyring-identity",
+        default="",
+        metavar="NAME",
+        help="Keyring identity name for the new key",
+    )
+    key_rotate_p.add_argument("--password", default="", help="Password for the new secret key")
+    key_rotate_p.add_argument("--profile-package", default="", help="Profile package name override")
+    key_rotate_p.add_argument(
+        "--no-keep-old",
+        action="store_true",
+        default=False,
+        help="Do not archive the old key (default: archive to a .bak file)",
+    )
+    key_rotate_p.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Skip interactive confirmation prompt",
+    )
+    key_rotate_p.set_defaults(func=cmd_key_rotate)
+
+    key_recover_p = subparsers.add_parser("key-recover", help="Recover from a lost signing key")
+    add_dry_run_argument(key_recover_p)
+    key_recover_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    key_recover_p.add_argument(
+        "--key-dir",
+        default="",
+        metavar="PATH",
+        help="Directory for the new key files (default: ~/.pypi_profile/)",
+    )
+    key_recover_p.add_argument(
+        "--keyring-identity",
+        default="",
+        metavar="NAME",
+        help="Keyring identity name for the new key",
+    )
+    key_recover_p.add_argument("--password", default="", help="Password for the new secret key")
+    key_recover_p.add_argument("--profile-package", default="", help="Profile package name override")
+    key_recover_p.set_defaults(func=cmd_key_recover)
+
+    key_export_p = subparsers.add_parser("key-export", help="Export the secret key to a file for secure transfer")
+    add_dry_run_argument(key_export_p)
+    key_export_p.add_argument(
+        "--key",
+        default="",
+        metavar="PATH",
+        help="Path to secret key file to export (default: keyring or ~/.pypi_profile/minisign.key)",
+    )
+    key_export_p.add_argument(
+        "--output",
+        default="",
+        metavar="FILE",
+        help="Output file path (required unless --dry-run)",
+    )
+    key_export_p.set_defaults(func=cmd_key_export)
+
+    key_import_p = subparsers.add_parser("key-import", help="Install an exported key file into keyring/disk")
+    add_dry_run_argument(key_import_p)
+    key_import_p.add_argument("file", help="Path to the exported key file")
+    key_import_p.add_argument(
+        "--keyring-identity",
+        default="",
+        metavar="NAME",
+        help="Keyring identity name (default: 'default')",
+    )
+    key_import_p.add_argument(
+        "--key-dir",
+        default="",
+        metavar="PATH",
+        help="Directory for the disk copy (default: ~/.pypi_profile/)",
+    )
+    key_import_p.add_argument(
+        "--no-keyring",
+        action="store_true",
+        default=False,
+        help="Store only on disk; skip keyring",
+    )
+    key_import_p.add_argument("--force", action="store_true", default=False, help="Overwrite existing key on disk")
+    key_import_p.set_defaults(func=cmd_key_import)
 
     args = parser.parse_args()
 
