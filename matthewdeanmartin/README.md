@@ -23,4 +23,4 @@ pipx inject pypi-profile matthewdeanmartin
 ## Want one of your own?
 
 - Get the package [pypi-profile](https://pypi.org/project/pypi-profile/)
-- Read the [docs](https://matthewdeanmartin-pypi.readthedocs.io/en/latest/) 
+- Read the [docs](https://matthewdeanmartin-pypi.readthedocs.io/en/latest/)

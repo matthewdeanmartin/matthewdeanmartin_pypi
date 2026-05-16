@@ -42,9 +42,8 @@ cd pypi_profile && make check
 Any installed package that registers this entry point and implements `get_profile_data()` will be discovered
 automatically.
 
-
 ## Prior Art
 
 - Keyoxide - https://docs.keyoxide.org/
 - Keybase - https://keybase.io/matthewmartin
-- 
+-
