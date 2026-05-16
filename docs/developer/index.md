@@ -27,8 +27,5 @@ matthewdeanmartin_pypi/
 - [Architecture overview](architecture.md) — how the modules relate to each other
 - [Data model](data-model.md) — TOML schema and Pydantic models
 - [Server and templating](server.md) — FastAPI routes, Jinja2 templates, static files
-- [Static site builder](builder.md) — how `pypi-profile build` works
 - [Signing and verification internals](signing-internals.md) — claims, Ed25519, minisign
 - [Plugin system](plugin-system.md) — pluggy integration and profile packages
-- [CLI reference](cli-reference.md) — every command explained with examples
-- [Fetcher and caching](fetcher.md) — live data from PyPI, GitHub, GitLab, Mastodon

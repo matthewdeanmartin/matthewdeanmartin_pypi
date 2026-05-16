@@ -24,10 +24,22 @@ nav:
       - Pluggy Plugins: advanced-usage.md
       - JSON Resume Import: skills/json-resume.md
   - Signing and Verification: signing.md
+  - Developer Guide:
+      - Overview: developer/index.md
+      - Architecture: developer/architecture.md
+      - Data Model: developer/data-model.md
+      - Plugin System: developer/plugin-system.md
+      - Server: developer/server.md
+      - Signing Internals: developer/signing-internals.md
+  - Contributing:
+      - Overview: contributing.md
+      - Contributing Guide: contributing/contributing-to-pypi-profile.md
+      - Writing a Plugin: contributing/writing-a-plugin.md
+      - Publishing Static Pages: contributing/publishing-static-pages.md
+      - Legacy Extending: extending/CONTRIBUTING.md
   - Troubleshooting: troubleshooting.md
   - Security: security.md
   - Roadmap: roadmap.md
-  - Contributing: contributing.md
 validation:
   nav:
     omitted_files: warn
