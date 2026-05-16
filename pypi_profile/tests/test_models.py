@@ -1,6 +1,7 @@
 """Tests for the ProfileData model and loader."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -56,6 +57,32 @@ def test_find_profile_missing_raises() -> None:
 
     with pytest.raises(FileNotFoundError):
         find_profile("no-such-package-name-xyz")
+
+
+def test_find_installed_profile_files_prefers_resources_and_deduplicates(mocker: Any, tmp_path: Path) -> None:
+    from pypi_profile.loader import find_installed_profile_files
+
+    resource_path = tmp_path / "john_doe" / "pypi_profile.toml"
+    resource_path.parent.mkdir()
+    resource_path.write_text("", encoding="utf-8")
+
+    package_file = mocker.MagicMock()
+    package_file.name = "pypi_profile.toml"
+    dist = mocker.MagicMock()
+    dist.files = [package_file]
+    dist.locate_file.return_value = resource_path
+
+    entry_point = mocker.MagicMock()
+    entry_point.value = "john_doe"
+
+    traversable = mocker.MagicMock()
+    traversable.joinpath.return_value = resource_path
+
+    mocker.patch("importlib.metadata.distributions", return_value=[dist])
+    mocker.patch("importlib.metadata.entry_points", return_value=[entry_point])
+    mocker.patch("importlib.resources.files", return_value=traversable)
+
+    assert find_installed_profile_files() == [resource_path.resolve()]
 
 
 def test_package_state_badge_values() -> None:

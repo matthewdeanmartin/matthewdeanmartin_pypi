@@ -16,7 +16,7 @@ PROOF_PREFIX = "pypi-profile-proof:"
 
 # Compact claim field names (to minimise token length for character-limited platforms).
 # Full name -> short key
-_COMPACT_FIELDS = {
+COMPACT_FIELDS = {
     "profile_package": "p",
     "pypi_username": "u",
     "subject": "s",
@@ -25,7 +25,7 @@ _COMPACT_FIELDS = {
     "nonce": "n",
     "signature": "g",
 }
-_COMPACT_FIELDS_INV = {v: k for k, v in _COMPACT_FIELDS.items()}
+COMPACT_FIELDS_INV = {v: k for k, v in COMPACT_FIELDS.items()}
 
 
 def build_claim(

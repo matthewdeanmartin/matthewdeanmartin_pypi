@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import sys
+import time
 from pathlib import Path
 
 if sys.version_info >= (3, 11):
@@ -13,8 +15,8 @@ else:
     except ImportError:
         import tomli as tomllib
 
-# Directories that are always skipped during the walk (exact name match).
-_SKIP_DIRS = {
+# Directories that are always skipped during the walk (case-insensitive exact name match).
+SKIP_DIRS = {
     ".venv",
     "venv",
     ".env",
@@ -30,18 +32,47 @@ _SKIP_DIRS = {
     ".ruff_cache",
     "dist",
     "build",
+    "temp",
     "site-packages",
     ".eggs",
-    "*.egg-info",
 }
 
 
-def find_profile_files(root: Path | None = None, max_depth: int = 6) -> list[Path]:
+def should_skip_dir(name: str) -> bool:
+    """Return True when a directory should be skipped during scanning."""
+    lowered = name.lower()
+    return lowered in SKIP_DIRS or lowered.endswith(".egg-info")
+
+
+def record_profile_match(entry: Path, direct: list[Path], via_pyproject: list[Path]) -> None:
+    """Append matching profile files to the appropriate result list."""
+    if entry.name == "pypi_profile.toml":
+        direct.append(entry)
+        return
+    if entry.name != "pyproject.toml":
+        return
+    try:
+        with open(entry, "rb") as fh:
+            data = tomllib.load(fh)
+        if "pypi-profile" in data.get("tool", {}):
+            via_pyproject.append(entry)
+    except (OSError, tomllib.TOMLDecodeError):
+        pass
+
+
+def find_profile_files(
+    root: Path | None = None,
+    max_depth: int = 6,
+    max_files: int | None = None,
+    max_duration_ms: int | None = None,
+) -> list[Path]:
     """Return all profile TOML paths under *root* (default: cwd), skipping heavy dirs.
 
     Finds:
     - Any file named ``pypi_profile.toml``
     - Any ``pyproject.toml`` that contains a ``[tool.pypi-profile]`` section
+
+    The scan can be bounded by directory depth, file count, and elapsed time.
 
     Results are sorted: ``pypi_profile.toml`` files first, then ``pyproject.toml``,
     both groups in alphabetical order.
@@ -49,30 +80,40 @@ def find_profile_files(root: Path | None = None, max_depth: int = 6) -> list[Pat
     root = (root or Path.cwd()).resolve()
     direct: list[Path] = []
     via_pyproject: list[Path] = []
+    scanned_files = 0
+    stop_scan = False
+    deadline = None if max_duration_ms is None else time.perf_counter() + (max_duration_ms / 1000)
 
-    def _walk(directory: Path, depth: int) -> None:
+    def should_stop() -> bool:
+        if max_files is not None and scanned_files >= max_files:
+            return True
+        return deadline is not None and time.perf_counter() >= deadline
+
+    def walk(directory: Path, depth: int) -> None:
+        nonlocal scanned_files, stop_scan
+        if stop_scan or should_stop():
+            stop_scan = True
+            return
         if depth > max_depth:
             return
         try:
-            entries = sorted(directory.iterdir())
-        except PermissionError:
-            return
-        for entry in entries:
-            if entry.is_dir():
-                if entry.name in _SKIP_DIRS or entry.name.endswith(".egg-info"):
-                    continue
-                _walk(entry, depth + 1)
-            elif entry.is_file():
-                if entry.name == "pypi_profile.toml":
-                    direct.append(entry)
-                elif entry.name == "pyproject.toml":
+            with os.scandir(directory) as entries:
+                for raw_entry in entries:
+                    if stop_scan or should_stop():
+                        stop_scan = True
+                        break
                     try:
-                        with open(entry, "rb") as fh:
-                            data = tomllib.load(fh)
-                        if "pypi-profile" in data.get("tool", {}):
-                            via_pyproject.append(entry)
-                    except (OSError, tomllib.TOMLDecodeError):
-                        pass
+                        if raw_entry.is_dir(follow_symlinks=False):
+                            if should_skip_dir(raw_entry.name):
+                                continue
+                            walk(Path(raw_entry.path), depth + 1)
+                        elif raw_entry.is_file(follow_symlinks=False):
+                            scanned_files += 1
+                            record_profile_match(Path(raw_entry.path), direct, via_pyproject)
+                    except OSError:
+                        continue
+        except OSError:
+            return
 
-    _walk(root, 0)
+    walk(root, 0)
     return sorted(direct) + sorted(via_pyproject)

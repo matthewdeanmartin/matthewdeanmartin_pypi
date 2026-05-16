@@ -57,7 +57,7 @@ def proof_page_server(tmp_path: Path) -> Iterator[ProofPageServer]:
         proof_server.close()
 
 
-def _run_init(dest: Path) -> None:
+def run_init(dest: Path) -> None:
     from pypi_profile.cli import cmd_init
 
     args = argparse.Namespace(
@@ -72,21 +72,21 @@ def _run_init(dest: Path) -> None:
     cmd_init(args)
 
 
-def _replace_once(text: str, old: str, new: str) -> str:
+def replace_once(text: str, old: str, new: str) -> str:
     if old not in text:
         raise AssertionError(f"Expected snippet not found: {old!r}")
     return text.replace(old, new, 1)
 
 
-def _edit_profile(toml_path: Path, proof_url: str, tmp_path: Path) -> Path:
+def edit_profile(toml_path: Path, proof_url: str, tmp_path: Path) -> Path:
     text = toml_path.read_text(encoding="utf-8")
     text = text.replace('display_name = "Your Name"', 'display_name = "Alice Example"')
-    text = _replace_once(
+    text = replace_once(
         text,
         'summary = "Python developer and package publisher."',
         'summary = "Builds packaging tools and publishes a verified profile site."',
     )
-    text = _replace_once(
+    text = replace_once(
         text,
         (
             "[[profiles]]\n"
@@ -103,9 +103,9 @@ def _edit_profile(toml_path: Path, proof_url: str, tmp_path: Path) -> Path:
             'verification = "self_asserted"'
         ),
     )
-    text = _replace_once(text, 'name = "your-package"', 'name = "workflow-package"')
-    text = _replace_once(text, 'summary = "A Python package."', 'summary = "Exercises the end-to-end user workflow."')
-    text = _replace_once(
+    text = replace_once(text, 'name = "your-package"', 'name = "workflow-package"')
+    text = replace_once(text, 'summary = "A Python package."', 'summary = "Exercises the end-to-end user workflow."')
+    text = replace_once(
         text,
         "[hiring]\n",
         (
@@ -126,7 +126,7 @@ def _edit_profile(toml_path: Path, proof_url: str, tmp_path: Path) -> Path:
     return sk_path
 
 
-def _update_proofs(toml_path: Path, secret_key_path: Path) -> str:
+def update_proofs(toml_path: Path, secret_key_path: Path) -> str:
     from pypi_profile.cli import cmd_update_proofs
 
     args = argparse.Namespace(
@@ -145,7 +145,7 @@ def _update_proofs(toml_path: Path, secret_key_path: Path) -> str:
 def test_init_phase_creates_a_starter_profile(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     toml_path = tmp_path / "pypi_profile.toml"
 
-    _run_init(toml_path)
+    run_init(toml_path)
 
     profile = load_profile(toml_path)
     captured = capsys.readouterr()
@@ -159,9 +159,9 @@ def test_init_phase_creates_a_starter_profile(tmp_path: Path, capsys: pytest.Cap
 
 def test_edit_phase_keeps_manual_changes_loadable(tmp_path: Path, proof_page_server: ProofPageServer) -> None:
     toml_path = tmp_path / "pypi_profile.toml"
-    _run_init(toml_path)
+    run_init(toml_path)
 
-    _edit_profile(toml_path, proof_page_server.url, tmp_path)
+    edit_profile(toml_path, proof_page_server.url, tmp_path)
 
     profile = load_profile(toml_path)
 
@@ -182,10 +182,10 @@ def test_update_and_verify_phases_cover_live_proof_publication(
     from pypi_profile.cli import cmd_verify
 
     toml_path = tmp_path / "pypi_profile.toml"
-    _run_init(toml_path)
-    secret_key_path = _edit_profile(toml_path, proof_page_server.url, tmp_path)
+    run_init(toml_path)
+    secret_key_path = edit_profile(toml_path, proof_page_server.url, tmp_path)
 
-    stored_proof = _update_proofs(toml_path, secret_key_path)
+    stored_proof = update_proofs(toml_path, secret_key_path)
     proof_page_server.publish(f"<html><body>{stored_proof}</body></html>")
 
     args = argparse.Namespace(source=str(toml_path), profile_package="")
@@ -205,9 +205,9 @@ def test_build_phase_publishes_the_verified_static_site(tmp_path: Path, proof_pa
     toml_path = tmp_path / "pypi_profile.toml"
     output_path = tmp_path / "dist"
 
-    _run_init(toml_path)
-    secret_key_path = _edit_profile(toml_path, proof_page_server.url, tmp_path)
-    stored_proof = _update_proofs(toml_path, secret_key_path)
+    run_init(toml_path)
+    secret_key_path = edit_profile(toml_path, proof_page_server.url, tmp_path)
+    stored_proof = update_proofs(toml_path, secret_key_path)
     proof_page_server.publish(f"<html><body>{stored_proof}</body></html>")
     cmd_verify(argparse.Namespace(source=str(toml_path), profile_package=""))
 

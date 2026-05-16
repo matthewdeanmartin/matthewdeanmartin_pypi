@@ -78,7 +78,7 @@ def generate_proofs(
     return results
 
 
-def _get_claim_results(
+def get_claim_results(
     profile: ProfileData,
     profile_package: str,
     static_mode: bool,
@@ -199,7 +199,7 @@ def build_app(
 
     @app.get("/verification", response_class=HTMLResponse)
     async def verification(request: Request) -> HTMLResponse:
-        claim_results = _get_claim_results(profile, profile_package, static_mode)
+        claim_results = get_claim_results(profile, profile_package, static_mode)
         proofs = generate_proofs(profile, profile_package, claim_results)
 
         return render(
@@ -235,7 +235,7 @@ def build_app(
 
     @app.get("/api/verification.json")
     async def api_verification() -> JSONResponse:
-        claim_results = _get_claim_results(profile, profile_package, static_mode)
+        claim_results = get_claim_results(profile, profile_package, static_mode)
         return JSONResponse(
             {
                 **profile.verification.model_dump(),

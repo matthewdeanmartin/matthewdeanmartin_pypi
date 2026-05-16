@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.metadata as meta
 import logging
 import sys
+from importlib import resources
 from pathlib import Path
 
 from pypi_profile.models import ProfileData
@@ -58,6 +59,30 @@ def find_resume(toml_path: Path) -> Path | None:
         if p.exists():
             return p
     return None
+
+
+def find_installed_profile_files() -> list[Path]:
+    """Return installed package resources named ``pypi_profile.toml`` in the current environment."""
+    found: set[Path] = set()
+
+    for dist in meta.distributions():
+        for package_file in dist.files or []:
+            if package_file.name != "pypi_profile.toml":
+                continue
+            candidate = Path(str(dist.locate_file(package_file)))
+            if candidate.exists():
+                found.add(candidate.resolve())
+
+    for entry_point in meta.entry_points(group="pypi_profile.plugins"):
+        module_name = entry_point.value.partition(":")[0]
+        try:
+            candidate = Path(str(resources.files(module_name).joinpath("pypi_profile.toml")))
+        except (ModuleNotFoundError, TypeError):
+            continue
+        if candidate.exists():
+            found.add(candidate.resolve())
+
+    return sorted(found)
 
 
 def find_profile(source: str) -> Path:

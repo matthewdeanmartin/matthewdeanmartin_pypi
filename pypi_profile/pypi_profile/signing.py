@@ -27,9 +27,6 @@ DEFAULT_PK_NAME = "minisign.pub"
 
 KEYRING_SERVICE = "pypi-profile"
 
-# Sentinel used when the caller wants the env-var / "default" fallback.
-_ENV_DEFAULT = object()
-
 
 def pypi_username_from_nearby_toml() -> str:
     """Return the pypi_username from a pypi_profile.toml in cwd, or ''."""
@@ -368,7 +365,7 @@ def patch_public_key_in_toml(toml_path: Path, pk_path: Path | None = None) -> st
     return pub_b64
 
 
-def _make_proof_replacer(proof: str, escaped_url: str) -> Any:
+def make_proof_replacer(proof: str, escaped_url: str) -> Any:
     """Return a re.sub replacement function with proof and escaped_url bound at definition time."""
 
     def replace_or_insert(m: re.Match[str]) -> str:
@@ -446,7 +443,7 @@ def patch_proofs_in_toml(
             continue
 
         escaped_url = re.escape(url)
-        replacer = _make_proof_replacer(proof, escaped_url)
+        replacer = make_proof_replacer(proof, escaped_url)
         # (?:(?!\[\[profiles\]\])[\s\S])*? — lazy match that cannot cross into the next [[profiles]] block
         pattern = (
             rf'(\[\[profiles\]\](?:(?!\[\[profiles\]\])[\s\S])*?url\s*=\s*"{escaped_url}"[\s\S]*?)(?=\[\[|\[(?!\[)|\Z)'

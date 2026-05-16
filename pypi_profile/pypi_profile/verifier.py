@@ -308,12 +308,12 @@ def diagnose_tokens(  # pylint: disable=too-many-return-statements
     return "unverified", steps
 
 
-_HREF_RE = re.compile(r'href=["\']([^"\']+)["\']', re.IGNORECASE)
+HREF_RE = re.compile(r'href=["\']([^"\']+)["\']', re.IGNORECASE)
 
 
-def _extract_urls_from_field(value: str) -> list[str]:
+def extract_urls_from_field(value: str) -> list[str]:
     """Extract all href URLs from a Mastodon field value (which may be HTML)."""
-    hrefs = _HREF_RE.findall(value)
+    hrefs = HREF_RE.findall(value)
     return hrefs if hrefs else [value]
 
 
@@ -343,7 +343,7 @@ def diagnose_mastodon_link(  # pylint: disable=too-many-return-statements
     2. Proof-token fallback: fetch the profile page and look for a
        pypi-profile-proof token signed with the account's key.
     """
-    import json as _json
+    import json as json_module
 
     steps: list[str] = []
 
@@ -359,7 +359,7 @@ def diagnose_mastodon_link(  # pylint: disable=too-many-return-statements
     try:
         req = urllib.request.Request(api_url, headers={"User-Agent": "pypi-profile/0.1"})
         with urllib.request.urlopen(req, timeout=10) as r:  # nosec B310
-            data = _json.loads(r.read().decode())
+            data = json_module.loads(r.read().decode())
     except (OSError, ValueError, urllib.error.URLError) as exc:
         steps.append(f"Could not reach Mastodon API: {exc}")
         return "unverified", steps
@@ -378,7 +378,7 @@ def diagnose_mastodon_link(  # pylint: disable=too-many-return-statements
         raw_value = field.get("value", "")
         verified_at = field.get("verified_at")
         # Mastodon wraps values in HTML; extract href URLs for matching.
-        field_urls = _extract_urls_from_field(raw_value)
+        field_urls = extract_urls_from_field(raw_value)
         field_urls_str = ", ".join(field_urls)
         steps.append(f"  Field {name!r}: urls={field_urls_str}  verified_at={verified_at!r}")
 

@@ -481,18 +481,18 @@ def cmd_inspect(args: argparse.Namespace) -> None:
             print("WARNING: schema errors present (run without --no-validate to see them)")
             # Load raw TOML for partial display
             if sys.version_info >= (3, 11):
-                import tomllib as _tl
+                import tomllib as toml_loader
             else:
                 try:
-                    import tomllib as _tl
+                    import tomllib as toml_loader
                 except ImportError:
-                    import tomli as _tl
+                    import tomli as toml_loader
             try:
                 with open(toml_path, "rb") as fh:
-                    raw = _tl.load(fh)
+                    raw = toml_loader.load(fh)
                 print(f"Profile file: {toml_path}")
                 print(f"Principal:    {raw.get('profile', {}).get('display_name', '?')!r}")
-            except (OSError, _tl.TOMLDecodeError) as raw_exc:
+            except (OSError, toml_loader.TOMLDecodeError) as raw_exc:
                 logger.debug("Could not read raw TOML for inspect fallback: %s", raw_exc)
             return
         logger.error("Profile validation failed: %s", exc)
@@ -758,20 +758,20 @@ def cmd_keygen(args: argparse.Namespace) -> None:
         if toml_path_check.exists():
             try:
                 if sys.version_info >= (3, 11):
-                    import tomllib as _tl
+                    import tomllib as toml_loader
                 else:
                     try:
-                        import tomllib as _tl
+                        import tomllib as toml_loader
                     except ImportError:
-                        import tomli as _tl
-                with open(toml_path_check, "rb") as _fh:
-                    _data = _tl.load(_fh)
-                identity = _data.get("identity", {})
+                        import tomli as toml_loader
+                with open(toml_path_check, "rb") as fh:
+                    data = toml_loader.load(fh)
+                identity = data.get("identity", {})
                 if isinstance(identity, dict):
                     username = identity.get("pypi_username", "")
                     if isinstance(username, str):
                         keyring_identity_arg = username
-            except (OSError, _tl.TOMLDecodeError) as exc:
+            except (OSError, toml_loader.TOMLDecodeError) as exc:
                 logger.debug("Could not derive keyring identity from local TOML: %s", exc)
     keyring_identity: str | None = keyring_identity_arg or None
     store_in_keyring: bool = not getattr(args, "no_keyring", False)
