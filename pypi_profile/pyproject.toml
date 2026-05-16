@@ -43,6 +43,7 @@ sign = []
 Repository = "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi"
 homepage = "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi"
 issues = "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues/"
+Documentation = "https://matthewdeanmartin-pypi.readthedocs.io/en/latest/"
 
 [project.scripts]
 pypi-profile = "pypi_profile.cli:main"

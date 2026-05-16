@@ -1,6 +1,6 @@
-# Quick start
+# Quick Start - CLI
 
-This is the shortest path from zero to a local profile site.
+This is the terminal-first path from an empty profile to a published site and package.
 
 ## 1. Install the CLI
 
@@ -8,85 +8,122 @@ This is the shortest path from zero to a local profile site.
 pipx install pypi-profile
 ```
 
-You can also use `pip install pypi-profile`, but `pipx` is the cleanest option for the CLI.
+## 2. Init
 
-## 2. Create a starter profile
+Create the starting file:
 
 ```bash
-pypi-profile init --username your-pypi-name
+pypi-profile init --username your-pypi-name --output pypi_profile.toml
 ```
 
-That writes `pypi_profile.toml` in the current directory.
+## 3. Import
 
-## 3. Inspect and validate
+The CLI does import through `init`.
+
+Import from live services:
+
+```bash
+pypi-profile init --username your-pypi-name --fetch --output pypi_profile.toml --force
+```
+
+Import from JSON Resume:
+
+```bash
+pypi-profile init --from-json-resume resume.json --output pypi_profile.toml --force
+```
+
+Check the result:
 
 ```bash
 pypi-profile inspect pypi_profile.toml
 ```
 
-This prints a summary and validates the schema. To skip validation (e.g. to
-inspect a work-in-progress TOML with known errors):
+## 4. Add identity sites
 
-```bash
-pypi-profile inspect pypi_profile.toml --no-validate
+The CLI does not have a dedicated `add-identity-site` command. Add `[[profiles]]` entries directly in `pypi_profile.toml`.
+
+```toml
+[[profiles]]
+kind = "github"
+label = "GitHub"
+url = "https://github.com/your-name"
+verification = "self_asserted"
+rel_me = true
+stored_proof = ""
+
+[[profiles]]
+kind = "website"
+label = "Personal site"
+url = "https://example.com"
+verification = "self_asserted"
+rel_me = true
+stored_proof = ""
 ```
 
-## 4. Serve the site locally
+## 5. Key generation
 
-```bash
-pypi-profile serve pypi_profile.toml
-```
-
-The default server address is `http://127.0.0.1:8000`.
-
-## 5. Dump the parsed data
-
-```bash
-pypi-profile dump pypi_profile.toml
-```
-
-## Optional: add signed proof-of-control
-
-Generate a keypair once (`py-minisign` and `keyring` are included in a standard install):
+Generate the minisign keypair:
 
 ```bash
 pypi-profile keygen
 ```
 
-Paste the printed public key into `[verification]` in your TOML, then sign a
-claim for each external URL you want to link:
+If `pypi_profile.toml` is in the current directory, `keygen` patches `[verification].public_key` automatically.
+
+## 6. Sign claims and update proofs
+
+Sign a single URL when you want the token immediately:
 
 ```bash
-pypi-profile sign controls-url pypi_profile.toml \
-    --url https://github.com/your-name
+pypi-profile sign controls-url pypi_profile.toml --url https://github.com/your-name
 ```
 
-Paste the output token onto that external page. Then store the proof in the
-TOML so static builds work without the private key:
+Then batch-write `stored_proof` values into the TOML:
 
 ```bash
 pypi-profile update-proofs pypi_profile.toml
 ```
 
-Then verify:
+Use `--force` when you need to re-sign existing entries.
+
+## 7. Publish signatures
+
+Publish each proof token on the external page it proves. For CLI workflows, that usually means:
+
+1. copy the token printed by `sign`, or copy `stored_proof` from `pypi_profile.toml`
+1. paste it onto the matching external page
+1. verify the round-trip
 
 ```bash
 pypi-profile verify pypi_profile.toml
 ```
 
-See [Signing and verification](signing.md) for the full explanation of what
-this proves and what it does not, including the [Mastodon workflow](signing.md#mastodon-workflow).
+If the platform is character-limited, `sign` supports `--compact`.
 
-## Optional: bootstrap from existing data
+## 8. Publish the static site
 
-If you already have a JSON Resume file:
-
-```bash
-pypi-profile init --from-json-resume resume.json --output pypi_profile.toml
-```
-
-If you want to prefill from live services during init:
+Build the static output:
 
 ```bash
-pypi-profile init --username your-pypi-name --fetch
+pypi-profile build pypi_profile.toml --output dist
 ```
+
+Use `--base-url` for subpath deployments such as GitHub Pages project sites:
+
+```bash
+pypi-profile build pypi_profile.toml --output dist --base-url /your-repo
+```
+
+Publish the generated `dist` directory to your static host.
+
+## 9. Publish the package
+
+Package publishing is outside `pypi-profile` itself. Publish the Python distribution that contains `pypi_profile.toml`.
+
+In the example profile packages in this repo, that means:
+
+- the wheel includes `pypi_profile.toml`
+- the package can be built with `uv build`
+- PyPI upload happens through the package's normal release workflow
+
+If you are using the pluggy-style package layout, also register a `pypi_profile.plugins` entry point as described in [Advanced usage: pluggy plugins](advanced-usage.md).

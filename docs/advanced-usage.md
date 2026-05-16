@@ -1,113 +1,85 @@
-# Advanced usage
+# Advanced usage: pluggy plugins
 
-## Import from JSON Resume
+This page describes the pluggy extension story as it exists in the current codebase.
 
-The current importer can translate a JSON Resume file into the `pypi-profile` data model:
+## What exists today
 
-```bash
-pypi-profile init --from-json-resume resume.json --output pypi_profile.toml
+`pypi-profile` currently ships:
+
+- a pluggy plugin manager that discovers `pypi_profile.plugins` entry points
+- a single hook spec: `get_profile_data() -> dict[str, Any]`
+- example plugin packages in this repo: `john_doe` and `matthewdeanmartin`
+
+The hook spec today is intentionally small:
+
+```python
+@hookspec
+def get_profile_data(self) -> dict[str, Any]:
+    ...
 ```
 
-The importer already maps common fields such as:
+## What plugin packages look like now
 
-- display name and summary
-- location
-- external profiles
-- contact email
-- work history
-- projects
+The current example packages register an entry point and include `pypi_profile.toml` in the built wheel:
 
-## Merge live service data
+```toml
+[project.entry-points."pypi_profile.plugins"]
+john_doe = "john_doe"
 
-You can ask `init` to prefill from network sources:
-
-```bash
-pypi-profile init --username your-pypi-name --fetch
+[tool.hatch.build.targets.wheel]
+include = [
+    "john_doe/**/*.py",
+    "john_doe/pypi_profile.toml",
+]
 ```
 
-Or fetch against an existing profile:
+That matches the current code in this repo:
+
+- pluggy discovery is implemented in `plugin_manager.py`
+- the hook spec lives in `plugin_spec.py`
+- example packages expose `get_profile_data()` from their package root
+
+## What works well right now
+
+The current plugin/package path is useful for:
+
+1. publishing a profile package that ships `pypi_profile.toml`
+1. installing that package and targeting it by package name
+1. experimenting with lightweight data hooks
+
+Because `find_profile()` can resolve installed distributions by name, commands such as these work when the package is installed and exposes `pypi_profile.toml`:
 
 ```bash
-pypi-profile fetch-claims pypi_profile.toml
+pypi-profile inspect your-package-name
+pypi-profile serve your-package-name
+pypi-profile build your-package-name --output dist
 ```
 
-As implemented today, fetch can compare declared packages with PyPI metadata and enrich the profile from GitHub, GitLab, Mastodon, and `FUNDING.yml`.
+## What is still limited
 
-## Use installed profile packages
+The pluggy surface is not yet the broad extension API described in the spec.
 
-The repo demonstrates the intended model with profile packages such as `matthewdeanmartin` and `john_doe`.
+As of the current code:
 
-Once a profile package is installed, commands that accept a `source` can target the package name directly if `pypi_profile.toml` is available through the installed distribution metadata.
+- there is no shipped hook surface for extra pages, extra routes, validators, verification backends, or template globals
+- the main rendering and build flow does not yet expose a large plugin-driven feature set
+- `--allow-code` exists on `serve` and is surfaced in the GUI, but the overall code-execution model is still evolving
 
-## Plugin-oriented setup
+Treat the current plugin layer as **early infrastructure**, not a stable extension contract.
 
-`pypi-profile` discovers `pypi_profile.plugins` entry points through pluggy. Today, that means package discovery and hook registration are present, but the hook surface is still deliberately small.
+## Data packages versus plugin hooks
 
-Use the current plugin path for **data contribution experiments**, not for a fully stable extension contract yet. The broader plugin roadmap includes extra pages, routes, Jinja globals, validators, and verification backends.
+These are related but not identical:
 
-## `--allow-code`
+- **data package**: a Python distribution that ships `pypi_profile.toml`
+- **pluggy plugin**: an installed package registered in `pypi_profile.plugins`
 
-The `serve` command exposes `--allow-code`, but the full safe-by-default plugin execution model described in the spec is still incomplete. Treat this as an evolving feature area rather than a finished extension API.
+Today, the practical packaging value mostly comes from shipping `pypi_profile.toml` in the distribution. The pluggy hook is present, but still minimal.
 
-## Static builds and stored proofs
+## JSON Resume import
 
-`pypi-profile build` generates a fully static site that can be deployed to
-GitHub Pages, Cloudflare Pages, or any static host. The build runs without the
-private key, so it cannot generate signing proofs on the fly.
+JSON Resume import is not a pluggy feature. It is built into `init`.
 
-The solution is to store proofs in the TOML before committing:
+Use the dedicated page for field-mapping details:
 
-```bash
-# Sign all URLs and write stored_proof into the TOML
-pypi-profile update-proofs pypi_profile.toml
-
-# Then build
-pypi-profile build pypi_profile.toml --output dist/ --base-url /yourrepo
-```
-
-The `stored_proof` values in the TOML contain no secret material — they are safe
-to commit. Anyone who fetches your published profile package sees the same data.
-
-When new external profile URLs are added, run `update-proofs` again (it skips
-URLs that already have a `stored_proof`). After rotating your signing key, run:
-
-```bash
-pypi-profile key-rotate pypi_profile.toml
-```
-
-`key-rotate` generates a new keypair, updates the TOML, and re-signs all proofs
-in one step. It archives the old key to a `.bak` file by default.
-
-## Key management
-
-The signing key can be inspected, rotated, exported, and recovered without
-touching profile data manually.
-
-```bash
-# Inspect the active key and check it matches the profile TOML
-pypi-profile key-info
-
-# List all keys visible to pypi-profile (keyring + disk)
-pypi-profile key-list
-
-# Rotate the key and re-sign everything
-pypi-profile key-rotate pypi_profile.toml
-
-# Recover from a lost key (generates replacement + re-signs)
-pypi-profile key-recover pypi_profile.toml
-
-# Export the key to a file (for moving to a new machine)
-pypi-profile key-export --output ~/backup/minisign.key
-
-# Import a previously exported key
-pypi-profile key-import ~/backup/minisign.key --force
-```
-
-All write commands support `--dry-run` to preview the operation without making
-changes. `key-export` and `key-import` are intended for moving keys between
-machines or setting up CI signing; use `key-rotate` when replacing a key
-in place on the same machine.
-
-## Machine-readable output
-
-The current server already exposes JSON views for profile, package, project, people, and verification data. That makes `pypi-profile` usable as both a human-facing profile site and a structured data source.
+- [JSON Resume Import](skills/json-resume.md)

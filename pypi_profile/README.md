@@ -1,25 +1,24 @@
 # pypi-profile
 
-`pypi-profile` is a CLI and small FastAPI app for publishing a maintainer profile from a `pypi_profile.toml`
-file.
+Pypi lacks a profile or a way to tie your identity to anything outside of pypi, other than a build server, via trusted
+publishing.
 
-It is aimed at package publishers who want one place to describe who maintains a project, what packages and
-projects they work on, how to contact them, and how to prove control over related external accounts.
+`pypi-profile` is a tool for uses a `pypi_profile.toml` file to track signatures that can be verified at other websites.
+
+It supports other use cases, such as resume display, contact info, package lists, and successor information.
 
 ## What the package does
 
 `pypi-profile` currently ships:
 
+- GUI for quick start and feature discovery.
 - a CLI for `init`, `validate`, `inspect`, `serve`, `dump`, `doctor`, `fetch`, `keygen`, `sign`, `verify`,
   `update-proofs`, `build`, `find-profiles`, `gui`, and key management (`key-info`, `key-list`, `key-rotate`,
   `key-recover`, `key-export`, `key-import`)
 - a TOML-first profile format for identity, packages, projects, hiring, contact, succession, and verification
   data
-- a FastAPI + Jinja2 site renderer with matching JSON endpoints
-- a minisign-based proof-of-control flow for external profile URLs
-
-This README documents the **usable core that ships today**. It is intentionally not a roadmap for unfinished
-extension work.
+- a live website for validating signatures
+- a static website for validating signatures within the constraints of javascript and CORS.
 
 ## Install
 
@@ -34,16 +33,6 @@ pipx install pypi-profile
 ```bash
 pip install pypi-profile
 ```
-
-### Optional extras
-
-The standard install already includes the web server and signing support.
-
-Install extras if you also want:
-
-- `fetch` for `httpx`-powered live metadata fetches
-- `validate` for JSON Resume schema validation
-- `all` for both
 
 ```bash
 pipx install "pypi-profile[all]"
@@ -99,9 +88,6 @@ pypi-profile init --username your-pypi-name --fetch
 - Proof-of-control signing is built around a local secret key. Keep that key out of version control.
 - `serve --allow-code` is opt-in. Do not enable it for untrusted code.
 - Verification proves account co-control, not legal identity or the truth of every profile claim.
-
-For the fuller package docs, see `docs/installation.md`, `docs/usage/quickstart.md`, and `docs/security.md` in
-this package directory.
 
 ## Legal
 

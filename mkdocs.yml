@@ -15,12 +15,14 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Installation: installation.md
-  - Quick Start: quickstart.md
-  - Basic Usage: basic-usage.md
+  - Quick Start:
+      - GUI: gui.md
+      - CLI: quickstart.md
+  - Usage: basic-usage.md
+  - Key Management: key-management.md
   - Advanced Usage:
-      - Overview: advanced-usage.md
+      - Pluggy Plugins: advanced-usage.md
       - JSON Resume Import: skills/json-resume.md
-  - GUI: gui.md
   - Signing and Verification: signing.md
   - Troubleshooting: troubleshooting.md
   - Security: security.md

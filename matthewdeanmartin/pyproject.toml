@@ -24,8 +24,7 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi"
-homepage = "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi"
-issues = "https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues/"
+homepage = "https://matthewdeanmartin.github.io/matthewdeanmartin_pypi/"
 
 [project.entry-points."pypi_profile.plugins"]
 matthewdeanmartin = "matthewdeanmartin"
@@ -38,6 +37,7 @@ build-backend = "hatchling.build"
 packages = ["matthewdeanmartin"]
 include = [
     "matthewdeanmartin/**/*.py",
+    "matthewdeanmartin/**/*.toml",
     "matthewdeanmartin/py.typed",
     "/README.md",
     "LICENSE",

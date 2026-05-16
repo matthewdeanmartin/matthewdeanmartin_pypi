@@ -1,217 +1,106 @@
-# Basic usage
+# Usage
 
-## Core workflow
-
-The day-to-day flow is:
-
-1. create or edit `pypi_profile.toml`
-1. run `pypi-profile inspect` (validates schema by default)
-1. run `pypi-profile serve`
-1. optionally use `dump`, `fetch-claims`, `build`, or `gui`
-
-For signed proof-of-control:
-
-1. run `pypi-profile keygen` once to create a keypair
-1. paste the printed public key into `[verification]` in your TOML
-1. run `pypi-profile sign controls-url` for each external profile URL
-1. paste the proof token onto the external page
-1. run `pypi-profile update-proofs` to store proofs in the TOML for static builds
-1. run `pypi-profile verify` to confirm the round-trip
+This page is for the ongoing work after the first quick start: editing the profile, adding claims, re-signing proofs, rebuilding output, and republishing.
 
 ## Accepted profile sources
 
-Several commands accept a `source`, not just a file path. As implemented today, `pypi-profile` can resolve:
+Commands that take a `source` can currently resolve:
 
 - a direct `pypi_profile.toml` path
-- a directory that contains `pypi_profile.toml`
-- an installed package name if its distribution exposes `pypi_profile.toml`
+- a directory containing `pypi_profile.toml`
+- a `pyproject.toml` with `[tool.pypi-profile]`
+- an installed package name when its distribution exposes `pypi_profile.toml`
 
-## Commands
+## Common maintenance tasks
 
-### `init`
+| Task | GUI | CLI |
+|---|---|---|
+| Review current data | **Inspect**, **Display TOML**, **Display JSON**, **Validate Config** | `inspect`, `dump`, `validate` |
+| Refresh imported data | **Import** | `init --fetch ... --force` or `init --from-json-resume ... --force` |
+| Add a new identity site | **Add Identity Site** | edit `[[profiles]]` in `pypi_profile.toml` |
+| Generate proof tokens again | **Update Proofs** | `update-proofs` |
+| Check published proofs | **Verify Claims** | `verify` |
+| Preview live site | **Live Preview** | `serve` |
+| Build static site | **Build & Preview** | `build` |
 
-Creates a starter TOML file. The current implementation can also:
+## Add a new identity site
 
-- import from JSON Resume with `--from-json-resume`
-- merge local `FUNDING.yml` data when present
-- fetch live data with `--fetch`
+When you add a new `[[profiles]]` entry:
 
-### `inspect`
+1. add the URL
+1. sign it
+1. publish the proof token on that page
+1. verify it
+1. rebuild the static site
+1. republish the package if the TOML changed
 
-Loads the TOML, prints a summary (principal, PyPI user, package count, signing
-key status), and validates the schema by default.  Use `--no-validate` to skip
-schema checking — useful for work-in-progress files with known errors.
-
-```bash
-pypi-profile inspect pypi_profile.toml
-pypi-profile inspect pypi_profile.toml --no-validate
-```
-
-Run `pypi-profile validate` in Diagnostics (GUI) or as a CLI alias for the same
-result with field-level error details when the schema fails.
-
-### `validate` (alias / Diagnostics)
-
-Alias for `inspect` kept for backward compatibility and surfaced as **Validate Config**
-in the GUI Diagnostics group.  Identical output; always runs the schema check.
-
-### `serve`
-
-Starts the FastAPI app and renders:
-
-- `/`
-- `/packages`
-- `/projects`
-- `/resume`
-- `/hiring`
-- `/contact`
-- `/verification`
-- `/succession`
-
-### `dump`
-
-Prints the full validated profile model as JSON.
-
-### `keygen`
-
-Generates a minisign keypair. When `keyring` is installed and a usable backend
-is active, the secret key is stored in the system keyring (macOS Keychain,
-Windows Credential Manager, libsecret). A disk copy is always written to
-`~/.pypi_profile/minisign.key` as a fallback. Prints the public key to paste
-into `[verification]` in your TOML. Run this once.
-
-```bash
-pypi-profile keygen
-pypi-profile keygen --password "passphrase"   # encrypt the disk copy
-```
-
-Both `py-minisign` and `keyring` are included in a standard `pypi-profile` install.
-
-### `sign`
-
-Signs a proof-of-control claim for an external URL and prints the
-`pypi-profile-proof:` token to paste onto that page. Loads the secret key from
-the system keyring if available, otherwise from disk.
-
-```bash
-pypi-profile sign controls-url pypi_profile.toml \
-    --url https://github.com/yourname
-```
-
-Requires `py-minisign`.
-
-### `update-proofs`
-
-Signs every `[[profiles]]` URL that lacks a `stored_proof` and writes the proof
-strings into the TOML in-place. Run this locally after signing so that static
-builds (which do not have access to the private key) can still include proof
-strings in the rendered `/verification` page.
+CLI example:
 
 ```bash
 pypi-profile update-proofs pypi_profile.toml
-pypi-profile update-proofs pypi_profile.toml --force   # re-sign everything
-```
-
-### `verify`
-
-Fetches each declared `[[profiles]]` URL and checks for a valid proof token.
-
-```bash
 pypi-profile verify pypi_profile.toml
-```
-
-Reports each claim as `verified`, `unverified`, `invalid`, or `expired`.
-
-### `doctor`
-
-Checks required and optional runtime dependencies such as `fastapi`, `uvicorn`,
-`pydantic`, `httpx`, `pyyaml`, and `py-minisign`. Also reports whether a secret
-key file is present in `~/.pypi_profile/`.
-
-### `fetch-claims`
-
-Fetches live verification data for the declared profile:
-
-- PyPI packages for the profile owner (compares against declared `[[packages]]`)
-- per-package PyPI metadata
-- GitHub profile, repos, and `FUNDING.yml`
-- GitLab profile
-- Mastodon profile
-
-Fetch results are cached in `.pypi_profile_cache/`.  The old `fetch` name still
-works as an alias.
-
-### `build`
-
-Generates a static site from the profile so it can be published without running a
-live FastAPI server.
-
-```bash
 pypi-profile build pypi_profile.toml --output dist
 ```
 
-Use `--base-url` when publishing below a subpath such as a GitHub Pages project
-site.
+## Add or edit claims
 
-### `find-profiles`
+For normal profile edits:
 
-Scans a directory tree for profile files.
+1. edit `pypi_profile.toml`
+1. run `inspect` or `validate`
+1. if you changed `[[profiles]]`, run `update-proofs`
+1. if you changed public profile content, rebuild the static site
+1. republish the package so the updated TOML is in the release
 
-It currently finds:
+## Sign again
 
-- files named `pypi_profile.toml`
-- `pyproject.toml` files that contain `[tool.pypi-profile]`
+Run `update-proofs --force` when you need to replace existing `stored_proof` values:
 
 ```bash
-pypi-profile find-profiles
-pypi-profile find-profiles path\to\workspace
+pypi-profile update-proofs pypi_profile.toml --force
 ```
 
-### `gui`
+After that:
 
-Launches the Tkinter desktop GUI for the most common local workflows:
+1. replace the old tokens on the external pages
+1. run `verify`
+1. rebuild the static site
+1. republish the package
 
-- creating a starter profile
-- validating and inspecting a profile
-- serving the site locally
-- generating keys
-- signing claims and updating stored proofs
+## Rebuild and republish
 
-See [GUI](gui.md) for the layout and usage model.
+Any time the committed profile data changes, there are two separate publication surfaces to think about:
 
-## Data model sections
+1. **Static site**: rebuild with `build` and republish the generated output directory.
+1. **Package**: rebuild and republish the Python distribution that ships `pypi_profile.toml`.
 
-The current schema covers:
+## Import fresh data
 
-- `[profile]`
-- `[identity]`
-- `[[humans]]`
-- `[[profiles]]`
-- `[[contact_methods]]`
-- `[[packages]]`
-- `[[projects]]`
-- `[[work_experience]]`
-- `[hiring]`
-- `[contracting]`
-- `[contact_preferences]`
-- `[succession]`
-- `[verification]`
+`fetch-claims` is the read-only comparison command:
 
-That is enough to publish a useful maintainer or team profile today, even though some of the richer verification and export features are still roadmap items.
+```bash
+pypi-profile fetch-claims pypi_profile.toml
+```
 
-### `[[profiles]]` fields
+If you want to regenerate the profile from imported sources, use the init-based import flow described in [Quick Start - CLI](quickstart.md) or the **Import** command in [Quick Start - GUI](gui.md).
 
-Each profile link supports these fields:
+## Diagnostics and discovery
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `kind` | string | required | Platform identifier, e.g. `"github"`, `"mastodon"` |
-| `label` | string | required | Display label |
-| `url` | string | required | Full URL of the external profile or post |
-| `verification` | string | `"self_asserted"` | Claim status: `"self_asserted"`, `"verified"`, etc. |
-| `rel_me` | bool | `false` | Render `rel="me"` on the anchor; enables Mastodon-style link verification |
-| `stored_proof` | string | `""` | Pre-signed proof token written by `update-proofs`; used by static builds |
+Useful commands for routine checks:
 
-Set `rel_me = true` on any link that should carry `rel="me"` — typically Mastodon
-and personal website links. Set `stored_proof` by running
-`pypi-profile update-proofs` rather than editing it by hand.
+```bash
+pypi-profile doctor
+pypi-profile find-profiles
+pypi-profile inspect pypi_profile.toml --no-validate
+```
+
+## When the key changes
+
+Use [Key management](key-management.md) for:
+
+- `key-info`
+- `key-list`
+- `key-rotate`
+- `key-recover`
+- `key-export`
+- `key-import`

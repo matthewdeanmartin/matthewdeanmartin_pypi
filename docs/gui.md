@@ -1,7 +1,6 @@
-# GUI
+# Quick Start - GUI
 
-`pypi-profile` includes a Tkinter desktop GUI for the common local workflows around creating, checking, serving,
-and signing a profile.
+The GUI is the easiest way to do the full local workflow: create the profile, add identity sites, generate keys, sign proofs, preview the site, and prepare published output.
 
 Launch it with:
 
@@ -9,97 +8,105 @@ Launch it with:
 pypi-profile gui
 ```
 
-## What the GUI is for
+## How the window is organized
 
-The GUI is a local convenience layer over the CLI. It is useful when you want to:
+1. **Top bar**: active profile, active signing key, optional key password, detected PyPI username, current public key, and keyring status.
+1. **Left panel**: commands grouped as Setup, Profile, Website, Keys, and Diagnostics.
+1. **Center and right panels**: arguments, output, and built-in command help.
 
-- work with a `pypi_profile.toml` file without remembering every CLI flag
-- inspect the current TOML and parsed JSON output side by side
-- run signing flows with a selected key and see command output in one window
-- add a new identity/profile site entry without manually editing TOML for each field
+Read-only commands run as soon as you select them. Write commands wait for **Run**.
 
-It is not a separate backend. It runs the same local commands the CLI exposes.
+## End-to-end workflow
 
-## Layout
+### 1. Init
 
-The window is organized into three areas:
+Use **Init** to create the starter `pypi_profile.toml`.
 
-1. **Top bar**: choose the active profile, active signing key, and optional key password.
-1. **Left panel**: choose a command. Setup commands and profile commands are grouped separately.
-1. **Center and right panels**: fill in arguments, run the command, read output, and view command help.
+- `--username`: PyPI username
+- `--kind`: individual, team, company, llc, foundation, collective, project, or other
+- `--output`: output path
 
-The top bar also shows:
+After the file exists, select it in the top bar.
 
-- the resolved path of the active profile
-- the PyPI username detected from the TOML
-- the public key currently present in `[verification]`
-- whether a usable keyring backend was detected
+### 2. Import
 
-## How command execution works
+Use **Import** to rewrite the active file with imported data.
 
-There are two interaction modes:
+The GUI import path runs the CLI `init` flow with `--force` against the active profile path, so it is the GUI way to:
 
-- **read-only commands** run automatically when selected
-- **write or long-running commands** wait for you to press **Run**
+- fetch live data from PyPI, GitHub, GitLab, and Mastodon
+- import from a JSON Resume file
 
-The output panel shows the underlying command and its combined stdout and stderr.
+### 3. Add identity sites
 
-Use **Stop** to terminate a long-running command such as `serve`.
+Use **Add Identity Site** to append a `[[profiles]]` entry without editing TOML by hand.
 
-## Available commands in the GUI
+The GUI currently includes templates for:
 
-### Setup commands
+- GitHub
+- GitLab
+- Mastodon
+- Bluesky
+- LinkedIn
+- Twitter / X
+- Blogger
+- WordPress
+- Personal Website
+- Stack Overflow
+- Keybase
+- ORCID
+- Other (custom)
 
-- **Doctor**: checks local dependencies and signing-key availability
-- **Init**: creates a starter `pypi_profile.toml`
-- **Keygen**: generates a minisign keypair
+The new entry is written directly into `pypi_profile.toml` with `verification = "self_asserted"` and an empty `stored_proof`.
 
-### Profile commands
+### 4. Key generation
 
-- **Inspect**: summary view of the active profile
-- **Validate**: schema validation for the TOML
-- **Display TOML**: raw file contents
-- **Display JSON**: parsed profile JSON
-- **Fetch**: live metadata fetch from supported services
-- **Verify Claims**: checks proof-of-control tokens on external URLs
-- **Serve**: runs the local FastAPI site preview
-- **Sign Claim**: signs a single `controls-url` proof
-- **Update Proofs**: signs all profile URLs and writes `stored_proof` values
-- **Add Identity Site**: appends a new `[[profiles]]` entry using platform templates
+Use **Keygen** to generate the minisign keypair.
 
-## Recommended workflow
+- if a usable system keyring is available, the secret key is stored there
+- a disk copy is also kept as a fallback
+- the generated public key is shown in command output, and the underlying `keygen` command patches a local `pypi_profile.toml` when one is present in the current working directory
 
-For a first-time setup:
+### 5. Sign claims and update proofs
 
-1. run **Init**
-1. select the resulting `pypi_profile.toml` in the top bar
-1. run **Validate**
-1. run **Serve**
-1. if you want signed claims, run **Keygen**, then **Sign Claim** or **Update Proofs**
+Use:
 
-For an existing profile:
+- **Sign Claim** when you want the token for one URL immediately
+- **Update Proofs** when you want to sign all `[[profiles]]` entries and write `stored_proof` values into the TOML
 
-1. select the TOML in the top bar
-1. use **Inspect**, **Display TOML**, and **Display JSON** to review it
-1. use **Fetch** to compare live service data
-1. use **Verify Claims** to confirm external proof tokens still validate
+### 6. Publish signatures
 
-## Signing keys in the GUI
+Use **Signatures** after **Update Proofs**.
 
-The GUI has a global signing-key picker in the top bar.
+That panel shows:
 
-- If a system keyring backend is active, the CLI normally loads the secret key from the keyring automatically.
-- The file picker is still useful when you keep multiple keys or want to point at a non-default disk key.
-- The password field is mainly for the fallback case where you are using a password-protected disk key without a
-  usable keyring backend.
+- each current proof token
+- the matching URL
+- where that token should be pasted for the selected platform
 
-For multi-identity setups, switch the selected key before running **Sign Claim** or **Update Proofs**.
+After you paste those tokens onto the public pages you control, run **Verify Claims**.
+
+### 7. Publish the static site
+
+Use:
+
+- **Live Preview** for the FastAPI preview server
+- **Build & Preview** for the static-site path
+
+`Build & Preview` runs `build`, serves the output over HTTP, and opens the browser automatically. If you leave `--output` blank, the GUI defaults to `site\<pypi_username>\`.
+
+After previewing, publish the generated folder to your static host.
+
+### 8. Publish the package
+
+The GUI does not publish to PyPI. Publish the Python package that contains `pypi_profile.toml` with your normal package release process after the profile data is ready.
+
+## Ongoing work
+
+After the first setup, use [Usage](basic-usage.md) for the maintenance flow and [Key management](key-management.md) for rotate, recover, export, and import tasks.
 
 ## Safety notes
 
-- `Serve` keeps `--allow-code` **off by default**.
+- **Live Preview** keeps `--allow-code` off by default.
+- The GUI is a local wrapper around the same commands the CLI runs.
 - Only enable plugin code execution if you trust the installed code path.
-- The GUI runs local subprocesses for the same commands you could run in the terminal, so it should be treated as a
-  local authoring tool, not a sandbox.
-
-See [Security](security.md) for the broader signing and code-execution guidance.
