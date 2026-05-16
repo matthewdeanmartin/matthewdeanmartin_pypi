@@ -361,9 +361,16 @@ tooling can report "signed by an old key" rather than just "invalid."
 
 ### Key loss
 
-If you lose the secret key, you cannot sign new claims. You will need to
-generate a new keypair, update `public_key` in your TOML, republish the package,
-and re-sign all external claims. There is no key recovery mechanism.
+If you lose the secret key, you cannot sign new claims. Use `key-recover` to
+automate the recovery workflow: it diagnoses the missing key, generates a
+replacement, updates `public_key` in your TOML, and re-signs all stored proofs.
+
+```bash
+pypi-profile key-recover pypi_profile.toml
+```
+
+After recovery, commit the updated TOML and update any external pages that
+embedded the old proof strings. Those pages will list which URLs need attention.
 
 When `keyring` is installed and a usable backend is active (macOS Keychain,
 Windows Credential Manager, libsecret on Linux), `pypi-profile keygen`
@@ -446,11 +453,30 @@ verification capacity.
 
 ______________________________________________________________________
 
+## Key management commands
+
+| Command | Purpose | Modifies |
+|---|---|---|
+| `key-info` | Inspect the active key and its profile binding | no |
+| `key-list` | List all keys across keyring and disk | no |
+| `key-rotate` | Replace the active key and re-sign all proofs | yes |
+| `key-recover` | Recover from a lost key | yes |
+| `key-export --output FILE` | Export the raw key bytes to a file | no |
+| `key-import FILE` | Install an exported key into keyring / disk | yes |
+
+All write commands accept `--dry-run` to preview what would change.
+
+Use `key-export` / `key-import` to move a key to a new machine or set up a CI
+signing key without rotating.
+
+______________________________________________________________________
+
 ## Security checklist
 
 - [ ] Install `pypi-profile[sign]` so that `keyring` and `py-minisign` are available
 - [ ] Generate your keypair once with `pypi-profile keygen`
 - [ ] Confirm `pypi-profile doctor` shows a keyring backend and "Secret key found in keyring"
+- [ ] Confirm `pypi-profile key-info` reports the expected key ID and a matching TOML binding
 - [ ] If no keyring backend is available, back up `~/.pypi_profile/minisign.key` to an encrypted location
 - [ ] Never commit the secret key file to version control
 - [ ] Add the printed public key to `[verification]` in your TOML
@@ -461,7 +487,8 @@ ______________________________________________________________________
 - [ ] Commit the updated TOML (the stored proofs contain no secret material)
 - [ ] Run `pypi-profile verify` to confirm the round-trip works
 - [ ] Set a calendar reminder to re-sign before tokens expire (default: 1 year)
-- [ ] If you ever rotate your key, run `pypi-profile update-proofs --force` to re-sign all claims
+- [ ] To rotate your key, run `pypi-profile key-rotate` — it re-signs all claims automatically
+- [ ] If you lose your key, run `pypi-profile key-recover` — it generates a replacement and re-signs
 
 ______________________________________________________________________
 

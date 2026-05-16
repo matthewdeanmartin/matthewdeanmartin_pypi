@@ -72,8 +72,41 @@ When new external profile URLs are added, run `update-proofs` again (it skips
 URLs that already have a `stored_proof`). After rotating your signing key, run:
 
 ```bash
-pypi-profile update-proofs pypi_profile.toml --force
+pypi-profile key-rotate pypi_profile.toml
 ```
+
+`key-rotate` generates a new keypair, updates the TOML, and re-signs all proofs
+in one step. It archives the old key to a `.bak` file by default.
+
+## Key management
+
+The signing key can be inspected, rotated, exported, and recovered without
+touching profile data manually.
+
+```bash
+# Inspect the active key and check it matches the profile TOML
+pypi-profile key-info
+
+# List all keys visible to pypi-profile (keyring + disk)
+pypi-profile key-list
+
+# Rotate the key and re-sign everything
+pypi-profile key-rotate pypi_profile.toml
+
+# Recover from a lost key (generates replacement + re-signs)
+pypi-profile key-recover pypi_profile.toml
+
+# Export the key to a file (for moving to a new machine)
+pypi-profile key-export --output ~/backup/minisign.key
+
+# Import a previously exported key
+pypi-profile key-import ~/backup/minisign.key --force
+```
+
+All write commands support `--dry-run` to preview the operation without making
+changes. `key-export` and `key-import` are intended for moving keys between
+machines or setting up CI signing; use `key-rotate` when replacing a key
+in place on the same machine.
 
 ## Machine-readable output
 

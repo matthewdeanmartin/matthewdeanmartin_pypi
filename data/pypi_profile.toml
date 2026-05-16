@@ -28,6 +28,12 @@ label = "LinkedIn"
 url = "https://www.linkedin.com/in/matthewdeanmartin/"
 verification = "self_asserted"
 
+[[profiles]]
+kind = "twitter"
+label = "Twitter/X"
+url = "https://twitter.com/mistersql"
+verification = "self_asserted"
+
 [[contact_methods]]
 kind = "email"
 label = "Professional email"
@@ -39,6 +45,13 @@ visibility = "public"
 kind = "website"
 label = "Personal website"
 value = "https://github.com/matthewdeanmartin"
+audience = ["general"]
+visibility = "public"
+
+[[contact_methods]]
+kind = "website"
+label = "Personal website"
+value = "https://matthewdeanmartin.github.io/matthewdeanmartin/"
 audience = ["general"]
 visibility = "public"
 

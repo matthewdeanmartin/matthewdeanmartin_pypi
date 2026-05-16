@@ -11,7 +11,8 @@ projects they work on, how to contact them, and how to prove control over relate
 `pypi-profile` currently ships:
 
 - a CLI for `init`, `validate`, `inspect`, `serve`, `dump`, `doctor`, `fetch`, `keygen`, `sign`, `verify`,
-  `update-proofs`, `build`, `find-profiles`, and `gui`
+  `update-proofs`, `build`, `find-profiles`, `gui`, and key management (`key-info`, `key-list`, `key-rotate`,
+  `key-recover`, `key-export`, `key-import`)
 - a TOML-first profile format for identity, packages, projects, hiring, contact, succession, and verification
   data
 - a FastAPI + Jinja2 site renderer with matching JSON endpoints
