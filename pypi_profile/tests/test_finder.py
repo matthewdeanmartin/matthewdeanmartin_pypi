@@ -99,3 +99,15 @@ def test_find_profile_files_respects_time_budget(tmp_path: Path, monkeypatch: Mo
 
     assert found == []
     assert find_profile_files(root=tmp_path) == [profile]
+
+
+def test_find_profile_files_skips_pyproject_parse_without_marker(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text("[tool.black]\nline-length = 120\n", encoding="utf-8")
+
+    def fail_if_called(_path: Path) -> dict[str, object]:
+        raise AssertionError("pyproject without pypi-profile marker should not be parsed")
+
+    monkeypatch.setattr("pypi_profile.finder.toml_load", fail_if_called)
+
+    assert find_profile_files(root=tmp_path) == []

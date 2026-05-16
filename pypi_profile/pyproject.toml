@@ -1,6 +1,6 @@
 [project]
 name = "pypi-profile"
-version = "0.2.0"
+version = "0.3.0"
 description = "The missing PyPI(tm) profile page — link your profile with signatures. Not associated with PSF."
 readme = "README.md"
 authors = [{ name = "Matthew Martin", email = "matthewdeanmartin@gmail.com" }]
@@ -8,7 +8,7 @@ keywords = ["pypi", "profile"]
 license = "Apache-2.0"
 requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
@@ -31,12 +31,15 @@ dependencies = [
     "keyring>=25.7.0",
     "py-minisign>=0.13.2",
     "schema-resume-validator>=1.1.0",
+    "starlette>=0.37.2",
+    "cryptography>=41.0.0",
 ]
 
 [project.optional-dependencies]
 fetch = []
 build = []
 all = []
+fast = ["orjson>=3.10.0", "rtoml>=0.13.0"]
 # sign extra kept for backwards compatibility; keyring and py-minisign are now core deps
 sign = []
 
@@ -118,10 +121,16 @@ dev = [
     "crosshair-tool>=0.0.80; python_version >= '3.10'",
     "deptry>=0.20.0",
     "import-linter>=2.0",
+    "build>=1.5.0",
+    "twine>=6.2.0",
+    "check-wheel-contents>=0.6.3",
 ]
 
 [tool.uv]
 default-groups = ["dev"]
+
+[tool.check-wheel-contents]
+package = ["pypi_profile"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"

@@ -14,14 +14,14 @@ __all__ = [
 ]
 
 __title__ = "pypi-profile"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __description__ = "The missing PyPI(tm) profile page — link your profile with signatures. Not associated with PSF."
 __readme__ = "README.md"
 __credits__ = [{"name": "Matthew Martin", "email": "matthewdeanmartin@gmail.com"}]
 __keywords__ = ["pypi", "profile", "cli"]
 __license__ = "Apache-2.0"
 __requires_python__ = ">=3.10"
-__status__ = "3 - Alpha"
+__status__ = "4 - Beta"
 __dependencies__ = [
     "pluggy>=1.5.0",
     "fastapi>=0.115.0",
@@ -33,4 +33,6 @@ __dependencies__ = [
     "keyring>=25.7.0",
     "py-minisign>=0.13.2",
     "schema-resume-validator>=1.1.0",
+    "starlette>=0.37.2",
+    "cryptography>=41.0.0",
 ]

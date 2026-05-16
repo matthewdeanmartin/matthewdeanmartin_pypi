@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import json
 import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
+
+from pypi_profile.serialization import json_dumps_bytes, json_loads
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +157,7 @@ def tiny_message_bytes(
         "u": pypi_username,
         "y": int(year),
     }
-    return json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
+    return json_dumps_bytes(canonical, sort_keys=True, separators=(",", ":"))
 
 
 def encode_tiny_token(sig_64: bytes) -> str:
@@ -228,7 +229,7 @@ def is_compact_claim(claim: dict[str, Any]) -> bool:
 
 def encode_claim(claim: dict[str, Any]) -> str:
     """Base64url-encode a claim dict (with signature) to a proof token string."""
-    raw = json.dumps(claim, separators=(",", ":")).encode()
+    raw = json_dumps_bytes(claim, separators=(",", ":"))
     token = base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
     return f"{PROOF_PREFIX} {token}"
 
@@ -243,7 +244,7 @@ def decode_claim(token: str) -> dict[str, Any]:
         token = token[len(PROOF_PREFIX) :].strip()
     padding = (4 - len(token) % 4) % 4
     raw = base64.urlsafe_b64decode(token + "=" * padding)
-    return cast(dict[str, Any], json.loads(raw))
+    return cast(dict[str, Any], json_loads(raw))
 
 
 def is_expired(claim: dict[str, Any]) -> bool:

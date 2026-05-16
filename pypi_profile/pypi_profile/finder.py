@@ -3,17 +3,10 @@
 from __future__ import annotations
 
 import os
-import sys
 import time
 from pathlib import Path
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib
+from pypi_profile.serialization import TOMLDecodeError, toml_load
 
 # Directories that are always skipped during the walk (case-insensitive exact name match).
 SKIP_DIRS = {
@@ -36,6 +29,7 @@ SKIP_DIRS = {
     "site-packages",
     ".eggs",
 }
+PYPROJECT_SCAN_BYTES = 8192
 
 
 def should_skip_dir(name: str) -> bool:
@@ -52,11 +46,15 @@ def record_profile_match(entry: Path, direct: list[Path], via_pyproject: list[Pa
     if entry.name != "pyproject.toml":
         return
     try:
-        with open(entry, "rb") as fh:
-            data = tomllib.load(fh)
+        if b"pypi-profile" not in entry.read_bytes()[:PYPROJECT_SCAN_BYTES]:
+            return
+    except OSError:
+        return
+    try:
+        data = toml_load(entry)
         if "pypi-profile" in data.get("tool", {}):
             via_pyproject.append(entry)
-    except (OSError, tomllib.TOMLDecodeError):
+    except (OSError, TOMLDecodeError):
         pass
 
 

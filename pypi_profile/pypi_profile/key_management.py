@@ -11,6 +11,7 @@ from typing import Any, cast
 
 import minisign  # type: ignore[import-untyped]
 
+from pypi_profile.serialization import TOMLDecodeError, toml_load
 from pypi_profile.signing import (
     DEFAULT_KEY_DIR,
     DEFAULT_SK_NAME,
@@ -41,22 +42,13 @@ def load_all_toml_public_keys(start_dir: Path | None = None) -> list[tuple[Path,
     """Return [(toml_path, public_key_b64), ...] for every profile TOML found."""
     from pypi_profile.finder import find_profile_files
 
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib
-
     result: list[tuple[Path, str]] = []
     for toml_path in find_profile_files(root=start_dir):
         try:
-            with open(toml_path, "rb") as fh:
-                data = tomllib.load(fh)
+            data = toml_load(toml_path)
             pk = data.get("verification", {}).get("public_key", "")
             result.append((toml_path, pk))
-        except (OSError, tomllib.TOMLDecodeError):
+        except (OSError, TOMLDecodeError):
             result.append((toml_path, ""))
     return result
 

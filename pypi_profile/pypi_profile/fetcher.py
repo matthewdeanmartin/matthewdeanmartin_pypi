@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 import time
@@ -20,19 +19,12 @@ from pypi_profile.importers import (
     fetch_pypi_user_packages,
 )
 from pypi_profile.models import ProfileData
+from pypi_profile.serialization import JSONDecodeError, json_dumps, json_loads
 
 logger = logging.getLogger(__name__)
 
 CACHE_DIR = Path(".pypi_profile_cache")
 CACHE_TTL = 3600  # seconds
-FETCH_ERRORS = (
-    json.JSONDecodeError,
-    OSError,
-    TimeoutError,
-    urllib.error.HTTPError,
-    urllib.error.URLError,
-    ValueError,
-)
 
 
 def cache_path(key: str) -> Path:
@@ -46,19 +38,19 @@ def cache_read(key: str) -> Any | None:
     if not p.exists():
         return None
     try:
-        data = json.loads(p.read_text(encoding="utf-8"))
+        data = json_loads(p.read_bytes())
         if time.time() - data.get("ts", 0) > CACHE_TTL:
             logger.debug("Cache expired for key derived from %s", p.name)
             return None
         return data.get("payload")
-    except FETCH_ERRORS:
+    except (JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
         logger.warning("Failed to read cache file %s", p, exc_info=True)
         return None
 
 
 def cache_write(key: str, payload: Any) -> None:
     p = cache_path(key)
-    p.write_text(json.dumps({"ts": time.time(), "payload": payload}), encoding="utf-8")
+    p.write_text(json_dumps({"ts": time.time(), "payload": payload}), encoding="utf-8")
 
 
 def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:

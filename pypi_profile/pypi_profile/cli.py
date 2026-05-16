@@ -5,22 +5,38 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
-import json
-import logging
+import getpass
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 from pypi_profile.__about__ import __version__
 
-logger = logging.getLogger(__name__)
 
-# Ensure stdout/stderr can emit Unicode (emoji, box-drawing chars) on Windows.
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+class _LazyLogger:
+    """Resolve the module logger only when a command actually uses it."""
+
+    def __getattr__(self, name: str) -> Any:
+        import logging
+
+        return getattr(logging.getLogger(__name__), name)
+
+
+logger: Any = _LazyLogger()
+
+EXIT_OK = 0
+EXIT_ERROR = 1
+EXIT_USAGE = 2
+EXIT_IO = 3
+
+
+class CliError(Exception):
+    """An expected, user-facing CLI failure."""
+
+    def __init__(self, message: str, exit_code: int = EXIT_ERROR) -> None:
+        super().__init__(message)
+        self.exit_code = exit_code
 
 
 def is_dry_run(args: argparse.Namespace) -> bool:
@@ -45,11 +61,176 @@ def add_dry_run_argument(command_parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_interactive_arguments(command_parser: argparse.ArgumentParser) -> None:
+    """Add the standard interactive flags to a subcommand parser."""
+    command_parser.add_argument(
+        "--interactive",
+        action="store_true",
+        default=False,
+        help="Prompt for missing or defaulted values when running in a terminal.",
+    )
+    command_parser.add_argument(
+        "--no-interactive",
+        action="store_true",
+        default=False,
+        help="Disable prompts and require fully specified flags for scripting/CI.",
+    )
+
+
+def configure_console_streams() -> None:
+    """Ensure stdout/stderr can emit Unicode on Windows consoles."""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+
+def _json_dumps(value: Any, **kwargs: Any) -> str:
+    from pypi_profile.serialization import json_dumps
+
+    return json_dumps(value, **kwargs)
+
+
+def emit_json(value: Any) -> None:
+    """Write a machine-readable JSON payload to stdout."""
+    print(_json_dumps(value, indent=2, default=str))
+
+
+def wants_json_output(args: argparse.Namespace) -> bool:
+    """Return True when the command should emit machine-readable JSON."""
+    return bool(getattr(args, "json", False))
+
+
+def can_prompt() -> bool:
+    """Return True when stdin/stdout are both interactive terminals."""
+    return bool(sys.stdin.isatty() and sys.stdout.isatty())
+
+
+def wants_interactive(args: argparse.Namespace) -> bool:
+    """Return True when the command should prompt for values."""
+    if getattr(args, "no_interactive", False):
+        return False
+    if getattr(args, "interactive", False):
+        if not can_prompt():
+            raise CliError("--interactive requires an interactive terminal.", EXIT_USAGE)
+        return True
+    return can_prompt()
+
+
+def prompt_text(
+    label: str,
+    *,
+    default: str = "",
+    required: bool = False,
+    choices: Sequence[str] | None = None,
+    secret: bool = False,
+) -> str:
+    """Prompt for a single text value."""
+    options_hint = f" ({', '.join(choices)})" if choices else ""
+    default_hint = f" [{default}]" if default else ""
+    prompt = f"{label}{options_hint}{default_hint}: "
+
+    while True:
+        response = getpass.getpass(prompt) if secret else input(prompt)
+        value = response.strip() or default
+        if required and not value:
+            print("A value is required.", file=sys.stderr)
+            continue
+        if choices and value and value not in choices:
+            print(f"Choose one of: {', '.join(choices)}", file=sys.stderr)
+            continue
+        return value
+
+
+def prompt_bool(label: str, *, default: bool = False) -> bool:
+    """Prompt for a yes/no value."""
+    suffix = "[Y/n]" if default else "[y/N]"
+    while True:
+        value = input(f"{label} {suffix}: ").strip().lower()
+        if not value:
+            return default
+        if value in {"y", "yes"}:
+            return True
+        if value in {"n", "no"}:
+            return False
+        print("Please enter y or n.", file=sys.stderr)
+
+
+def require_value(
+    args: argparse.Namespace,
+    name: str,
+    *,
+    label: str,
+    default: str = "",
+    choices: Sequence[str] | None = None,
+    secret: bool = False,
+) -> str:
+    """Return a required argument value, prompting when interactive mode is enabled."""
+    current = str(getattr(args, name, "") or "").strip()
+    if current:
+        return current
+    if wants_interactive(args):
+        value = prompt_text(label, default=default, required=True, choices=choices, secret=secret)
+        setattr(args, name, value)
+        return value
+    raise CliError(f"{label} is required. Re-run with --interactive to be prompted.", EXIT_USAGE)
+
+
+def maybe_prompt_value(
+    args: argparse.Namespace,
+    name: str,
+    *,
+    label: str,
+    default: str = "",
+    choices: Sequence[str] | None = None,
+    secret: bool = False,
+) -> str:
+    """Prompt for a value only when interactive mode is enabled and the argument is unset."""
+    current = str(getattr(args, name, "") or "").strip()
+    if current:
+        return current
+    if wants_interactive(args):
+        value = prompt_text(label, default=default, choices=choices, secret=secret)
+        setattr(args, name, value)
+        return value
+    return default
+
+
+def maybe_prompt_bool(args: argparse.Namespace, name: str, *, label: str, default: bool = False) -> bool:
+    """Prompt for a boolean value only when interactive mode is enabled and the default is still in use."""
+    current = bool(getattr(args, name, default))
+    if current != default:
+        return current
+    if wants_interactive(args):
+        current = prompt_bool(label, default=default)
+        setattr(args, name, current)
+    return current
+
+
+def maybe_prompt_path(args: argparse.Namespace, name: str, *, label: str, default: str = "") -> str:
+    """Prompt for a path-like argument when interactive mode is enabled."""
+    return maybe_prompt_value(args, name, label=label, default=default)
+
+
+def raise_invalid_profile(toml_path: Path, errors: Sequence[Any]) -> None:
+    """Raise a formatted validation failure."""
+    lines = [f"INVALID: {toml_path}"]
+    for err in errors:
+        loc = " -> ".join(str(part) for part in err["loc"]) if err.get("loc") else "(root)"
+        lines.append(f"  {loc}: {err['msg']}")
+    raise CliError("\n".join(lines), EXIT_USAGE)
+
+
 def cmd_serve(args: argparse.Namespace) -> None:
     """Start the FastAPI profile server."""
     import uvicorn
 
     from pypi_profile.server import build_app
+
+    maybe_prompt_path(args, "source", label="Profile source (leave blank for hub mode)")
+    args.host = maybe_prompt_value(args, "host", label="Host", default="127.0.0.1")
+    args.port = int(maybe_prompt_value(args, "port", label="Port", default="8000"))
+    args.allow_code = maybe_prompt_bool(args, "allow_code", label="Allow plugin code execution", default=False)
 
     if not args.source:
         # Hub mode: no source given — discover all installed profiles.
@@ -70,11 +251,10 @@ def cmd_serve(args: argparse.Namespace) -> None:
         # Build a minimal stub profile just to anchor the app, then let hub routes take over.
         entries = discover_installed_profiles()
         if not entries:
-            print(
-                "ERROR: No installed profiles found. Pass a source or install a pypi-profile-* package.",
-                file=sys.stderr,
+            raise CliError(
+                "No installed profiles found. Pass a source or install a pypi-profile-* package.",
+                EXIT_USAGE,
             )
-            sys.exit(1)
         _pkg_name, toml_path, first_profile = entries[0]
         logger.info("Starting hub server on %s:%s (%d profiles)", args.host, args.port, len(entries))
         app = build_app(first_profile, allow_code=args.allow_code, include_hub=True)
@@ -83,7 +263,10 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
     from pypi_profile.loader import find_profile, load_profile
 
-    toml_path = find_profile(args.source)
+    try:
+        toml_path = find_profile(args.source)
+    except FileNotFoundError as exc:
+        raise CliError(str(exc), EXIT_USAGE) from exc
     profile = load_profile(toml_path, autopatch_public_key=not is_dry_run(args))
     if is_dry_run(args):
         print_dry_run(
@@ -133,6 +316,7 @@ def key_status() -> str:
 
 def cmd_validate(args: argparse.Namespace) -> None:
     """Validate a pypi_profile.toml — thin shim kept for backward compatibility."""
+    args.path = maybe_prompt_path(args, "path", label="Profile source", default="pypi_profile.toml")
     args.source = getattr(args, "source", None) or getattr(args, "path", "pypi_profile.toml")
     args.no_validate = False
     cmd_inspect(args)
@@ -147,14 +331,12 @@ def cmd_init(args: argparse.Namespace) -> None:
     if is_dry_run(args):
         if dest.exists() and not args.force:
             logger.error("Output file %s already exists (use --force to overwrite)", dest)
-            print(f"ERROR: {dest} already exists. Use --force to overwrite.", file=sys.stderr)
-            sys.exit(1)
+            raise CliError(f"{dest} already exists. Use --force to overwrite.", EXIT_USAGE)
         if args.from_json_resume:
             jrp = Path(args.from_json_resume)
             if not jrp.exists():
                 logger.error("JSON Resume file not found: %s", jrp)
-                print(f"ERROR: JSON Resume file not found: {jrp}", file=sys.stderr)
-                sys.exit(1)
+                raise CliError(f"JSON Resume file not found: {jrp}", EXIT_USAGE)
         details = [
             f"output={dest}",
             f"kind={kind}",
@@ -169,7 +351,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         return
 
     # Interactive wizard: runs when stdin is a TTY and --no-interactive is not set
-    use_wizard = sys.stdin.isatty() and not getattr(args, "no_interactive", False)
+    use_wizard = wants_interactive(args)
 
     if use_wizard:
         try:
@@ -192,8 +374,7 @@ def cmd_init(args: argparse.Namespace) -> None:
     # Non-interactive / scripted path (unchanged behaviour)
     if dest.exists() and not args.force:
         logger.error("Output file %s already exists (use --force to overwrite)", dest)
-        print(f"ERROR: {dest} already exists. Use --force to overwrite.", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(f"{dest} already exists. Use --force to overwrite.", EXIT_USAGE)
 
     profile_data: dict[str, Any] = {}
 
@@ -204,8 +385,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         jrp = Path(args.from_json_resume)
         if not jrp.exists():
             logger.error("JSON Resume file not found: %s", jrp)
-            print(f"ERROR: JSON Resume file not found: {jrp}", file=sys.stderr)
-            sys.exit(1)
+            raise CliError(f"JSON Resume file not found: {jrp}", EXIT_USAGE)
         print(f"Importing JSON Resume from {jrp} ...")
         profile_data = from_json_resume(jrp)
         if args.kind:
@@ -365,7 +545,7 @@ def write_toml_from_data(dest: Path, data: dict[str, Any], username: str = "", k
         lines.append(f'label = {toml_str(c.get("label", ""))}')
         lines.append(f'value = {toml_str(c.get("value", ""))}')
         audience = c.get("audience", [])
-        lines.append(f"audience = {json.dumps(audience)}")
+        lines.append(f"audience = {_json_dumps(audience)}")
         lines.append(f'visibility = {toml_str(c.get("visibility", "public"))}')
         lines.append("")
 
@@ -415,11 +595,11 @@ def write_toml_from_data(dest: Path, data: dict[str, Any], username: str = "", k
     lines.append("[hiring]")
     lines.append(f'open_to_work_since = {toml_str(hiring.get("open_to_work_since", ""))}')
     et = hiring.get("employment_types", [])
-    lines.append(f"employment_types = {json.dumps(et)}")
+    lines.append(f"employment_types = {_json_dumps(et)}")
     wm = hiring.get("work_model", [])
-    lines.append(f"work_model = {json.dumps(wm)}")
+    lines.append(f"work_model = {_json_dumps(wm)}")
     jur = hiring.get("jurisdiction", [])
-    lines.append(f"jurisdiction = {json.dumps(jur)}")
+    lines.append(f"jurisdiction = {_json_dumps(jur)}")
     lines.append(f'speaking = {toml_bool(hiring.get("speaking", False))}')
     lines.append(f'sponsorship = {toml_bool(hiring.get("sponsorship", False))}')
     lines.append("")
@@ -429,7 +609,7 @@ def write_toml_from_data(dest: Path, data: dict[str, Any], username: str = "", k
         lines.append("[contracting]")
         lines.append(f'legal_entity = {toml_str(contracting.get("legal_entity", ""))}')
         et = contracting.get("engagement_types", [])
-        lines.append(f"engagement_types = {json.dumps(et)}")
+        lines.append(f"engagement_types = {_json_dumps(et)}")
         lines.append("")
 
     # Contact preferences
@@ -438,9 +618,9 @@ def write_toml_from_data(dest: Path, data: dict[str, Any], username: str = "", k
         dca = contact_prefs.get("do_contact_about", [])
         dnca = contact_prefs.get("do_not_contact_about", [])
         if dca:
-            lines.append(f"do_contact_about = {json.dumps(dca)}")
+            lines.append(f"do_contact_about = {_json_dumps(dca)}")
         if dnca:
-            lines.append(f"do_not_contact_about = {json.dumps(dnca)}")
+            lines.append(f"do_not_contact_about = {_json_dumps(dnca)}")
         lines.append("")
 
     # Succession
@@ -469,7 +649,7 @@ def write_toml_from_data(dest: Path, data: dict[str, Any], username: str = "", k
 
 def toml_str(s: object) -> str:
     s = str(s) if s is not None else ""
-    return json.dumps(s)
+    return _json_dumps(s)
 
 
 def toml_bool(b: object) -> str:
@@ -482,7 +662,9 @@ def cmd_inspect(args: argparse.Namespace) -> None:
 
     from pypi_profile.loader import find_profile, load_profile
 
-    source_arg = getattr(args, "source", None) or getattr(args, "path", "pypi_profile.toml")
+    source_arg = getattr(args, "source", None) or getattr(args, "path", "")
+    if not source_arg:
+        source_arg = require_value(args, "source", label="Profile source")
     source = str(source_arg)
     no_validate: bool = getattr(args, "no_validate", False)
 
@@ -490,8 +672,7 @@ def cmd_inspect(args: argparse.Namespace) -> None:
         toml_path = find_profile(source)
     except FileNotFoundError as exc:
         logger.error("Profile not found: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
 
     if is_dry_run(args):
         print_dry_run(
@@ -510,31 +691,43 @@ def cmd_inspect(args: argparse.Namespace) -> None:
             logger.debug("Schema validation failed (ignored due to --no-validate): %s", exc)
             print("WARNING: schema errors present (run without --no-validate to see them)")
             # Load raw TOML for partial display
-            if sys.version_info >= (3, 11):
-                import tomllib as toml_loader
-            else:
-                try:
-                    import tomllib as toml_loader
-                except ImportError:
-                    import tomli as toml_loader
+            from pypi_profile.serialization import TOMLDecodeError, toml_load_path
+
             try:
-                with open(toml_path, "rb") as fh:
-                    raw = toml_loader.load(fh)
+                raw = toml_load_path(toml_path)
                 print(f"Profile file: {toml_path}")
                 print(f"Principal:    {raw.get('profile', {}).get('display_name', '?')!r}")
-            except (OSError, toml_loader.TOMLDecodeError) as raw_exc:
+            except (OSError, TOMLDecodeError) as raw_exc:
                 logger.debug("Could not read raw TOML for inspect fallback: %s", raw_exc)
             return
         logger.error("Profile validation failed: %s", exc)
-        print(f"INVALID: {toml_path}", file=sys.stderr)
-        for err in exc.errors():
-            loc = " → ".join(str(p) for p in err["loc"]) if err.get("loc") else "(root)"
-            print(f"  {loc}: {err['msg']}", file=sys.stderr)
-        sys.exit(1)
+        raise_invalid_profile(toml_path, exc.errors())
     except FileNotFoundError as exc:
         logger.error("Profile file not found: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
+
+    if wants_json_output(args):
+        emit_json(
+            {
+                "profile_file": str(toml_path),
+                "principal": profile.profile.display_name,
+                "kind": profile.profile.kind,
+                "pypi_username": profile.identity.pypi_username,
+                "counts": {
+                    "packages": len(profile.packages),
+                    "projects": len(profile.projects),
+                    "humans": len(profile.humans),
+                    "profiles": len(profile.profiles),
+                },
+                "verification": {
+                    "public_key_present": bool(profile.verification.public_key),
+                    "preferred_signature_backend": profile.verification.preferred_signature_backend,
+                    "signing_key": key_status(),
+                },
+                "schema_ok": not no_validate,
+            }
+        )
+        return
 
     print(f"Profile file: {toml_path}")
     print(f"Principal:    {profile.profile.display_name!r} ({profile.profile.kind})")
@@ -561,10 +754,14 @@ def cmd_doctor(args: argparse.Namespace) -> None:
         return
 
     ok = True
+    findings: list[dict[str, str]] = []
+    json_mode = wants_json_output(args)
 
     def report(status: str, label: str, detail: str = "") -> None:
         suffix = f" — {detail}" if detail else ""
-        print(f"  {status}  {label}{suffix}")
+        findings.append({"status": status, "label": label, "detail": detail})
+        if not json_mode:
+            print(f"  {status}  {label}{suffix}")
 
     def ok_check(label: str, detail: str = "") -> None:
         report("OK", label, detail)
@@ -577,13 +774,15 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     def info_check(label: str, detail: str = "") -> None:
         report("--", label, detail)
 
-    print("pypi-profile doctor")
-    print(f"  version: {__version__}")
-    print(f"  python:  {sys.version}")
-    print()
+    if not json_mode:
+        print("pypi-profile doctor")
+        print(f"  version: {__version__}")
+        print(f"  python:  {sys.version}")
+        print()
 
     # --- Config file ---
-    print("Configuration:")
+    if not json_mode:
+        print("Configuration:")
     from pypi_profile.finder import find_profile_files
 
     found_configs = find_profile_files()
@@ -594,10 +793,12 @@ def cmd_doctor(args: argparse.Namespace) -> None:
             info_check("multiple configs found", "only the first will be used by most commands")
     else:
         info_check("no pypi_profile.toml found in current directory", "run: pypi-profile init")
-    print()
+    if not json_mode:
+        print()
 
     # --- Public key in TOML ---
-    print("Public key (in TOML):")
+    if not json_mode:
+        print("Public key (in TOML):")
     toml_path = Path("pypi_profile.toml")
     if toml_path.exists():
         from pydantic import ValidationError
@@ -614,10 +815,12 @@ def cmd_doctor(args: argparse.Namespace) -> None:
             info_check("could not parse pypi_profile.toml to check public key")
     else:
         info_check("no pypi_profile.toml to check")
-    print()
+    if not json_mode:
+        print()
 
     # --- Signing key ---
-    print("Signing key:")
+    if not json_mode:
+        print("Signing key:")
     from pypi_profile.signing import (
         DEFAULT_KEY_DIR,
         DEFAULT_SK_NAME,
@@ -642,10 +845,12 @@ def cmd_doctor(args: argparse.Namespace) -> None:
             ok_check("secret key on disk", str(sk_path))
         else:
             info_check(f"no secret key at {sk_path}", "run: pypi-profile keygen")
-    print()
+    if not json_mode:
+        print()
 
     # --- Bundled resources ---
-    print("Bundled resources:")
+    if not json_mode:
+        print("Bundled resources:")
     from pypi_profile.ds.paths import static_root_path, template_root_path
 
     tmpl_dir = template_root_path()
@@ -666,33 +871,49 @@ def cmd_doctor(args: argparse.Namespace) -> None:
         ok_check("static assets (favicon)", str(favicon))
     else:
         warn_check("favicon.ico missing", str(favicon))
-    print()
+    if not json_mode:
+        print()
 
     # --- Optional deps ---
-    print("Optional dependencies:")
-    if importlib.util.find_spec("yaml") is not None:
+    if not json_mode:
+        print("Optional dependencies:")
+    from importlib import util
+
+    if util.find_spec("yaml") is not None:
         ok_check("pyyaml (FUNDING.yml support)")
     else:
         info_check("pyyaml not installed", "needed for FUNDING.yml import")
-    print()
-
-    if ok:
-        print("All required checks passed.")
+    if util.find_spec("orjson") is not None:
+        ok_check("orjson (faster JSON parsing)")
     else:
-        print("Some required checks failed.")
-        sys.exit(1)
+        info_check("orjson not installed", "install with pypi-profile[fast] for faster JSON work")
+    if util.find_spec("rtoml") is not None:
+        ok_check("rtoml (faster TOML parsing)")
+    else:
+        info_check("rtoml not installed", "install with pypi-profile[fast] for faster TOML work")
+    if not json_mode:
+        print()
+
+    summary = "All required checks passed." if ok else "Some required checks failed."
+    if wants_json_output(args):
+        emit_json({"ok": ok, "version": __version__, "checks": findings, "summary": summary})
+        return
+    print(summary)
+    if not ok:
+        raise CliError(summary, EXIT_IO)
 
 
 def cmd_fetch(args: argparse.Namespace) -> None:
     """Fetch live metadata from PyPI, GitHub, GitLab, and Mastodon."""
     from pypi_profile.loader import find_profile, load_profile
 
+    if not getattr(args, "source", ""):
+        args.source = require_value(args, "source", label="Profile source")
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
         logger.error("Profile not found: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
 
     profile = load_profile(toml_path, autopatch_public_key=not is_dry_run(args))
     if is_dry_run(args):
@@ -709,14 +930,26 @@ def cmd_fetch(args: argparse.Namespace) -> None:
 
     from pypi_profile.fetcher import compare_packages, fetch_all
 
-    print(f"Fetching live data for: {profile.profile.display_name!r}")
-    print()
+    if not wants_json_output(args):
+        print(f"Fetching live data for: {profile.profile.display_name!r}")
+        print()
 
     live = fetch_all(profile, verbose=True)
+    report = compare_packages(profile, live)
+
+    if wants_json_output(args):
+        emit_json(
+            {
+                **live,
+                "profile_file": str(toml_path),
+                "profile_name": profile.profile.display_name,
+                "package_comparison": report,
+            }
+        )
+        return
 
     print()
     print("=== PyPI Package Comparison ===")
-    report = compare_packages(profile, live)
     for item in report:
         status_icon = {
             "confirmed": "✅",
@@ -759,17 +992,18 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         for platform, handle in live["github_funding"].items():
             print(f"  {platform}: {handle}")
 
-    if args.json:
-        print()
-        print("=== Raw JSON ===")
-        print(json.dumps(live, indent=2, default=str))
-
 
 def cmd_keygen(args: argparse.Namespace) -> None:
     """Generate a minisign keypair for signing profile claims."""
     import os
 
     from pypi_profile.signing import DEFAULT_KEY_DIR, DEFAULT_PK_NAME, DEFAULT_SK_NAME
+
+    args.key_dir = maybe_prompt_path(args, "key_dir", label="Key directory", default="")
+    args.password = maybe_prompt_value(args, "password", label="Key password", default="", secret=True)
+    args.keyring_identity = maybe_prompt_value(args, "keyring_identity", label="Keyring identity", default="")
+    args.no_keyring = maybe_prompt_bool(args, "no_keyring", label="Store only on disk", default=False)
+    args.force = maybe_prompt_bool(args, "force", label="Overwrite existing keys", default=False)
 
     env_key_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
     if args.key_dir:
@@ -786,22 +1020,16 @@ def cmd_keygen(args: argparse.Namespace) -> None:
     if not keyring_identity_arg:
         toml_path_check = Path("pypi_profile.toml")
         if toml_path_check.exists():
+            from pypi_profile.serialization import TOMLDecodeError, toml_load_path
+
             try:
-                if sys.version_info >= (3, 11):
-                    import tomllib as toml_loader
-                else:
-                    try:
-                        import tomllib as toml_loader
-                    except ImportError:
-                        import tomli as toml_loader
-                with open(toml_path_check, "rb") as fh:
-                    data = toml_loader.load(fh)
+                data = toml_load_path(toml_path_check)
                 identity = data.get("identity", {})
                 if isinstance(identity, dict):
                     username = identity.get("pypi_username", "")
                     if isinstance(username, str):
                         keyring_identity_arg = username
-            except (OSError, toml_loader.TOMLDecodeError) as exc:
+            except (OSError, TOMLDecodeError) as exc:
                 logger.debug("Could not derive keyring identity from local TOML: %s", exc)
     keyring_identity: str | None = keyring_identity_arg or None
     store_in_keyring: bool = not getattr(args, "no_keyring", False)
@@ -843,12 +1071,10 @@ def cmd_keygen(args: argparse.Namespace) -> None:
         )
     except FileExistsError as exc:
         logger.error("Key already exists: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
     except ImportError as exc:
         logger.error("Missing dependency for keygen: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_IO) from exc
 
     print(f"Secret key: {sk_path}")
     print(f"Public key: {pk_path}")
@@ -898,12 +1124,24 @@ def cmd_sign(args: argparse.Namespace) -> None:
 
     from pypi_profile.loader import find_profile, load_profile
 
+    args.claim_type = getattr(args, "claim_type", "") or "controls-url"
+    args.source = require_value(args, "source", label="Profile source")
+    args.url = require_value(args, "url", label="Controlled URL")
+    args.key = maybe_prompt_path(args, "key", label="Secret key path", default="")
+    args.password = maybe_prompt_value(args, "password", label="Key password", default="", secret=True)
+    args.profile_package = maybe_prompt_value(args, "profile_package", label="Profile package override", default="")
+    if getattr(args, "format", None) is None and not getattr(args, "compact", False) and wants_interactive(args):
+        args.format = prompt_text(
+            "Token format",
+            default="full",
+            choices=["full", "compact", "tiny", "fingerprint"],
+        )
+
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
         logger.error("Profile not found: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
 
     profile = load_profile(toml_path, autopatch_public_key=not is_dry_run(args))
     profile_package = profile.identity.pypi_username or "unknown"
@@ -943,12 +1181,24 @@ def cmd_sign(args: argparse.Namespace) -> None:
         )
     except FileNotFoundError as exc:
         logger.error("Secret key not found: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
     except ImportError as exc:
         logger.error("Missing dependency for signing: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_IO) from exc
+
+    if wants_json_output(args):
+        emit_json(
+            {
+                "claim_type": args.claim_type,
+                "profile_file": str(toml_path),
+                "profile_package": resolved_profile_package,
+                "pypi_username": pypi_username,
+                "url": args.url,
+                "format": chosen_format,
+                "proof": proof,
+            }
+        )
+        return
 
     print("Copy and paste the following proof string into your external profile page:")
     print()
@@ -969,12 +1219,14 @@ def cmd_verify(args: argparse.Namespace) -> None:
     """Verify proof-of-control claims for all listed [[profiles]] entries."""
     from pypi_profile.loader import find_profile, load_profile
 
+    args.source = require_value(args, "source", label="Profile source")
+    args.profile_package = maybe_prompt_value(args, "profile_package", label="Profile package override", default="")
+
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
         logger.error("Profile not found: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
 
     profile = load_profile(toml_path, autopatch_public_key=not is_dry_run(args))
     profile_package = args.profile_package or f"pypi-profile-{profile.identity.pypi_username}"
@@ -1013,8 +1265,21 @@ def cmd_verify(args: argparse.Namespace) -> None:
         results = diagnose_all_profiles(profile, profile_package=profile_package)
     except ImportError as exc:
         logger.error("Missing dependency for verification: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_IO) from exc
+
+    verified = sum(1 for r in results if r["status"] == "verified")
+    if wants_json_output(args):
+        emit_json(
+            {
+                "profile_file": str(toml_path),
+                "profile_name": profile.profile.display_name,
+                "profile_package": profile_package,
+                "verified": verified,
+                "total": len(results),
+                "results": results,
+            }
+        )
+        return
 
     status_icons = {
         "verified": "✅",
@@ -1034,7 +1299,6 @@ def cmd_verify(args: argparse.Namespace) -> None:
             for step in item.get("detail", []):
                 print(f"      {step}")
 
-    verified = sum(1 for r in results if r["status"] == "verified")
     print()
     print(f"{verified}/{len(results)} claims verified.")
 
@@ -1043,7 +1307,11 @@ def cmd_api_dump(args: argparse.Namespace) -> None:
     """Dump profile data as JSON (for debugging/inspection)."""
     from pypi_profile.loader import find_profile, load_profile
 
-    toml_path = find_profile(args.source)
+    args.source = require_value(args, "source", label="Profile source")
+    try:
+        toml_path = find_profile(args.source)
+    except FileNotFoundError as exc:
+        raise CliError(str(exc), EXIT_USAGE) from exc
     profile = load_profile(toml_path, autopatch_public_key=not is_dry_run(args))
     if is_dry_run(args):
         print_dry_run(
@@ -1054,13 +1322,14 @@ def cmd_api_dump(args: argparse.Namespace) -> None:
             ],
         )
         return
-    print(json.dumps(profile.model_dump(), indent=2, default=str))
+    print(_json_dumps(profile.model_dump(), indent=2, default=str))
 
 
 def cmd_find_profiles(args: argparse.Namespace) -> None:
     """Scan for pypi_profile.toml files and pyproject.toml with [tool.pypi-profile]."""
     from pypi_profile.finder import find_profile_files
 
+    args.root = maybe_prompt_path(args, "root", label="Root directory to scan", default="")
     root = Path(args.root).expanduser().resolve() if args.root else None
     found = find_profile_files(root=root)
     if is_dry_run(args):
@@ -1073,7 +1342,13 @@ def cmd_find_profiles(args: argparse.Namespace) -> None:
         )
         return
     if not found:
+        if wants_json_output(args):
+            emit_json({"root": str(root or Path.cwd()), "matches": []})
+            return
         print("No profile files found.")
+        return
+    if wants_json_output(args):
+        emit_json({"root": str(root or Path.cwd()), "matches": [str(path) for path in found]})
         return
     for p in found:
         print(p)
@@ -1085,12 +1360,17 @@ def cmd_update_proofs(args: argparse.Namespace) -> None:
 
     from pypi_profile.loader import find_profile, load_profile
 
+    args.source = require_value(args, "source", label="Profile source")
+    args.key = maybe_prompt_path(args, "key", label="Secret key path", default="")
+    args.password = maybe_prompt_value(args, "password", label="Key password", default="", secret=True)
+    args.profile_package = maybe_prompt_value(args, "profile_package", label="Profile package override", default="")
+    args.force = maybe_prompt_bool(args, "force", label="Re-sign existing stored proofs", default=False)
+
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
         logger.error("Profile not found: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
 
     profile = load_profile(toml_path, autopatch_public_key=not is_dry_run(args))
     pypi_username = profile.identity.pypi_username
@@ -1127,8 +1407,18 @@ def cmd_update_proofs(args: argparse.Namespace) -> None:
         )
     except ImportError as exc:
         logger.error("Missing dependency for signing: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_IO) from exc
+
+    if wants_json_output(args):
+        emit_json(
+            {
+                "profile_file": str(toml_path),
+                "profile_package": profile_package,
+                "updated_urls": updated,
+                "updated_count": len(updated),
+            }
+        )
+        return
 
     if updated:
         print(f"Updated stored_proof for {len(updated)} URL(s) in {toml_path}:")
@@ -1156,6 +1446,9 @@ def cmd_key_info(args: argparse.Namespace) -> None:
     info = key_info(sk_path=sk_path)
 
     if info.get("not_found"):
+        if wants_json_output(args):
+            emit_json(info)
+            return
         print("No signing key found.")
         print(f"  ({info.get('source', 'unknown location')})")
         print()
@@ -1163,8 +1456,11 @@ def cmd_key_info(args: argparse.Namespace) -> None:
         return
 
     if info.get("error"):
-        print(f"Key found but unreadable: {info['error']}", file=sys.stderr)
-        sys.exit(2)
+        raise CliError(f"Key found but unreadable: {info['error']}", EXIT_IO)
+
+    if wants_json_output(args):
+        emit_json(info)
+        return
 
     pub = info.get("public_key", "")
     pub_display = (pub[:20] + "…") if len(pub) > 20 else pub
@@ -1190,11 +1486,14 @@ def cmd_key_list(args: argparse.Namespace) -> None:
     entries = key_list()
 
     if not entries:
+        if wants_json_output(args):
+            emit_json([])
+            return
         print("No signing keys found.")
         return
 
-    if getattr(args, "json", False):
-        print(json.dumps(entries, indent=2, default=str))
+    if wants_json_output(args):
+        emit_json(entries)
         return
 
     col_w = 44
@@ -1218,12 +1517,18 @@ def cmd_key_rotate(args: argparse.Namespace) -> None:
     from pypi_profile.key_management import key_rotate
     from pypi_profile.loader import find_profile, load_profile
 
+    args.source = require_value(args, "source", label="Profile source")
+    args.key_dir = maybe_prompt_path(args, "key_dir", label="New key directory", default="")
+    args.keyring_identity = maybe_prompt_value(args, "keyring_identity", label="New keyring identity", default="")
+    args.password = maybe_prompt_value(args, "password", label="New key password", default="", secret=True)
+    args.profile_package = maybe_prompt_value(args, "profile_package", label="Profile package override", default="")
+    args.no_keep_old = maybe_prompt_bool(args, "no_keep_old", label="Skip archiving the old key", default=False)
+
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
         logger.error("Profile not found: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
 
     profile = load_profile(toml_path, autopatch_public_key=False)
     pypi_username = profile.identity.pypi_username
@@ -1245,11 +1550,11 @@ def cmd_key_rotate(args: argparse.Namespace) -> None:
         )
         return
 
-    if not getattr(args, "force", False):
-        answer = input("Rotating the key will re-sign all profile proofs. Continue? [y/N] ").strip().lower()
-        if answer != "y":
-            print("Aborted.")
-            sys.exit(0)
+    if not getattr(args, "force", False) and not prompt_bool(
+        "Rotate the key and re-sign all profile proofs?", default=False
+    ):
+        print("Aborted.")
+        return
 
     try:
         result = key_rotate(
@@ -1263,8 +1568,11 @@ def cmd_key_rotate(args: argparse.Namespace) -> None:
         )
     except (FileNotFoundError, OSError, ValueError) as exc:
         logger.error("key-rotate failed: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_IO) from exc
+
+    if wants_json_output(args):
+        emit_json(result)
+        return
 
     print(f"Old key ID:  {result['old_key_id']}")
     print(f"New key ID:  {result['new_key_id']}")
@@ -1287,12 +1595,17 @@ def cmd_key_recover(args: argparse.Namespace) -> None:
     from pypi_profile.key_management import key_recover
     from pypi_profile.loader import find_profile, load_profile
 
+    args.source = require_value(args, "source", label="Profile source")
+    args.key_dir = maybe_prompt_path(args, "key_dir", label="New key directory", default="")
+    args.keyring_identity = maybe_prompt_value(args, "keyring_identity", label="New keyring identity", default="")
+    args.password = maybe_prompt_value(args, "password", label="New key password", default="", secret=True)
+    args.profile_package = maybe_prompt_value(args, "profile_package", label="Profile package override", default="")
+
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
         logger.error("Profile not found: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
 
     profile = load_profile(toml_path, autopatch_public_key=False)
     pypi_username = profile.identity.pypi_username
@@ -1322,8 +1635,11 @@ def cmd_key_recover(args: argparse.Namespace) -> None:
         )
     except (FileNotFoundError, OSError, ValueError) as exc:
         logger.error("key-recover failed: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_IO) from exc
+
+    if wants_json_output(args):
+        emit_json(result)
+        return
 
     if result.get("key_was_present"):
         print("Key is present — no recovery needed.")
@@ -1351,12 +1667,13 @@ def cmd_key_export(args: argparse.Namespace) -> None:
     """Export the raw secret key to a file for secure transfer."""
     from pypi_profile.key_management import key_export
 
+    args.key = maybe_prompt_path(args, "key", label="Secret key path", default="")
+    if is_dry_run(args):
+        args.output = maybe_prompt_path(args, "output", label="Export file", default="")
+    else:
+        args.output = require_value(args, "output", label="Export file")
     sk_path = Path(args.key).expanduser() if getattr(args, "key", "") else None
     output_path = Path(args.output).expanduser() if getattr(args, "output", "") else None
-
-    if output_path is None and not is_dry_run(args):
-        print("ERROR: --output FILE is required for key-export.", file=sys.stderr)
-        sys.exit(1)
 
     if is_dry_run(args):
         print_dry_run(
@@ -1372,8 +1689,11 @@ def cmd_key_export(args: argparse.Namespace) -> None:
         result = key_export(output_path=output_path, sk_path=sk_path)
     except FileNotFoundError as exc:
         logger.error("key-export: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
+
+    if wants_json_output(args):
+        emit_json(result)
+        return
 
     print(f"Exported key ID {result['key_id']} to {result['written_to']}")
     print()
@@ -1383,6 +1703,12 @@ def cmd_key_export(args: argparse.Namespace) -> None:
 def cmd_key_import(args: argparse.Namespace) -> None:
     """Install a previously exported key file into the keyring and/or disk."""
     from pypi_profile.key_management import key_import
+
+    args.file = require_value(args, "file", label="Exported key file")
+    args.key_dir = maybe_prompt_path(args, "key_dir", label="Disk key directory", default="")
+    args.keyring_identity = maybe_prompt_value(args, "keyring_identity", label="Keyring identity", default="")
+    args.no_keyring = maybe_prompt_bool(args, "no_keyring", label="Store only on disk", default=False)
+    args.force = maybe_prompt_bool(args, "force", label="Overwrite existing disk key", default=False)
 
     import_path = Path(args.file).expanduser()
     key_dir = Path(args.key_dir).expanduser() if getattr(args, "key_dir", "") else None
@@ -1413,8 +1739,11 @@ def cmd_key_import(args: argparse.Namespace) -> None:
         )
     except (FileNotFoundError, FileExistsError, OSError) as exc:
         logger.error("key-import: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_IO) from exc
+
+    if wants_json_output(args):
+        emit_json(result)
+        return
 
     print(f"Imported key ID: {result['key_id']}")
     print(f"Stored on disk:  {result['disk_path']}")
@@ -1428,20 +1757,22 @@ def cmd_build(args: argparse.Namespace) -> None:
     """Generate a static site from a profile."""
     from pypi_profile.loader import find_profile, load_profile
 
+    args.source = require_value(args, "source", label="Profile source")
+    args.output = maybe_prompt_value(args, "output", label="Output directory", default="dist")
+    args.base_url = maybe_prompt_value(args, "base_url", label="Base URL prefix", default="")
+    args.resume_file = maybe_prompt_path(args, "resume_file", label="JSON Resume file", default="")
     output = Path(args.output)
     resume_file = Path(args.resume_file).expanduser() if args.resume_file else None
     try:
         toml_path = find_profile(args.source)
     except FileNotFoundError as exc:
         logger.error("Profile not found for build: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
 
     profile = load_profile(toml_path, autopatch_public_key=not is_dry_run(args))
     if resume_file and not resume_file.exists():
         logger.error("Resume file not found for build: %s", resume_file)
-        print(f"ERROR: Resume file not found: {resume_file}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(f"Resume file not found: {resume_file}", EXIT_USAGE)
 
     if is_dry_run(args):
         print_dry_run(
@@ -1468,19 +1799,20 @@ def cmd_build(args: argparse.Namespace) -> None:
         )
     except FileNotFoundError as exc:
         logger.error("Profile not found for build: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        raise CliError(str(exc), EXIT_USAGE) from exc
     except OSError as exc:
         logger.error("I/O error during build: %s", exc)
-        print(f"ERROR writing output: {exc}", file=sys.stderr)
-        sys.exit(2)
+        raise CliError(f"ERROR writing output: {exc}", EXIT_IO) from exc
 
 
-def main() -> None:
-    """Run the pypi-profile CLI."""
+def build_parser() -> argparse.ArgumentParser:
+    """Build the pypi-profile argument parser."""
     parser = argparse.ArgumentParser(
         prog="pypi-profile",
-        description="The missing PyPI profile page.",
+        description=(
+            "The missing PyPI profile page. Commands can prompt for missing/defaulted values "
+            "in an interactive terminal; use --no-interactive for CI and scripts."
+        ),
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
@@ -1500,6 +1832,7 @@ def main() -> None:
 
     serve_p = subparsers.add_parser("serve", help="Start the profile web server")
     add_dry_run_argument(serve_p)
+    add_interactive_arguments(serve_p)
     serve_p.add_argument(
         "source",
         nargs="?",
@@ -1513,6 +1846,7 @@ def main() -> None:
 
     validate_p = subparsers.add_parser("validate", help="Validate a pypi_profile.toml (alias for inspect)")
     add_dry_run_argument(validate_p)
+    add_interactive_arguments(validate_p)
     validate_p.add_argument(
         "path",
         nargs="?",
@@ -1523,6 +1857,7 @@ def main() -> None:
 
     init_p = subparsers.add_parser("init", help="Create a starter pypi_profile.toml")
     add_dry_run_argument(init_p)
+    add_interactive_arguments(init_p)
     init_p.add_argument(
         "--kind",
         default="individual",
@@ -1551,17 +1886,13 @@ def main() -> None:
         action="store_true",
         help="Fetch live data from PyPI, GitHub, GitLab, Mastodon",
     )
-    init_p.add_argument(
-        "--no-interactive",
-        action="store_true",
-        default=False,
-        help="Skip the interactive wizard and use flags only (for scripting/CI)",
-    )
     init_p.set_defaults(func=cmd_init)
 
     inspect_p = subparsers.add_parser("inspect", help="Inspect a profile (and validate schema by default)")
     add_dry_run_argument(inspect_p)
-    inspect_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    add_interactive_arguments(inspect_p)
+    inspect_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
+    inspect_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     inspect_p.add_argument(
         "--no-validate",
         action="store_true",
@@ -1572,6 +1903,8 @@ def main() -> None:
 
     doctor_p = subparsers.add_parser("doctor", help="Diagnose local setup")
     add_dry_run_argument(doctor_p)
+    add_interactive_arguments(doctor_p)
+    doctor_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     doctor_p.set_defaults(func=cmd_doctor)
 
     fetch_p = subparsers.add_parser(
@@ -1579,23 +1912,27 @@ def main() -> None:
         help="Fetch live verification claims from PyPI, GitHub, GitLab, Mastodon",
     )
     add_dry_run_argument(fetch_p)
-    fetch_p.add_argument("source", help="Profile package name, directory, or .toml path")
-    fetch_p.add_argument("--json", action="store_true", help="Also print raw JSON results")
+    add_interactive_arguments(fetch_p)
+    fetch_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
+    fetch_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     fetch_p.set_defaults(func=cmd_fetch)
 
     fetch_alias_p = subparsers.add_parser("fetch", help="Alias for fetch-claims (deprecated)")
     add_dry_run_argument(fetch_alias_p)
-    fetch_alias_p.add_argument("source", help="Profile package name, directory, or .toml path")
-    fetch_alias_p.add_argument("--json", action="store_true", help="Also print raw JSON results")
+    add_interactive_arguments(fetch_alias_p)
+    fetch_alias_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
+    fetch_alias_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     fetch_alias_p.set_defaults(func=cmd_fetch)
 
     dump_p = subparsers.add_parser("dump", help="Dump profile data as JSON")
     add_dry_run_argument(dump_p)
-    dump_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    add_interactive_arguments(dump_p)
+    dump_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
     dump_p.set_defaults(func=cmd_api_dump)
 
     keygen_p = subparsers.add_parser("keygen", help="Generate a minisign keypair for signing claims")
     add_dry_run_argument(keygen_p)
+    add_interactive_arguments(keygen_p)
     keygen_p.add_argument(
         "--key-dir",
         default="",
@@ -1626,9 +1963,10 @@ def main() -> None:
 
     sign_p = subparsers.add_parser("sign", help="Sign a proof-of-control claim for an external URL")
     add_dry_run_argument(sign_p)
-    sign_p.add_argument("claim_type", choices=["controls-url"], help="Claim type to sign")
-    sign_p.add_argument("source", help="Profile package name, directory, or .toml path")
-    sign_p.add_argument("--url", required=True, help="URL to assert control over")
+    add_interactive_arguments(sign_p)
+    sign_p.add_argument("claim_type", nargs="?", default="", choices=["controls-url"], help="Claim type to sign")
+    sign_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
+    sign_p.add_argument("--url", default="", help="URL to assert control over")
     sign_p.add_argument(
         "--key",
         default="",
@@ -1652,12 +1990,15 @@ def main() -> None:
         default=False,
         help="Deprecated alias for --format compact",
     )
+    sign_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     sign_p.set_defaults(func=cmd_sign)
 
     verify_p = subparsers.add_parser("verify", help="Verify proof-of-control claims for declared profile URLs")
     add_dry_run_argument(verify_p)
-    verify_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    add_interactive_arguments(verify_p)
+    verify_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
     verify_p.add_argument("--profile-package", default="", help="Profile package name override")
+    verify_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     verify_p.set_defaults(func=cmd_verify)
 
     update_proofs_p = subparsers.add_parser(
@@ -1665,7 +2006,8 @@ def main() -> None:
         help="Sign all [[profiles]] URLs and write stored_proof values into the TOML",
     )
     add_dry_run_argument(update_proofs_p)
-    update_proofs_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    add_interactive_arguments(update_proofs_p)
+    update_proofs_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
     update_proofs_p.add_argument(
         "--key",
         default="",
@@ -1678,11 +2020,13 @@ def main() -> None:
         action="store_true",
         help="Re-sign even if stored_proof is already present",
     )
+    update_proofs_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     update_proofs_p.set_defaults(func=cmd_update_proofs)
 
     build_p = subparsers.add_parser("build", help="Generate a static site from a profile")
     add_dry_run_argument(build_p)
-    build_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    add_interactive_arguments(build_p)
+    build_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
     build_p.add_argument("--output", default="dist", help="Output directory (default: dist/)")
     build_p.add_argument(
         "--base-url",
@@ -1703,36 +2047,43 @@ def main() -> None:
         help="Scan for pypi_profile.toml files and pyproject.toml with [tool.pypi-profile]",
     )
     add_dry_run_argument(find_profiles_p)
+    add_interactive_arguments(find_profiles_p)
     find_profiles_p.add_argument(
         "root",
         nargs="?",
         default="",
         help="Root directory to scan (default: current directory)",
     )
+    find_profiles_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     find_profiles_p.set_defaults(func=cmd_find_profiles)
 
     gui_p = subparsers.add_parser("gui", help="Launch the Tkinter GUI")
     add_dry_run_argument(gui_p)
+    add_interactive_arguments(gui_p)
     gui_p.set_defaults(func=cmd_gui)
 
     key_info_p = subparsers.add_parser("key-info", help="Inspect the active signing key (read-only)")
     add_dry_run_argument(key_info_p)
+    add_interactive_arguments(key_info_p)
     key_info_p.add_argument(
         "--key",
         default="",
         metavar="PATH",
         help="Path to secret key file (default: keyring or ~/.pypi_profile/minisign.key)",
     )
+    key_info_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_info_p.set_defaults(func=cmd_key_info)
 
     key_list_p = subparsers.add_parser("key-list", help="List all known signing keys")
     add_dry_run_argument(key_list_p)
+    add_interactive_arguments(key_list_p)
     key_list_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_list_p.set_defaults(func=cmd_key_list)
 
     key_rotate_p = subparsers.add_parser("key-rotate", help="Replace the active signing key and re-sign all proofs")
     add_dry_run_argument(key_rotate_p)
-    key_rotate_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    add_interactive_arguments(key_rotate_p)
+    key_rotate_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
     key_rotate_p.add_argument(
         "--key-dir",
         default="",
@@ -1759,11 +2110,13 @@ def main() -> None:
         default=False,
         help="Skip interactive confirmation prompt",
     )
+    key_rotate_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_rotate_p.set_defaults(func=cmd_key_rotate)
 
     key_recover_p = subparsers.add_parser("key-recover", help="Recover from a lost signing key")
     add_dry_run_argument(key_recover_p)
-    key_recover_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    add_interactive_arguments(key_recover_p)
+    key_recover_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
     key_recover_p.add_argument(
         "--key-dir",
         default="",
@@ -1778,10 +2131,12 @@ def main() -> None:
     )
     key_recover_p.add_argument("--password", default="", help="Password for the new secret key")
     key_recover_p.add_argument("--profile-package", default="", help="Profile package name override")
+    key_recover_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_recover_p.set_defaults(func=cmd_key_recover)
 
     key_export_p = subparsers.add_parser("key-export", help="Export the secret key to a file for secure transfer")
     add_dry_run_argument(key_export_p)
+    add_interactive_arguments(key_export_p)
     key_export_p.add_argument(
         "--key",
         default="",
@@ -1794,11 +2149,13 @@ def main() -> None:
         metavar="FILE",
         help="Output file path (required unless --dry-run)",
     )
+    key_export_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_export_p.set_defaults(func=cmd_key_export)
 
     key_import_p = subparsers.add_parser("key-import", help="Install an exported key file into keyring/disk")
     add_dry_run_argument(key_import_p)
-    key_import_p.add_argument("file", help="Path to the exported key file")
+    add_interactive_arguments(key_import_p)
+    key_import_p.add_argument("file", nargs="?", default="", help="Path to the exported key file")
     key_import_p.add_argument(
         "--keyring-identity",
         default="",
@@ -1818,20 +2175,34 @@ def main() -> None:
         help="Store only on disk; skip keyring",
     )
     key_import_p.add_argument("--force", action="store_true", default=False, help="Overwrite existing key on disk")
+    key_import_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_import_p.set_defaults(func=cmd_key_import)
 
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run the pypi-profile CLI."""
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    if not args.command:
+        parser.print_help()
+        return EXIT_OK
+
+    configure_console_streams()
 
     from pypi_profile.log import configure_logging
 
     configure_logging("DEBUG" if args.verbose else args.log_level)
 
-    if not args.command:
-        parser.print_help()
-        sys.exit(0)
-
     logger.debug("Running command %r", args.command)
-    args.func(args)
+    try:
+        args.func(args)
+    except CliError as exc:
+        print(str(exc), file=sys.stderr)
+        return exc.exit_code
+    return EXIT_OK
 
 
 def launch_gui() -> None:
@@ -1849,4 +2220,4 @@ def cmd_gui(args: argparse.Namespace) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 import urllib.error
@@ -12,6 +11,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from schema_resume import validate_resume  # type: ignore[import-untyped]
+
+from pypi_profile.serialization import JSONDecodeError, json_loads
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def open_http_url(request: urllib.request.Request) -> Any:
 def get_json(url: str, accept: str = "application/json") -> Any:
     req = urllib.request.Request(url, headers={"Accept": accept, "User-Agent": "pypi-profile/0.1"})
     with open_http_url(req) as resp:
-        return json.loads(cast(bytes, resp.read()).decode())
+        return json_loads(cast(bytes, resp.read()))
 
 
 def get_text(url: str) -> str:
@@ -56,7 +57,7 @@ def validate_json_resume(raw: dict[str, Any]) -> None:
 
 def from_json_resume(path: Path) -> dict[str, Any]:
     """Convert a JSON Resume file into a pypi_profile data dict."""
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    raw = json_loads(path.read_bytes())
     validate_json_resume(raw)
     return map_json_resume(raw)
 
@@ -302,7 +303,7 @@ def fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
                 }
             )
         except (
-            json.JSONDecodeError,
+            JSONDecodeError,
             OSError,
             TimeoutError,
             urllib.error.HTTPError,
@@ -341,7 +342,7 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
             "requires_python": info.get("requires_python", ""),
         }
     except (
-        json.JSONDecodeError,
+        JSONDecodeError,
         OSError,
         TimeoutError,
         urllib.error.HTTPError,
@@ -368,7 +369,7 @@ def fetch_github_profile(username: str, token: str | None = None) -> dict[str, A
         if token:
             req.add_header("Authorization", f"Bearer {token}")
         with open_http_url(req) as resp:
-            data = json.loads(resp.read().decode())
+            data = json_loads(resp.read())
         return {
             "name": data.get("name", ""),
             "login": data.get("login", ""),
@@ -384,7 +385,7 @@ def fetch_github_profile(username: str, token: str | None = None) -> dict[str, A
             "twitter_username": data.get("twitter_username", ""),
         }
     except (
-        json.JSONDecodeError,
+        JSONDecodeError,
         OSError,
         TimeoutError,
         urllib.error.HTTPError,
@@ -409,7 +410,7 @@ def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str
             if token:
                 req.add_header("Authorization", f"Bearer {token}")
             with open_http_url(req) as resp:
-                repos = json.loads(resp.read().decode())
+                repos = json_loads(resp.read())
                 link_header = resp.headers.get("Link", "")
             for r in repos:
                 if not r.get("fork", False):
@@ -430,7 +431,7 @@ def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str
                 break
             page += 1
     except (
-        json.JSONDecodeError,
+        JSONDecodeError,
         OSError,
         TimeoutError,
         urllib.error.HTTPError,
@@ -514,7 +515,7 @@ def fetch_gitlab_profile(username: str, token: str | None = None) -> dict[str, A
         if token:
             req.add_header("PRIVATE-TOKEN", token)
         with open_http_url(req) as resp:
-            users = json.loads(resp.read().decode())
+            users = json_loads(resp.read())
         if not users:
             return {}
         user = users[0]
@@ -529,7 +530,7 @@ def fetch_gitlab_profile(username: str, token: str | None = None) -> dict[str, A
             "web_url": user.get("web_url", f"https://gitlab.com/{username}"),
         }
     except (
-        json.JSONDecodeError,
+        JSONDecodeError,
         OSError,
         TimeoutError,
         urllib.error.HTTPError,
@@ -557,7 +558,7 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
         url = f"https://{instance}/api/v1/accounts/lookup?acct={username}"
         req = urllib.request.Request(url, headers={"User-Agent": "pypi-profile/0.1"})
         with open_http_url(req) as resp:
-            data = json.loads(resp.read().decode())
+            data = json_loads(resp.read())
         # Parse metadata fields (e.g., verification links)
         fields = []
         for field in data.get("fields", []):
@@ -577,7 +578,7 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
             "fields": fields,
         }
     except (
-        json.JSONDecodeError,
+        JSONDecodeError,
         OSError,
         TimeoutError,
         urllib.error.HTTPError,

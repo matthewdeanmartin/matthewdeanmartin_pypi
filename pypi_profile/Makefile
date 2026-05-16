@@ -211,8 +211,11 @@ publish-gha:
 	gh workflow run publish_pypi_profile.yml --ref main
 
 publish-check:
-	@$(UV) build
-	@if [ -d dist ]; then ls -lh dist/; else ls -lh ../dist/; fi
+	@$(UV) run python -c "from pathlib import Path; import shutil; [shutil.rmtree(path) for path in (Path('build'), Path('dist')) if path.exists()]"
+	@$(UV) run python -m build
+	@$(UV) run twine check dist/*
+	@$(UV) run check-wheel-contents dist/*.whl
+	@ls -lh dist/
 
 publish:
 	@$(UV) publish

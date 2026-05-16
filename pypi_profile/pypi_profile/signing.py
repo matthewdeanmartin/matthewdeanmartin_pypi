@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import base64
 import binascii
-import json
 import logging
 import os
 import re
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
@@ -26,6 +24,7 @@ from pypi_profile.claims import (
     fingerprint_of_full_proof,
     tiny_message_bytes,
 )
+from pypi_profile.serialization import TOMLDecodeError, json_dumps_bytes, toml_load
 
 VALID_FORMATS = ("full", "compact", "tiny", "fingerprint")
 
@@ -40,24 +39,15 @@ KEYRING_SERVICE = "pypi-profile"
 
 def pypi_username_from_nearby_toml() -> str:
     """Return the pypi_username from a pypi_profile.toml in cwd, or ''."""
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib
-
     for candidate in (Path("pypi_profile.toml"), Path("matthewdeanmartin/pypi_profile.toml")):
         if candidate.exists():
             try:
-                with open(candidate, "rb") as fh:
-                    data = tomllib.load(fh)
+                data = toml_load(candidate)
                 identity = data.get("identity", {})
                 username = identity.get("pypi_username", "") if isinstance(identity, dict) else ""
                 if isinstance(username, str) and username:
                     return username
-            except (OSError, tomllib.TOMLDecodeError):
+            except (OSError, TOMLDecodeError):
                 continue
     return ""
 
@@ -447,14 +437,6 @@ def patch_proofs_in_toml(
     Only updates entries missing stored_proof unless force=True.
     Preserves all comments and formatting in the TOML file.
     """
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib
-
     try:
         text = toml_path.read_text(encoding="utf-8")
     except OSError:
@@ -463,8 +445,7 @@ def patch_proofs_in_toml(
 
     original_text = text
 
-    with open(toml_path, "rb") as fh:
-        raw = tomllib.load(fh)
+    raw = toml_load(toml_path)
 
     profiles = raw.get("profiles", [])
     updated: list[str] = []
@@ -514,9 +495,8 @@ def patch_proofs_in_toml(
 
         # Validate the written file parses as valid TOML; roll back if not.
         try:
-            with open(toml_path, "rb") as fh:
-                written = tomllib.load(fh)
-        except (OSError, tomllib.TOMLDecodeError) as exc:
+            written = toml_load(toml_path)
+        except (OSError, TOMLDecodeError) as exc:
             logger.error("Patched TOML is invalid (%s); rolling back to original content", exc)
             try:
                 toml_path.write_text(original_text, encoding="utf-8")
@@ -564,4 +544,4 @@ def claim_to_bytes(claim: dict[str, Any]) -> bytes:
     Works for both full claims (``signature`` key) and compact claims (``g`` key).
     """
     canonical = {k: v for k, v in claim.items() if k not in ("signature", "g")}
-    return json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
+    return json_dumps_bytes(canonical, sort_keys=True, separators=(",", ":"))

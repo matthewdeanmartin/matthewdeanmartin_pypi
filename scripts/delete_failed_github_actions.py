@@ -24,6 +24,10 @@ from pathlib import Path
 
 DEFAULT_ENV_FILE = Path(r"C:\github\.env")
 FAILED_CONCLUSIONS = {"failure"}
+SCRIPT_VERSION = "0.1.0"
+EXIT_OK = 0
+EXIT_ERROR = 1
+EXIT_PARTIAL = 4
 
 
 @dataclass(frozen=True)
@@ -66,11 +70,13 @@ def _optional_str(value: object) -> str | None:
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
+        prog="delete_failed_github_actions.py",
         description=(
             "Delete failed GitHub Actions workflow runs for the current repo. "
             "By default this is a dry run; add --execute to actually delete."
         )
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {SCRIPT_VERSION}")
     parser.add_argument(
         "--repo",
         help="Repository in owner/repo form. Defaults to the current git remote.",
@@ -114,6 +120,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "--execute",
         action="store_true",
         help="Actually perform deletions. Without this flag the script only prints what it would delete.",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON to stdout instead of human-oriented text.",
     )
     return parser.parse_args(argv)
 
@@ -294,6 +305,21 @@ def render_run(run: WorkflowRun) -> str:
     return f"- {run.id} | {created} | {run.name} | {run.display_title} | " f"{branch} | {run.conclusion or 'unknown'}"
 
 
+def run_to_dict(run: WorkflowRun) -> dict[str, object]:
+    """Convert a workflow run to a JSON-serializable dict."""
+    return {
+        "id": run.id,
+        "name": run.name,
+        "display_title": run.display_title,
+        "conclusion": run.conclusion,
+        "status": run.status,
+        "html_url": run.html_url,
+        "head_branch": run.head_branch,
+        "event": run.event,
+        "created_at": run.created_at,
+    }
+
+
 def main(argv: Sequence[str]) -> int:
     """Run the script."""
     try:
@@ -307,19 +333,51 @@ def main(argv: Sequence[str]) -> int:
             conclusions=conclusions,
             max_delete=args.max_delete,
         )
+        run_payload = [run_to_dict(run) for run in runs]
 
         if not runs:
+            if args.json:
+                print(
+                    json.dumps(
+                        {
+                            "repo": repo,
+                            "mode": args.mode,
+                            "execute": args.execute,
+                            "matched_runs": [],
+                            "deleted_count": 0,
+                            "failures": [],
+                        },
+                        indent=2,
+                    )
+                )
+                return EXIT_OK
             print(f"No matching workflow runs found in {repo}.")
-            return 0
+            return EXIT_OK
 
-        print(f"Found {len(runs)} matching workflow runs in {repo}.\n")
-        for run in runs:
-            print(render_run(run))
+        if not args.json:
+            print(f"Found {len(runs)} matching workflow runs in {repo}.\n")
+            for run in runs:
+                print(render_run(run))
 
         if not args.execute:
+            if args.json:
+                print(
+                    json.dumps(
+                        {
+                            "repo": repo,
+                            "mode": args.mode,
+                            "execute": False,
+                            "matched_runs": run_payload,
+                            "deleted_count": 0,
+                            "failures": [],
+                        },
+                        indent=2,
+                    )
+                )
+                return EXIT_OK
             action = "delete logs for" if args.mode == "logs" else "delete"
             print(f"\nDry run only. Re-run with --execute to {action} these workflow runs.")
-            return 0
+            return EXIT_OK
 
         failures: list[tuple[int, str]] = []
         deleted = 0
@@ -327,22 +385,38 @@ def main(argv: Sequence[str]) -> int:
             try:
                 delete_run(repo=repo, run_id=run.id, env=env, mode=args.mode)
                 deleted += 1
-                print(f"Deleted {run.id}")
+                if not args.json:
+                    print(f"Deleted {run.id}")
             except RuntimeError as exc:
                 failures.append((run.id, str(exc)))
                 print(f"FAILED {run.id}: {exc}", file=sys.stderr)
 
-        if args.mode == "runs":
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "repo": repo,
+                        "mode": args.mode,
+                        "execute": True,
+                        "matched_runs": run_payload,
+                        "deleted_count": deleted,
+                        "failures": [{"run_id": run_id, "error": message} for run_id, message in failures],
+                    },
+                    indent=2,
+                )
+            )
+        elif args.mode == "runs":
             print(f"\nDeleted {deleted} workflow runs.")
         else:
             print(f"\nDeleted logs for {deleted} workflow runs.")
         if failures:
-            print(f"{len(failures)} deletions failed.", file=sys.stderr)
-            return 1
-        return 0
+            if not args.json:
+                print(f"{len(failures)} deletions failed.", file=sys.stderr)
+            return EXIT_PARTIAL
+        return EXIT_OK
     except RuntimeError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
+        return EXIT_ERROR
 
 
 if __name__ == "__main__":

@@ -4,21 +4,13 @@ from __future__ import annotations
 
 import importlib.metadata as meta
 import logging
-import sys
 from importlib import resources
 from pathlib import Path
 
 from pypi_profile.models import ProfileData
+from pypi_profile.serialization import toml_load, toml_load_path
 
 logger = logging.getLogger(__name__)
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib
 
 
 def load_profile(path: Path, *, autopatch_public_key: bool = True) -> ProfileData:
@@ -30,8 +22,7 @@ def load_profile(path: Path, *, autopatch_public_key: bool = True) -> ProfileDat
             ``[verification].public_key`` from the local key on disk.
     """
     logger.debug("Loading profile from %s", path)
-    with open(path, "rb") as fh:
-        raw = tomllib.load(fh)
+    raw = toml_load_path(path)
     if path.name == "pyproject.toml":
         raw = raw.get("tool", {}).get("pypi-profile", {})
     profile = ProfileData.model_validate(raw)
@@ -147,8 +138,7 @@ def find_profile(source: str) -> Path:
             return toml_in_dir
         pyproject = candidate / "pyproject.toml"
         if pyproject.exists():
-            with open(pyproject, "rb") as fh:
-                data = tomllib.load(fh)
+            data = toml_load(pyproject)
             if "pypi-profile" in data.get("tool", {}):
                 return pyproject
     # Try installed package dist-info
