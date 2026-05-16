@@ -32,4 +32,5 @@ __dependencies__ = [
     "prompt-toolkit>=3.0.0",
     "keyring>=25.7.0",
     "py-minisign>=0.13.2",
+    "schema-resume-validator>=1.1.0",
 ]
