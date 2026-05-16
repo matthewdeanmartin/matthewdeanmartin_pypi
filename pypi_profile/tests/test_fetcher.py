@@ -163,19 +163,22 @@ def test_compare_packages() -> None:
     )
 
     live_results = {
+        # pypi_packages is the authoritative ownership list from XML-RPC user_packages()
+        "pypi_packages": [
+            {"name": "pkg-ok", "role": "owner"},
+            # pkg-wrong and pkg-missing are absent — not owned by alice on PyPI
+        ],
         "package_meta": {
             "pkg-ok": {
-                "maintainers": ["alice", "bob"],
                 "summary": "OK",
                 "version": "1.0",
             },
             "pkg-wrong": {
-                "maintainers": ["charlie"],
                 "summary": "Wrong",
                 "version": "2.0",
             },
-            # pkg-missing is missing from live_results
-        }
+            # pkg-missing has no metadata
+        },
     }
 
     report = compare_packages(profile, live_results)

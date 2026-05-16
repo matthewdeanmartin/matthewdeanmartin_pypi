@@ -194,21 +194,26 @@ def compare_packages(profile: ProfileData, live_results: dict[str, Any]) -> list
     """Compare self-asserted package roles against PyPI live data."""
     pypi_username = profile.identity.pypi_username
     package_meta = live_results.get("package_meta", {})
+
+    # Build a set of package names the user actually owns/maintains according to
+    # the XML-RPC user_packages() endpoint — the authoritative source for ownership.
+    # Per-package JSON info.maintainers is often empty for sole-owner packages.
+    owned_names: set[str] = {p["name"].lower() for p in live_results.get("pypi_packages", [])}
+
     report = []
     for pkg in profile.packages:
         meta = package_meta.get(pkg.name, {})
-        maintainers = meta.get("maintainers", [])
         status = "unverified"
         note = ""
         if not meta:
             status = "no_data"
             note = "Could not fetch PyPI metadata"
-        elif pypi_username and pypi_username in maintainers:
+        elif pypi_username and pkg.name.lower() in owned_names:
             status = "confirmed"
             note = f"PyPI confirms {pypi_username!r} is a maintainer/owner"
         elif pypi_username:
             status = "not_found"
-            note = f"{pypi_username!r} not in PyPI maintainer list: {maintainers}"
+            note = f"{pypi_username!r} not found as owner/maintainer on PyPI"
         report.append(
             {
                 "name": pkg.name,

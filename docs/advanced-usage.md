@@ -28,7 +28,7 @@ pypi-profile init --username your-pypi-name --fetch
 Or fetch against an existing profile:
 
 ```bash
-pypi-profile fetch pypi_profile.toml
+pypi-profile fetch-claims pypi_profile.toml
 ```
 
 As implemented today, fetch can compare declared packages with PyPI metadata and enrich the profile from GitHub, GitLab, Mastodon, and `FUNDING.yml`.

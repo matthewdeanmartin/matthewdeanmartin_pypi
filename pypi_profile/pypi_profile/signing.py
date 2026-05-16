@@ -33,26 +33,25 @@ _ENV_DEFAULT = object()
 
 def pypi_username_from_nearby_toml() -> str:
     """Return the pypi_username from a pypi_profile.toml in cwd, or ''."""
-    import sys
-
     if sys.version_info >= (3, 11):
         import tomllib
     else:
         try:
             import tomllib
         except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
+            import tomli as tomllib
 
     for candidate in (Path("pypi_profile.toml"), Path("matthewdeanmartin/pypi_profile.toml")):
         if candidate.exists():
             try:
                 with open(candidate, "rb") as fh:
                     data = tomllib.load(fh)
-                username = data.get("identity", {}).get("pypi_username", "")
-                if username:
+                identity = data.get("identity", {})
+                username = identity.get("pypi_username", "") if isinstance(identity, dict) else ""
+                if isinstance(username, str) and username:
                     return username
-            except Exception:
-                pass
+            except (OSError, tomllib.TOMLDecodeError):
+                continue
     return ""
 
 

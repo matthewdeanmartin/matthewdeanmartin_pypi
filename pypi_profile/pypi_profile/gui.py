@@ -7,6 +7,7 @@ from __future__ import annotations
 import contextlib
 
 # The GUI launches the local pypi-profile CLI without shell=True.
+import socketserver
 import subprocess  # nosec B404
 import sys
 import threading
@@ -71,6 +72,25 @@ def _detect_keyring_status() -> str:
         return "unavailable"
 
 
+def _classify_key(key_str: str) -> tuple[str, str]:
+    """Return (kind, display_text) for a key string from the TOML verification section.
+
+    Minisign public keys are base64-encoded and always start with 'RW' (the
+    Ed25519 magic bytes encoded as base64).  Anything else is treated as a
+    private key or unknown — we show its length only, never its content.
+
+    Returns:
+        kind: 'public', 'private', or 'absent'
+        display_text: safe string for the UI label
+    """
+    if not key_str:
+        return "absent", "—"
+    if key_str.startswith("RW"):
+        truncated = key_str[:20] + "…" if len(key_str) > 20 else key_str
+        return "public", f"public key: {truncated}"
+    return "private", f"private key? ({len(key_str)} chars — not shown)"
+
+
 def _load_toml_info(path_str: str) -> dict[str, str]:
     """Return a dict with keys: full_path, rel_path, pypi_username, public_key."""
     result = {"full_path": "", "rel_path": "", "pypi_username": "", "public_key": ""}
@@ -107,15 +127,19 @@ def _has_signing_key() -> bool:
     try:
         import keyring
         import keyring.backends.fail
+        from keyring.errors import KeyringError
+    except ImportError:
+        return Path("~/.pypi_profile/minisign.key").expanduser().exists()
 
+    try:
         backend = keyring.get_keyring()
         if not isinstance(backend, keyring.backends.fail.Keyring):
             _encoded = keyring.get_password("pypi-profile", keyring.get_keyring().__class__.__name__)
             # Any non-fail backend counts — we can't easily check without knowing the username yet
             # so just confirm the backend is usable; load_secret_key will resolve the rest.
             return True
-    except Exception:
-        pass
+    except (KeyringError, RuntimeError):
+        return False
     return Path("~/.pypi_profile/minisign.key").expanduser().exists()
 
 
@@ -129,7 +153,7 @@ def _profile_text(path_str: str) -> str:
     try:
         with open(p, "rb") as fh:
             data = tomllib.load(fh)
-    except Exception as exc:
+    except (OSError, tomllib.TOMLDecodeError) as exc:
         return f"(Could not parse TOML: {exc})"
 
     lines: list[str] = []
@@ -228,7 +252,9 @@ def _profile_text(path_str: str) -> str:
         lines.append(f"## Work Experience ({len(work)})")
         for w in work:
             lines.append(
-                f"  - {w.get('organization', '?')}  —  {w.get('title', '')}  ({w.get('start_date', '')} – {w.get('end_date', '')})"
+                "  - "
+                f"{w.get('organization', '?')}  —  {w.get('title', '')}  "
+                f"({w.get('start_date', '')} – {w.get('end_date', '')})"
             )
         lines.append("")
 
@@ -417,6 +443,37 @@ COMMANDS: list[GuiCommand] = [
         "readonly": False,
     },
     {
+        "name": "add-identity-site",
+        "label": "Add Identity Site",
+        "group": "setup",
+        "help": (
+            "Add a new [[profiles]] entry to your pypi_profile.toml.\n\n"
+            "Choose a platform from the list — the URL template is pre-filled so you "
+            "only need to substitute your username.  The entry is written into the TOML "
+            "file immediately; run Update Proofs afterwards to generate and embed the "
+            "signed proof.\n\n"
+            "Uses the profile selected in the top bar.\n"
+            "--site: the platform to add (pick from the list)\n"
+            "--url: the full URL to your profile on that platform\n"
+            "--label: display label (defaults to the platform name)\n"
+            "--rel-me: set rel_me = true (for IndieWeb / webfinger verification)\n\n"  # nosec: B608
+            "Supported platforms:\n" + "\n".join(f"  {s['label']}: {s['notes']}" for s in IDENTITY_SITES)
+        ),
+        "args": [
+            {
+                "flag": "--site",
+                "label": "Platform",
+                "default": IDENTITY_SITE_LABELS[0],
+                "kind": "choice",
+                "choices": IDENTITY_SITE_LABELS,
+            },
+            {"flag": "--url", "label": "Profile URL", "default": "", "kind": "str"},
+            {"flag": "--label", "label": "Display label (optional)", "default": "", "kind": "str"},
+            {"flag": "--rel-me", "label": "Set rel_me = true", "default": True, "kind": "bool"},
+        ],
+        "readonly": False,
+    },
+    {
         "name": "keygen",
         "label": "Keygen",
         "group": "setup",
@@ -445,6 +502,72 @@ COMMANDS: list[GuiCommand] = [
         ],
         "readonly": False,
     },
+    {
+        "name": "sign",
+        "label": "Sign Claim",
+        "group": "setup",
+        "help": (
+            "Sign a controls-url claim and print the proof string.\n\n"
+            "Use this when you need to generate a proof token for a single URL "
+            "— for example, to get the token to paste onto a page before running "
+            "Update Proofs.\n\n"
+            "Uses the profile selected in the top bar.\n"
+            "--url: the URL you are asserting control over (required)\n"
+            "--key: path to your secret key file (leave blank to use the keyring)\n"
+            "--profile-package: override the profile package name\n\n"
+            "Key password: leave blank — the signing key is loaded from your system "
+            "keyring automatically."
+        ),
+        "args": [
+            {"flag": "--url", "label": "URL to sign (required)", "default": "", "kind": "str"},
+            {"flag": "--key", "label": "Secret key path (blank = keyring)", "default": "", "kind": "file"},
+            {"flag": "--password", "label": "Key password (keyring fallback only)", "default": "", "kind": "password"},
+            {"flag": "--profile-package", "label": "Profile package name override", "default": "", "kind": "str"},
+        ],
+        "readonly": False,
+    },
+    {
+        "name": "update-proofs",
+        "label": "Update Proofs",
+        "group": "setup",
+        "help": (
+            "Sign all [[profiles]] URLs and write stored_proof values into the TOML.\n\n"
+            "This is the batch equivalent of Sign Claim: it signs every [[profiles]] "
+            "entry that lacks a stored_proof and patches the results into pypi_profile.toml.\n\n"
+            "After running this command, commit the updated TOML so that the static "
+            "build can embed the proofs without needing your private key.\n\n"
+            "Uses the profile selected in the top bar.\n"
+            "--key: path to your secret key file (leave blank to use the keyring)\n"
+            "--profile-package: override the profile package name\n"
+            "--force: re-sign URLs that already have a stored_proof\n\n"
+            "Key password: leave blank — the signing key is loaded from your system "
+            "keyring automatically."
+        ),
+        "args": [
+            {"flag": "--key", "label": "Secret key path (blank = keyring)", "default": "", "kind": "file"},
+            {"flag": "--password", "label": "Key password (keyring fallback only)", "default": "", "kind": "password"},
+            {"flag": "--profile-package", "label": "Profile package name override", "default": "", "kind": "str"},
+            {"flag": "--force", "label": "Re-sign existing proofs", "default": False, "kind": "bool"},
+        ],
+        "readonly": False,
+    },
+    {
+        "name": "signatures",
+        "label": "Signatures",
+        "group": "setup",
+        "help": (
+            "Show all current proof-of-control tokens and where to place them.\n\n"
+            "For each [[profiles]] entry in your TOML this panel shows:\n"
+            "  - The target URL\n"
+            "  - The stored proof token (if one exists)\n"
+            "  - Instructions for where to paste the token on that platform\n\n"
+            "If a URL has no stored_proof yet, run Update Proofs first.\n\n"
+            "Uses the profile selected in the top bar.\n"
+            "No arguments required — runs automatically."
+        ),
+        "args": [],
+        "readonly": True,
+    },
     # ── Profile group (active profile required) ───────────────────────────
     {
         "name": "display-text",
@@ -466,33 +589,24 @@ COMMANDS: list[GuiCommand] = [
         "label": "Inspect",
         "group": "profile",
         "help": (
-            "Inspect a profile package or TOML file without executing any plugin code.\n\n"
-            "Prints a quick summary: principal name, PyPI username, number of packages, "
-            "projects, humans, and whether a signing key is configured.\n\n"
+            "Inspect a profile and validate it against the schema.\n\n"
+            "Prints a summary: principal name, PyPI username, package count, "
+            "profiles, signing key status, and schema validation result.\n\n"
+            "Use --no-validate to skip schema checking and get a fast summary "
+            "even when the TOML has validation errors.\n\n"
             "Uses the profile selected in the top bar."
         ),
-        "args": [],
+        "args": [
+            {"flag": "--no-validate", "label": "Skip schema validation", "default": False, "kind": "bool"},
+        ],
         "readonly": True,
     },
     {
-        "name": "validate",
-        "label": "Validate",
+        "name": "fetch-claims",
+        "label": "Fetch Claims",
         "group": "profile",
         "help": (
-            "Validate a pypi_profile.toml file against the Pydantic schema.\n\n"
-            "Reports OK with a brief summary on success, or prints detailed "
-            "validation errors on failure.\n\n"
-            "Uses the profile selected in the top bar."
-        ),
-        "args": [],
-        "readonly": True,
-    },
-    {
-        "name": "fetch",
-        "label": "Fetch",
-        "group": "profile",
-        "help": (
-            "Fetch live metadata from PyPI, GitHub, GitLab, and Mastodon.\n\n"
+            "Fetch live verification data from PyPI, GitHub, GitLab, and Mastodon.\n\n"
             "Compares the packages declared in the profile against what is actually "
             "published on PyPI and prints a reconciliation report.\n\n"
             "Uses the profile selected in the top bar.\n"
@@ -519,128 +633,30 @@ COMMANDS: list[GuiCommand] = [
         ],
         "readonly": True,
     },
-    {
-        "name": "sign",
-        "label": "Sign Claim",
-        "group": "profile",
-        "help": (
-            "Sign a controls-url claim and print the proof string.\n\n"
-            "Use this to prove you control an external URL (GitHub profile, website, etc.).  "
-            "Copy the printed proof string and place it at the target URL.\n\n"
-            "Uses the profile selected in the top bar.\n"
-            "--url: the URL you are asserting control over (required)\n"
-            "--key: path to your secret key file (leave blank to use the keyring)\n"
-            "--profile-package: override the profile package name\n\n"
-            "Key password: leave blank — the signing key is loaded from your system "
-            "keyring automatically.  Only enter a password if you are on a system "
-            "without keyring support and your key file is password-protected."
-        ),
-        "args": [
-            {"flag": "--url", "label": "URL to sign (required)", "default": "", "kind": "str"},
-            {"flag": "--key", "label": "Secret key path (blank = keyring)", "default": "", "kind": "file"},
-            {"flag": "--password", "label": "Key password (keyring fallback only)", "default": "", "kind": "password"},
-            {"flag": "--profile-package", "label": "Profile package name override", "default": "", "kind": "str"},
-        ],
-        "readonly": False,
-    },
-    {
-        "name": "update-proofs",
-        "label": "Update Proofs",
-        "group": "profile",
-        "help": (
-            "Sign all [[profiles]] URLs and write stored_proof values into the TOML.\n\n"
-            "This is the batch equivalent of 'Sign Claim': it iterates every entry in "
-            "[[profiles]] that uses controls-url verification, signs each URL with your "
-            "minisign secret key, and patches the resulting proof strings directly into "
-            "pypi_profile.toml under stored_proof.\n\n"
-            "After running this command, commit the updated TOML so that the static "
-            "build can embed the proofs without needing your private key.\n\n"
-            "Uses the profile selected in the top bar.\n"
-            "--key: path to your secret key file (leave blank to use the keyring)\n"
-            "--profile-package: override the profile package name\n"
-            "--force: re-sign URLs that already have a stored_proof\n\n"
-            "Key password: leave blank — the signing key is loaded from your system "
-            "keyring automatically."
-        ),
-        "args": [
-            {"flag": "--key", "label": "Secret key path (blank = keyring)", "default": "", "kind": "file"},
-            {"flag": "--password", "label": "Key password (keyring fallback only)", "default": "", "kind": "password"},
-            {"flag": "--profile-package", "label": "Profile package name override", "default": "", "kind": "str"},
-            {"flag": "--force", "label": "Re-sign existing proofs", "default": False, "kind": "bool"},
-        ],
-        "readonly": False,
-    },
-    {
-        "name": "add-identity-site",
-        "label": "Add Identity Site",
-        "group": "profile",
-        "help": (
-            "Add a new [[profiles]] entry to your pypi_profile.toml.\n\n"
-            "Choose a platform from the list — the URL template is pre-filled so you "
-            "only need to substitute your username.  The entry is written into the TOML "
-            "file immediately; run Update Proofs afterwards to generate and embed the "
-            "signed proof.\n\n"
-            "Uses the profile selected in the top bar.\n"
-            "--site: the platform to add (pick from the list)\n"
-            "--url: the full URL to your profile on that platform\n"
-            "--label: display label (defaults to the platform name)\n"
-            "--rel-me: set rel_me = true (for IndieWeb / webfinger verification)\n\n"  # nosec: B608
-            "Supported platforms:\n" + "\n".join(f"  {s['label']}: {s['notes']}" for s in IDENTITY_SITES)
-        ),
-        "args": [
-            {
-                "flag": "--site",
-                "label": "Platform",
-                "default": IDENTITY_SITE_LABELS[0],
-                "kind": "choice",
-                "choices": IDENTITY_SITE_LABELS,
-            },
-            {"flag": "--url", "label": "Profile URL", "default": "", "kind": "str"},
-            {"flag": "--label", "label": "Display label (optional)", "default": "", "kind": "str"},
-            {"flag": "--rel-me", "label": "Set rel_me = true", "default": True, "kind": "bool"},
-        ],
-        "readonly": False,
-    },
     # ── Website group ────────────────────────────────────────────────────
     {
-        "name": "build",
-        "label": "Build Static Site",
+        "name": "build-and-serve",
+        "label": "Build & Preview",
         "group": "website",
         "help": (
-            "Generate a static HTML site from the active profile.\n\n"
+            "Build the static site then immediately serve it over HTTP.\n\n"
             "Output goes to  ./site/<pypi_username>/  by default, matching the layout "
-            "expected by GitHub Pages (one subdirectory per user).\n\n"
+            "expected by GitHub Pages (one subdirectory per user).  After the build "
+            "completes, a local HTTP server starts on the given port and the browser "
+            "opens automatically.\n\n"
+            "The site uses JavaScript, so it must be served over HTTP — opening the "
+            "files directly via file:// will not work correctly.\n\n"
             "Uses the profile selected in the top bar.\n"
             "--output: override the output directory\n"
             "--base-url: URL prefix for asset paths, e.g. /myuser for GitHub Pages\n"
-            "--resume-file: path to a JSON Resume file (auto-discovered if omitted)\n\n"
-            "After building, press Open to view the site in your browser, or commit "
-            "the ./site/ directory and push to GitHub Pages."
+            "--port: port for the preview server (default: 8001)\n\n"
+            "Press Stop to shut down the preview server.  To deploy, commit the "
+            "./site/ directory and push to GitHub Pages."
         ),
         "args": [
             {"flag": "--output", "label": "Output directory", "default": "", "kind": "dir"},
             {"flag": "--base-url", "label": "Base URL (e.g. /myuser)", "default": "", "kind": "str"},
-            {"flag": "--resume-file", "label": "JSON Resume path (optional)", "default": "", "kind": "file"},
-        ],
-        "readonly": False,
-    },
-    {
-        "name": "serve-static",
-        "label": "Serve Static Site",
-        "group": "website",
-        "help": (
-            "Serve the built static site with Python's built-in HTTP server.\n\n"
-            "Run 'Build Static Site' first to generate the output.  "
-            "This command then starts a lightweight file server so you can browse "
-            "the result exactly as it will appear on GitHub Pages.\n\n"
-            "The Open button (and auto-open on Run) will launch the site in your "
-            "default browser.\n\n"
-            "--port: port to listen on (default: 8001 to avoid clashing with Live Preview)\n"
-            "--directory: override the directory to serve (default: site/<pypi_username>/)"
-        ),
-        "args": [
-            {"flag": "--port", "label": "Port", "default": "8001", "kind": "str"},
-            {"flag": "--directory", "label": "Directory (blank = auto)", "default": "", "kind": "dir"},
+            {"flag": "--port", "label": "Preview port", "default": "8001", "kind": "str"},
         ],
         "readonly": False,
     },
@@ -800,6 +816,19 @@ COMMANDS: list[GuiCommand] = [
     },
     # ── Diagnostics group ─────────────────────────────────────────────────
     {
+        "name": "validate",
+        "label": "Validate Config",
+        "group": "diagnostics",
+        "help": (
+            "Validate the active pypi_profile.toml against the Pydantic schema.\n\n"
+            "Reports OK with a full summary on success, or prints detailed "
+            "field-level validation errors on failure.\n\n"
+            "Uses the profile selected in the top bar."
+        ),
+        "args": [],
+        "readonly": True,
+    },
+    {
         "name": "doctor",
         "label": "Doctor",
         "group": "diagnostics",
@@ -868,6 +897,7 @@ class PypiProfileGui(tk.Tk):
         self.running_proc: subprocess.Popen[str] | None = None
         self.current_cmd: GuiCommand | None = None
         self.arg_widgets: dict[str, TkVar] = {}
+        self._static_httpd: socketserver.TCPServer | None = None
         self._open_url: str = ""  # URL/path the Open button will launch
         self._auto_open: bool = False  # open automatically when command succeeds
 
@@ -993,10 +1023,16 @@ class PypiProfileGui(tk.Tk):
         )
         self._keyring_label.grid(row=2, column=4, sticky="w", pady=2, padx=(0, 8))
 
-        # ── Row 3: Public key from TOML + key password ──
+        # ── Row 3: TOML verification key + key password ──
         lbl(top_bar, "TOML key:", 3, 0)
         self.bar_key_var = tk.StringVar(value="—")
-        val_lbl(top_bar, self.bar_key_var, 3, 1, columnspan=2)
+        self.bar_key_label = tk.Label(
+            top_bar,
+            textvariable=self.bar_key_var,
+            font=font_value,
+            anchor="w",
+        )
+        self.bar_key_label.grid(row=3, column=1, columnspan=2, sticky="ew", pady=2, padx=(0, 4))
 
         tk.Label(
             top_bar,
@@ -1123,8 +1159,11 @@ class PypiProfileGui(tk.Tk):
             path_text = source if source.strip() else "(none selected)"
         self.bar_path_var.set(path_text)
         self.bar_user_var.set(info["pypi_username"] or "—")
-        pub = info["public_key"]
-        self.bar_key_var.set((pub[:44] + "…") if len(pub) > 44 else (pub or "—"))
+        kind, display = _classify_key(info["public_key"])
+        self.bar_key_var.set(display)
+        if hasattr(self, "bar_key_label"):
+            color = "#006600" if kind == "public" else ("#cc0000" if kind == "private" else "#888888")
+            self.bar_key_label.config(fg=color)
 
     def _update_keyring_identity_hint(self) -> None:
         """Update the keyring status label to show which identity will be used."""
@@ -1293,6 +1332,18 @@ class PypiProfileGui(tk.Tk):
         else:
             self.run_btn.config(state=tk.NORMAL)
 
+    def _command_runner(self, name: str) -> Callable[[], None] | None:
+        """Return the special handler for commands implemented inside the GUI."""
+        handlers: dict[str, Callable[[], None]] = {
+            "display-text": self._run_display_text,
+            "display-toml": self._run_display_toml,
+            "import": self._run_import,
+            "add-identity-site": self._run_add_identity_site,
+            "build-and-serve": self._run_build_and_serve,
+            "signatures": self._run_signatures,
+        }
+        return handlers.get(name)
+
     def build_args_form(self, cmd: GuiCommand) -> None:
         for w in self.args_frame.winfo_children():
             w.destroy()
@@ -1311,6 +1362,7 @@ class PypiProfileGui(tk.Tk):
             label_text = arg["label"]
 
             # Determine live default for this field
+            default: str | bool
             if flag in _KEY_FLAGS:
                 default = self.global_key_path.get()
             else:
@@ -1408,9 +1460,9 @@ class PypiProfileGui(tk.Tk):
             "validate",
             "dump",
             "fetch",
+            "fetch-claims",
             "verify",
             "serve",
-            "build",
             "sign",
             "update-proofs",
             "add-identity-site",
@@ -1438,11 +1490,6 @@ class PypiProfileGui(tk.Tk):
                     extra_env["PYPI_PROFILE_KEY_PASSWORD"] = value
             elif flag.startswith("--"):
                 value = _get_string_var(var).strip()
-                # For build --output, derive the default from the profile username when blank.
-                if not value and cmd["name"] == "build" and flag == "--output":
-                    info = _load_toml_info(self.active_source.get())
-                    username = info.get("pypi_username", "")
-                    value = str(Path("site") / username) if username else "site"
                 if value:
                     argv += [flag, value]
             else:
@@ -1468,24 +1515,9 @@ class PypiProfileGui(tk.Tk):
 
         self.output.delete("1.0", tk.END)
 
-        if cmd["name"] == "display-text":
-            self._run_display_text()
-            return
-
-        if cmd["name"] == "display-toml":
-            self._run_display_toml()
-            return
-
-        if cmd["name"] == "import":
-            self._run_import()
-            return
-
-        if cmd["name"] == "add-identity-site":
-            self._run_add_identity_site()
-            return
-
-        if cmd["name"] == "serve-static":
-            self._run_serve_static()
+        handler = self._command_runner(cmd["name"])
+        if handler is not None:
+            handler()
             return
 
         # Configure Open button before launching so it's ready when the process finishes.
@@ -1498,8 +1530,6 @@ class PypiProfileGui(tk.Tk):
             port = _get_string_var(port_var, "8000") or "8000"
             self._open_url = f"http://{host}:{port}/"
             self._auto_open = True
-        elif cmd["name"] == "build":
-            self._open_url = self._resolve_build_output_url()
 
         argv, env = self.build_argv_and_env(cmd)
         self.append_output(f"$ {' '.join(argv)}\n\n")
@@ -1530,23 +1560,25 @@ class PypiProfileGui(tk.Tk):
                         self.append_output(line)
                     rc = proc.wait()
                 self.running_proc = None
-                self.after(0, lambda: self.on_done(rc, cmd))
+                self._schedule_on_done(rc, cmd)
             except (OSError, ValueError, subprocess.SubprocessError) as exc:
                 self.append_output(f"\nERROR: {exc}\n")
                 self.running_proc = None
-                self.after(0, lambda: self.on_done(1, cmd))
+                self._schedule_on_done(1, cmd)
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _run_serve_static(self) -> None:
-        """Serve the static build output with Python's http.server in a daemon thread."""
+    def _run_build_and_serve(self) -> None:
+        """Build the static site then serve it over HTTP, opening the browser automatically."""
         import http.server
-        import socketserver
 
+        output_var = self.arg_widgets.get("--output")
+        base_url_var = self.arg_widgets.get("--base-url")
         port_var = self.arg_widgets.get("--port")
-        dir_var = self.arg_widgets.get("--directory")
+
+        output_str = _get_string_var(output_var).strip()
+        base_url = _get_string_var(base_url_var).strip()
         port_str = _get_string_var(port_var, "8001").strip() or "8001"
-        dir_str = _get_string_var(dir_var).strip()
 
         try:
             port = int(port_str)
@@ -1555,60 +1587,173 @@ class PypiProfileGui(tk.Tk):
             self.after(0, lambda: self._finish_current_command(1))
             return
 
-        if not dir_str:
-            info = _load_toml_info(self.active_source.get())
+        source = self.active_source.get().strip()
+        if not output_str:
+            info = _load_toml_info(source)
             username = info.get("pypi_username", "")
-            dir_str = str(Path("site") / username) if username else "site"
+            output_str = str(Path("site") / username) if username else "site"
 
-        serve_dir = Path(dir_str).expanduser().resolve()
-        if not serve_dir.is_dir():
-            self.append_output(
-                f"ERROR: directory not found: {serve_dir}\n" f"Run 'Build Static Site' first to generate the output.\n"
-            )
-            self.after(0, lambda: self._finish_current_command(1))
-            return
+        import os
 
+        argv = [sys.executable, "-m", "pypi_profile.cli", "build"]
+        if source:
+            argv.append(source)
+        argv += ["--output", output_str]
+        if base_url:
+            argv += ["--base-url", base_url]
+
+        env = {**os.environ}
+        serve_dir = Path(output_str).expanduser().resolve()
         url = f"http://127.0.0.1:{port}/"
         self._open_url = url
-        self._auto_open = True
 
-        self.append_output(f"Serving {serve_dir}\n  at {url}\n  Press Stop to shut down.\n\n")
-        self.status_var.set("Serving…")
+        self.append_output(f"$ {' '.join(argv)}\n\n")
+        self.status_var.set("Building…")
         self.status_label.config(fg="#888888")
         self.run_btn.config(state=tk.DISABLED)
         self.stop_btn.config(state=tk.NORMAL)
-        self.open_btn.config(state=tk.NORMAL)
-
-        serve_dir_str = str(serve_dir)
-
-        class _QuietHandler(http.server.SimpleHTTPRequestHandler):
-            def __init__(self, *args: object, **kwargs: object) -> None:
-                super().__init__(*args, directory=serve_dir_str, **kwargs)  # type: ignore[call-arg]
-
-            def log_message(self, fmt: str, *args: object) -> None:
-                pass  # suppress per-request stdout noise
-
-        try:
-            httpd = socketserver.TCPServer(("127.0.0.1", port), _QuietHandler)
-        except OSError as exc:
-            self.append_output(f"ERROR: could not bind port {port}: {exc}\n")
-            self.run_btn.config(state=tk.NORMAL)
-            self.stop_btn.config(state=tk.DISABLED)
-            self.after(0, lambda: self._finish_current_command(1))
-            return
-
-        self._static_httpd = httpd
 
         cmd_ref = self.current_cmd
 
         def worker() -> None:
+            import socket
+
+            try:
+                with subprocess.Popen(  # nosec B603
+                    argv,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    cwd=str(Path.cwd()),
+                    env=env,
+                ) as proc:
+                    self.running_proc = proc
+                    assert proc.stdout is not None
+                    for line in proc.stdout:
+                        self.append_output(line)
+                    rc = proc.wait()
+                self.running_proc = None
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                self.append_output(f"\nERROR (build): {exc}\n")
+                self._schedule_on_done(1, cmd_ref)
+                return
+
+            if rc != 0:
+                self._schedule_on_done(rc, cmd_ref)
+                return
+
+            if not serve_dir.is_dir():
+                self.append_output(f"\nERROR: build output directory not found: {serve_dir}\n")
+                self._schedule_on_done(1, cmd_ref)
+                return
+
+            serve_dir_str = str(serve_dir)
+
+            class QuietHandler(http.server.SimpleHTTPRequestHandler):
+                def __init__(
+                    self,
+                    request: socket.socket,
+                    client_address: tuple[str, int],
+                    server: socketserver.BaseServer,
+                ) -> None:
+                    super().__init__(request, client_address, server, directory=serve_dir_str)
+
+                def log_message(  # pylint: disable=arguments-differ,redefined-builtin
+                    self, format: str, *args: object
+                ) -> None:
+                    return None
+
+            try:
+                httpd = socketserver.TCPServer(("127.0.0.1", port), QuietHandler)
+            except OSError as exc:
+                self.append_output(f"\nERROR: could not bind port {port}: {exc}\n")
+                self._schedule_on_done(1, cmd_ref)
+                return
+
+            self._static_httpd = httpd
+            self.append_output(f"\nServing at {url}\nPress Stop to shut down.\n")
+            self.after(0, lambda: self.status_var.set("Serving…"))
+            self.after(0, lambda: self.open_btn.config(state=tk.NORMAL))
+            self.after(800, self._open_in_browser)
+
             httpd.serve_forever()
-            self.after(0, lambda: self.on_done(0, cmd_ref))  # type: ignore[arg-type]
+            self._schedule_on_done(0, cmd_ref)
 
-        self._static_thread = threading.Thread(target=worker, daemon=True)
-        self._static_thread.start()
+        threading.Thread(target=worker, daemon=True).start()
 
-        self.after(800, self._open_in_browser)
+    def _run_signatures(self) -> None:
+        """Show current proof tokens from the TOML with per-platform paste instructions."""
+        source = self.active_source.get().strip()
+        if not source:
+            self.append_output("No profile selected. Choose a pypi_profile.toml in the top bar.\n")
+            self.after(0, lambda: self._finish_current_command(1))
+            return
+
+        p = Path(source).expanduser()
+        if not p.exists():
+            self.append_output(f"ERROR: File not found: {p}\n")
+            self.after(0, lambda: self._finish_current_command(1))
+            return
+
+        try:
+            with open(p, "rb") as fh:
+                data = tomllib.load(fh)
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            self.append_output(f"ERROR: Could not parse TOML: {exc}\n")
+            self.after(0, lambda: self._finish_current_command(1))
+            return
+
+        profiles = data.get("profiles", [])
+        if not profiles:
+            self.append_output(
+                "No [[profiles]] entries found.\n\n"
+                "Use 'Add Identity Site' to add external profile URLs,\n"
+                "then run 'Update Proofs' to generate and store proof tokens.\n"
+            )
+            self.after(0, lambda: self._finish_current_command(0))
+            return
+
+        PASTE_HINTS: dict[str, str] = {
+            "github": "Paste into your GitHub profile README or bio.",
+            "gitlab": "Paste into your GitLab profile bio.",
+            "mastodon": "Edit the post at this URL and include the token in the post body.",
+            "bluesky": "Add the token to a pinned Bluesky post at this URL.",
+            "linkedin": "Add the token to your LinkedIn About section or a featured post.",
+            "twitter": "Add the token to a pinned tweet or your bio.",
+            "website": "Place the token anywhere on the page (paragraph, footer, or <meta> tag).",
+            "wordpress": "Add the token to a dedicated page or About widget.",
+            "blogger": "Add the token to a post or your About page.",
+            "stackoverflow": "Add the token to your Stack Overflow profile bio.",
+            "keybase": "Post the token as a Keybase proof or add it to your profile.",
+            "orcid": "Add the token to your ORCID biography field.",
+        }
+
+        lines: list[str] = []
+        lines.append(f"Proof tokens from: {p}\n")
+        lines.append("=" * 72 + "\n")
+
+        for entry in profiles:
+            url = entry.get("url", "")
+            kind = entry.get("kind", "other")
+            label = entry.get("label", kind)
+            proof = entry.get("stored_proof", "")
+            hint = PASTE_HINTS.get(kind, "Paste the token somewhere visible on the page.")
+
+            lines.append(f"\n{label}  —  {url}\n")
+            lines.append(f"Where to paste: {hint}\n")
+
+            if proof:
+                lines.append("\nToken:\n")
+                lines.append(proof + "\n")
+            else:
+                lines.append("\n(No token yet — run 'Update Proofs' to generate one.)\n")
+
+            lines.append("-" * 72 + "\n")
+
+        self.append_output("".join(lines))
+        self.after(0, lambda: self._finish_current_command(0))
 
     def _run_display_text(self) -> None:
         source = self.active_source.get().strip()
@@ -1659,14 +1804,14 @@ class PypiProfileGui(tk.Tk):
                     rc = proc.wait()
                 self.running_proc = None
                 cmd = self.current_cmd
-                self.after(0, lambda: self.on_done(rc, cmd))  # type: ignore[arg-type]
+                self._schedule_on_done(rc, cmd)
                 if rc == 0:
                     self.after(200, self._refresh_profile_list)
             except (OSError, ValueError, subprocess.SubprocessError) as exc:
                 self.append_output(f"\nERROR: {exc}\n")
                 self.running_proc = None
                 cmd = self.current_cmd
-                self.after(0, lambda: self.on_done(1, cmd))  # type: ignore[arg-type]
+                self._schedule_on_done(1, cmd)
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -1745,6 +1890,13 @@ class PypiProfileGui(tk.Tk):
         if self.current_cmd is not None:
             self.on_done(rc, self.current_cmd)
 
+    def _schedule_on_done(self, rc: int, cmd: GuiCommand | None) -> None:
+        """Schedule completion handling even if the active command disappeared."""
+        if cmd is None:
+            self.after(0, lambda: self._finish_current_command(rc))
+            return
+        self.after(0, lambda: self.on_done(rc, cmd))
+
     def on_done(self, rc: int, cmd: GuiCommand) -> None:
         self.stop_btn.config(state=tk.DISABLED)
         if not cmd["readonly"]:
@@ -1758,11 +1910,6 @@ class PypiProfileGui(tk.Tk):
             self.after(200, self._refresh_profile_list)
         if rc == 0 and cmd.get("name") in ("key-rotate", "key-recover", "key-import", "keygen"):
             self.after(200, self._refresh_key_list)
-        # Enable Open button for build on success; serve already enables it at launch.
-        if self._open_url and cmd.get("name") == "build":
-            self.open_btn.config(state=tk.NORMAL)
-            if rc == 0:
-                self.after(0, self._open_in_browser)
 
     def _open_in_browser(self) -> None:
         """Open self._open_url in the system default browser."""
@@ -1770,21 +1917,6 @@ class PypiProfileGui(tk.Tk):
 
         if self._open_url:
             webbrowser.open(self._open_url)
-
-    def _resolve_build_output_url(self) -> str:
-        """Return a file:// URL for the build output index.html."""
-        output_var = self.arg_widgets.get("--output")
-        output_str = _get_string_var(output_var).strip()
-        if not output_str:
-            # Default: ./site/<pypi_username>/
-            info = _load_toml_info(self.active_source.get())
-            username = info.get("pypi_username", "")
-            if username:
-                output_str = str(Path("site") / username)
-            else:
-                output_str = "site"
-        index = Path(output_str).expanduser().resolve() / "index.html"
-        return index.as_uri()
 
     def stop_command(self) -> None:
         if self.running_proc is not None:

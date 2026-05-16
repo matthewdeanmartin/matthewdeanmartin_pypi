@@ -19,8 +19,8 @@ def test_cmd_validate_success(capsys: Any, tmp_path: Path) -> None:
     cmd_validate(args)
 
     captured = capsys.readouterr()
-    assert "OK:" in captured.out
     assert "Alice" in captured.out
+    assert "Schema:" in captured.out
 
 
 def test_cmd_validate_invalid(capsys: Any, tmp_path: Path) -> None:
@@ -169,8 +169,6 @@ def test_cmd_fetch_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
 
 
 def test_cmd_doctor(capsys: Any, tmp_path: Path, mocker: Any) -> None:
-    from pathlib import Path
-
     from pypi_profile.cli import cmd_doctor
 
     templates_dir = tmp_path / "templates" / "pypi_ds"
@@ -184,7 +182,7 @@ def test_cmd_doctor(capsys: Any, tmp_path: Path, mocker: Any) -> None:
 
     mocker.patch("pypi_profile.finder.find_profile_files", return_value=[])
     mocker.patch("pypi_profile.signing.keyring_is_usable", return_value=False)
-    mocker.patch("pypi_profile.cli.Path", side_effect=lambda *a, **kw: Path(*a, **kw))
+    mocker.patch("pypi_profile.cli.Path", side_effect=Path)
     mocker.patch("pypi_profile.ds.paths.template_root_path", return_value=tmp_path / "templates")
     mocker.patch("pypi_profile.ds.paths.static_root_path", return_value=tmp_path / "static")
 
@@ -284,6 +282,20 @@ def test_cmd_update_proofs_dry_run_skips_patch(mocker: Any, tmp_path: Path, caps
     assert "DRY RUN:" in captured.out
 
 
+def test_cmd_inspect_no_validate_warns_but_continues(capsys: Any, tmp_path: Path) -> None:
+    from pypi_profile.cli import cmd_inspect
+
+    toml = tmp_path / "pypi_profile.toml"
+    toml.write_text('[profile]\ndisplay_name = "Alice"\nkind = "not-a-kind"\n', encoding="utf-8")
+
+    args = argparse.Namespace(source=str(toml), no_validate=True)
+    cmd_inspect(args)
+
+    captured = capsys.readouterr()
+    assert "WARNING: schema errors present" in captured.out
+    assert "Profile file:" in captured.out
+
+
 def test_cmd_verify_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_verify
 
@@ -301,6 +313,102 @@ def test_cmd_verify_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     mock_verify.assert_called_once()
     captured = capsys.readouterr()
     assert "verified" in captured.out
+
+
+def test_cmd_key_info_dry_run(capsys: Any) -> None:
+    from pypi_profile.cli import cmd_key_info
+
+    args = argparse.Namespace(key="", dry_run=True)
+    cmd_key_info(args)
+
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
+    assert "key-info" in captured.out
+
+
+def test_cmd_key_list_dry_run(capsys: Any) -> None:
+    from pypi_profile.cli import cmd_key_list
+
+    args = argparse.Namespace(dry_run=True)
+    cmd_key_list(args)
+
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
+    assert "key-list" in captured.out
+
+
+def test_cmd_key_rotate_dry_run(mocker: Any, tmp_path: Path, capsys: Any) -> None:
+    from pypi_profile.cli import cmd_key_rotate
+
+    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+    mock_profile = mocker.patch("pypi_profile.loader.load_profile").return_value
+    mock_profile.identity.pypi_username = "alice"
+
+    args = argparse.Namespace(
+        source=str(tmp_path / "pypi_profile.toml"),
+        profile_package="",
+        key_dir="",
+        keyring_identity="",
+        password="",
+        no_keep_old=False,
+        dry_run=True,
+    )
+    cmd_key_rotate(args)
+
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
+    assert "key-rotate" in captured.out
+
+
+def test_cmd_key_recover_dry_run(mocker: Any, tmp_path: Path, capsys: Any) -> None:
+    from pypi_profile.cli import cmd_key_recover
+
+    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+    mock_profile = mocker.patch("pypi_profile.loader.load_profile").return_value
+    mock_profile.identity.pypi_username = "alice"
+
+    args = argparse.Namespace(
+        source=str(tmp_path / "pypi_profile.toml"),
+        profile_package="",
+        key_dir="",
+        keyring_identity="",
+        password="",
+        dry_run=True,
+    )
+    cmd_key_recover(args)
+
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
+    assert "key-recover" in captured.out
+
+
+def test_cmd_key_export_dry_run(tmp_path: Path, capsys: Any) -> None:
+    from pypi_profile.cli import cmd_key_export
+
+    args = argparse.Namespace(key="", output=str(tmp_path / "exported.key"), dry_run=True)
+    cmd_key_export(args)
+
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
+    assert "key-export" in captured.out
+
+
+def test_cmd_key_import_dry_run(tmp_path: Path, capsys: Any) -> None:
+    from pypi_profile.cli import cmd_key_import
+
+    args = argparse.Namespace(
+        file=str(tmp_path / "backup.key"),
+        key_dir="",
+        keyring_identity="",
+        no_keyring=False,
+        force=False,
+        dry_run=True,
+    )
+    cmd_key_import(args)
+
+    captured = capsys.readouterr()
+    assert "DRY RUN:" in captured.out
+    assert "key-import" in captured.out
 
 
 def test_main_help(mocker: Any, capsys: Any) -> None:

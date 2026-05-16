@@ -74,7 +74,7 @@ The shortest path from zero to a local profile site is:
 
 ```bash
 pypi-profile init --username your-pypi-name
-pypi-profile validate pypi_profile.toml
+pypi-profile inspect pypi_profile.toml
 pypi-profile serve pypi_profile.toml
 ```
 
@@ -83,7 +83,6 @@ That gives you a starter TOML file and serves the profile locally at `http://127
 Useful follow-up commands:
 
 ```bash
-pypi-profile inspect pypi_profile.toml
 pypi-profile dump pypi_profile.toml
 pypi-profile doctor
 ```

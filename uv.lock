@@ -3152,7 +3152,7 @@ wheels = [
 
 [[package]]
 name = "pypi-profile"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "pypi_profile" }
 dependencies = [
     { name = "fastapi" },

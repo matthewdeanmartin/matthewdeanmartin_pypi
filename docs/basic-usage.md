@@ -5,9 +5,9 @@
 The day-to-day flow is:
 
 1. create or edit `pypi_profile.toml`
-1. run `pypi-profile validate`
+1. run `pypi-profile inspect` (validates schema by default)
 1. run `pypi-profile serve`
-1. optionally use `inspect`, `dump`, `fetch`, `build`, or `gui`
+1. optionally use `dump`, `fetch-claims`, `build`, or `gui`
 
 For signed proof-of-control:
 
@@ -36,13 +36,24 @@ Creates a starter TOML file. The current implementation can also:
 - merge local `FUNDING.yml` data when present
 - fetch live data with `--fetch`
 
-### `validate`
-
-Loads the TOML through the Pydantic schema and reports the principal plus record counts.
-
 ### `inspect`
 
-Shows a quick summary without serving the site or dumping all JSON.
+Loads the TOML, prints a summary (principal, PyPI user, package count, signing
+key status), and validates the schema by default.  Use `--no-validate` to skip
+schema checking — useful for work-in-progress files with known errors.
+
+```bash
+pypi-profile inspect pypi_profile.toml
+pypi-profile inspect pypi_profile.toml --no-validate
+```
+
+Run `pypi-profile validate` in Diagnostics (GUI) or as a CLI alias for the same
+result with field-level error details when the schema fails.
+
+### `validate` (alias / Diagnostics)
+
+Alias for `inspect` kept for backward compatibility and surfaced as **Validate Config**
+in the GUI Diagnostics group.  Identical output; always runs the schema check.
 
 ### `serve`
 
@@ -117,17 +128,18 @@ Checks required and optional runtime dependencies such as `fastapi`, `uvicorn`,
 `pydantic`, `httpx`, `pyyaml`, and `py-minisign`. Also reports whether a secret
 key file is present in `~/.pypi_profile/`.
 
-### `fetch`
+### `fetch-claims`
 
-Fetches live metadata for the declared profile:
+Fetches live verification data for the declared profile:
 
-- PyPI packages for the profile owner
+- PyPI packages for the profile owner (compares against declared `[[packages]]`)
 - per-package PyPI metadata
 - GitHub profile, repos, and `FUNDING.yml`
 - GitLab profile
 - Mastodon profile
 
-Fetch results are cached in `.pypi_profile_cache/`.
+Fetch results are cached in `.pypi_profile_cache/`.  The old `fetch` name still
+works as an alias.
 
 ### `build`
 

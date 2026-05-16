@@ -23,6 +23,8 @@ JSON_RESUME="${REPO_ROOT}/john_doe/resume.json"
 INIT_DEST="${WORK_DIR}/generated-pypi_profile.toml"
 BUILD_DEST="${WORK_DIR}/site"
 KEY_DIR="${WORK_DIR}/keys"
+EXPORT_DEST="${WORK_DIR}/exported-minisign.key"
+IMPORT_SOURCE="${WORK_DIR}/imported-minisign.key"
 
 run_case() {
     local desc="$1"
@@ -71,17 +73,32 @@ run_case \
     "${CLI[@]}" init --dry-run --no-interactive --from-json-resume "${JSON_RESUME}" --fetch --output "${INIT_DEST}"
 run_case "inspect dry-run" "${CLI[@]}" inspect --dry-run "${EXAMPLE_PROFILE}"
 run_case "doctor dry-run" "${CLI[@]}" doctor --dry-run
+run_case "fetch-claims dry-run json" "${CLI[@]}" fetch-claims --dry-run "${EXAMPLE_PROFILE}" --json
 run_case "fetch dry-run json" "${CLI[@]}" fetch --dry-run "${EXAMPLE_PROFILE}" --json
 run_case "dump dry-run" "${CLI[@]}" dump --dry-run "${EXAMPLE_PROFILE}"
 run_case \
     "keygen dry-run" \
     "${CLI[@]}" keygen --dry-run --key-dir "${KEY_DIR}" --keyring-identity smoke-test --force
+run_case "key-info dry-run" "${CLI[@]}" key-info --dry-run
+run_case "key-list dry-run" "${CLI[@]}" key-list --dry-run
 run_case \
     "sign dry-run compact" \
     "${CLI[@]}" sign --dry-run controls-url "${EXAMPLE_PROFILE}" --url "https://example.com/proof" --compact
 run_case \
     "verify dry-run" \
     "${CLI[@]}" verify --dry-run "${EXAMPLE_PROFILE}" --profile-package pypi-profile-john-doe
+run_case \
+    "key-rotate dry-run force" \
+    "${CLI[@]}" key-rotate --dry-run "${EXAMPLE_PROFILE}" --profile-package pypi-profile-john-doe --force
+run_case \
+    "key-recover dry-run" \
+    "${CLI[@]}" key-recover --dry-run "${EXAMPLE_PROFILE}" --profile-package pypi-profile-john-doe
+run_case \
+    "key-export dry-run" \
+    "${CLI[@]}" key-export --dry-run --output "${EXPORT_DEST}"
+run_case \
+    "key-import dry-run force" \
+    "${CLI[@]}" key-import --dry-run "${IMPORT_SOURCE}" --key-dir "${KEY_DIR}" --force
 run_case \
     "update-proofs dry-run force" \
     "${CLI[@]}" update-proofs --dry-run "${EXAMPLE_PROFILE}" --profile-package pypi-profile-john-doe --force

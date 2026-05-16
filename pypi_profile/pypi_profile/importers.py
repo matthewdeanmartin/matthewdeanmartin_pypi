@@ -336,8 +336,7 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
             "author_email": info.get("author_email", ""),
             "home_page": info.get("home_page", ""),
             "project_url": info.get("project_url", ""),
-            "maintainers": [m.get("username", "") for m in (info.get("maintainers") or [])]
-            + ([info["author"]] if info.get("author") else []),
+            "maintainers": [m.get("username", "") for m in (info.get("maintainers") or [])],
             "classifiers": info.get("classifiers", []),
             "requires_python": info.get("requires_python", ""),
         }

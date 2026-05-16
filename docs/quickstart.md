@@ -18,10 +18,17 @@ pypi-profile init --username your-pypi-name
 
 That writes `pypi_profile.toml` in the current directory.
 
-## 3. Validate the file
+## 3. Inspect and validate
 
 ```bash
-pypi-profile validate pypi_profile.toml
+pypi-profile inspect pypi_profile.toml
+```
+
+This prints a summary and validates the schema. To skip validation (e.g. to
+inspect a work-in-progress TOML with known errors):
+
+```bash
+pypi-profile inspect pypi_profile.toml --no-validate
 ```
 
 ## 4. Serve the site locally
@@ -32,10 +39,9 @@ pypi-profile serve pypi_profile.toml
 
 The default server address is `http://127.0.0.1:8000`.
 
-## 5. Inspect the generated data
+## 5. Dump the parsed data
 
 ```bash
-pypi-profile inspect pypi_profile.toml
 pypi-profile dump pypi_profile.toml
 ```
 

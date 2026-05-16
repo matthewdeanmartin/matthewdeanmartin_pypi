@@ -7,7 +7,9 @@ import datetime
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+import minisign  # type: ignore[import-untyped]
 
 from pypi_profile.signing import (
     DEFAULT_KEY_DIR,
@@ -24,18 +26,15 @@ from pypi_profile.signing import (
 
 def derive_key_id(sk_bytes: bytes) -> str:
     """Return the 16-char upper-hex key ID embedded in a minisign secret key."""
-    import minisign  # type: ignore[import-untyped]
-
     sk = minisign.SecretKey.from_bytes(sk_bytes.rstrip(b"\n"))
     return bytes(sk._keynum_sk.key_id).hex().upper()
 
 
 def derive_public_key_b64(sk_bytes: bytes) -> str:
     """Return the base64-encoded public key derived from secret key bytes."""
-    import minisign  # type: ignore[import-untyped]
-
     sk = minisign.SecretKey.from_bytes(sk_bytes.rstrip(b"\n"))
-    return sk.get_public_key().to_base64().decode()
+    public_key_bytes = cast(bytes, sk.get_public_key().to_base64())
+    return public_key_bytes.decode()
 
 
 def load_all_toml_public_keys(start_dir: Path | None = None) -> list[tuple[Path, str]]:
@@ -48,7 +47,7 @@ def load_all_toml_public_keys(start_dir: Path | None = None) -> list[tuple[Path,
         try:
             import tomllib
         except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
+            import tomli as tomllib
 
     result: list[tuple[Path, str]] = []
     for toml_path in find_profile_files(root=start_dir):
@@ -57,7 +56,7 @@ def load_all_toml_public_keys(start_dir: Path | None = None) -> list[tuple[Path,
                 data = tomllib.load(fh)
             pk = data.get("verification", {}).get("public_key", "")
             result.append((toml_path, pk))
-        except Exception:
+        except (OSError, tomllib.TOMLDecodeError):
             result.append((toml_path, ""))
     return result
 
@@ -130,7 +129,7 @@ def key_info(
     try:
         key_id = derive_key_id(sk_bytes)
         pub_b64 = derive_public_key_b64(sk_bytes)
-    except Exception as exc:
+    except (AttributeError, TypeError, ValueError) as exc:
         return {"not_found": False, "source": source, "error": str(exc)}
 
     disk_key_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
@@ -166,7 +165,7 @@ def key_list(extra_dirs: list[Path] | None = None) -> list[dict[str, Any]]:
         try:
             kid = derive_key_id(raw)
             pub = derive_public_key_b64(raw)
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             return None
         binding = key_match_status(pub, toml_entries)
         return {"identity_or_path": label, "key_id": kid, "source": source, "public_key": pub, "binding": binding}
@@ -267,8 +266,6 @@ def key_rotate(
         store_in_keyring=True,
     )
 
-    import minisign  # type: ignore[import-untyped]
-
     new_sk = minisign.SecretKey.from_file(sk_path)
     new_key_id = bytes(new_sk._keynum_sk.key_id).hex().upper()
 
@@ -291,7 +288,7 @@ def key_rotate(
             password=password,
             force=True,
         )
-    except Exception:
+    except (FileNotFoundError, OSError, ValueError):
         toml_path.write_text(original_toml, encoding="utf-8")
         raise
 
@@ -344,7 +341,7 @@ def key_recover(
         try:
             import tomllib
         except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
+            import tomli as tomllib
 
     urls_with_proofs: list[str] = []
     if toml_path.exists():
@@ -354,8 +351,8 @@ def key_recover(
             for entry in raw_toml.get("profiles", []):
                 if entry.get("stored_proof"):
                     urls_with_proofs.append(entry.get("url", ""))
-        except Exception:
-            pass
+        except (OSError, tomllib.TOMLDecodeError):
+            urls_with_proofs = []
 
     if dry_run:
         return {
@@ -372,8 +369,6 @@ def key_recover(
         keyring_identity=keyring_identity,
         store_in_keyring=True,
     )
-
-    import minisign  # type: ignore[import-untyped]
 
     new_sk = minisign.SecretKey.from_file(sk_path)
     new_key_id = bytes(new_sk._keynum_sk.key_id).hex().upper()

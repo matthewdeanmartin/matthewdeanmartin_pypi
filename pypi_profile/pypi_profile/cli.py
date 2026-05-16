@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import logging
 import sys
@@ -101,41 +102,10 @@ def key_status() -> str:
 
 
 def cmd_validate(args: argparse.Namespace) -> None:
-    """Validate a pypi_profile.toml file."""
-    from pydantic import ValidationError
-
-    from pypi_profile.loader import load_profile
-
-    path = Path(args.path)
-    try:
-        profile = load_profile(path, autopatch_public_key=not is_dry_run(args))
-        if is_dry_run(args):
-            print_dry_run(
-                "validate would parse the profile in read-only mode.",
-                [
-                    f"profile={path}",
-                    f"principal={profile.profile.display_name!r} ({profile.profile.kind})",
-                ],
-            )
-            return
-        print(f"OK: {path}")
-        print(f"  principal: {profile.profile.display_name!r} ({profile.profile.kind})")
-        print(f"  packages:  {len(profile.packages)}")
-        print(f"  projects:  {len(profile.projects)}")
-        print(f"  humans:    {len(profile.humans)}")
-        print(f"  public key in toml: {'yes' if profile.verification.public_key else 'no'}")
-        print(f"  signing key on disk: {key_status()}")
-    except ValidationError as exc:
-        logger.error("Profile validation failed: %s", exc)
-        print(f"INVALID: {path}", file=sys.stderr)
-        for err in exc.errors():
-            loc = " → ".join(str(p) for p in err["loc"]) if err.get("loc") else "(root)"
-            print(f"  {loc}: {err['msg']}", file=sys.stderr)
-        sys.exit(1)
-    except FileNotFoundError as exc:
-        logger.error("Profile file not found: %s", exc)
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+    """Validate a pypi_profile.toml — thin shim kept for backward compatibility."""
+    args.source = getattr(args, "source", None) or getattr(args, "path", "pypi_profile.toml")
+    args.no_validate = False
+    cmd_inspect(args)
 
 
 def cmd_init(args: argparse.Namespace) -> None:
@@ -477,28 +447,66 @@ def toml_bool(b: object) -> str:
 
 
 def cmd_inspect(args: argparse.Namespace) -> None:
-    """Inspect a profile package or TOML file without executing code."""
+    """Inspect a profile and optionally validate it against the schema."""
+    from pydantic import ValidationError
+
     from pypi_profile.loader import find_profile, load_profile
 
+    source_arg = getattr(args, "source", None) or getattr(args, "path", "pypi_profile.toml")
+    source = str(source_arg)
+    no_validate: bool = getattr(args, "no_validate", False)
+
     try:
-        toml_path = find_profile(args.source)
+        toml_path = find_profile(source)
     except FileNotFoundError as exc:
         logger.error("Profile not found: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Profile file: {toml_path}")
-    profile = load_profile(toml_path, autopatch_public_key=not is_dry_run(args))
     if is_dry_run(args):
         print_dry_run(
             "inspect would read the resolved profile without executing plugin code.",
             [
                 f"profile={toml_path}",
-                f"principal={profile.profile.display_name!r}",
-                f"profiles={len(profile.profiles)}",
+                f"validate={not no_validate}",
             ],
         )
         return
+
+    try:
+        profile = load_profile(toml_path, autopatch_public_key=False)
+    except ValidationError as exc:
+        if no_validate:
+            logger.debug("Schema validation failed (ignored due to --no-validate): %s", exc)
+            print("WARNING: schema errors present (run without --no-validate to see them)")
+            # Load raw TOML for partial display
+            if sys.version_info >= (3, 11):
+                import tomllib as _tl
+            else:
+                try:
+                    import tomllib as _tl
+                except ImportError:
+                    import tomli as _tl
+            try:
+                with open(toml_path, "rb") as fh:
+                    raw = _tl.load(fh)
+                print(f"Profile file: {toml_path}")
+                print(f"Principal:    {raw.get('profile', {}).get('display_name', '?')!r}")
+            except (OSError, _tl.TOMLDecodeError) as raw_exc:
+                logger.debug("Could not read raw TOML for inspect fallback: %s", raw_exc)
+            return
+        logger.error("Profile validation failed: %s", exc)
+        print(f"INVALID: {toml_path}", file=sys.stderr)
+        for err in exc.errors():
+            loc = " → ".join(str(p) for p in err["loc"]) if err.get("loc") else "(root)"
+            print(f"  {loc}: {err['msg']}", file=sys.stderr)
+        sys.exit(1)
+    except FileNotFoundError as exc:
+        logger.error("Profile file not found: %s", exc)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Profile file: {toml_path}")
     print(f"Principal:    {profile.profile.display_name!r} ({profile.profile.kind})")
     print(f"PyPI user:    {profile.identity.pypi_username}")
     print(f"Packages:     {len(profile.packages)}")
@@ -508,6 +516,9 @@ def cmd_inspect(args: argparse.Namespace) -> None:
     print(f"Public key:   {'yes' if profile.verification.public_key else 'no'}")
     print(f"Sig backend:  {profile.verification.preferred_signature_backend}")
     print(f"Signing key:  {key_status()}")
+
+    if not no_validate:
+        print("Schema:       OK")
 
 
 def cmd_doctor(args: argparse.Namespace) -> None:
@@ -559,6 +570,8 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     print("Public key (in TOML):")
     toml_path = Path("pypi_profile.toml")
     if toml_path.exists():
+        from pydantic import ValidationError
+
         try:
             from pypi_profile.loader import load_profile
 
@@ -567,7 +580,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
                 ok_check("public_key present in [verification]")
             else:
                 info_check("public_key missing from [verification]", "run: pypi-profile keygen")
-        except Exception:
+        except (OSError, ValidationError, ValueError):
             info_check("could not parse pypi_profile.toml to check public key")
     else:
         info_check("no pypi_profile.toml to check")
@@ -627,11 +640,9 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 
     # --- Optional deps ---
     print("Optional dependencies:")
-    try:
-        import yaml as _yaml  # noqa: F401
-
+    if importlib.util.find_spec("yaml") is not None:
         ok_check("pyyaml (FUNDING.yml support)")
-    except ImportError:
+    else:
         info_check("pyyaml not installed", "needed for FUNDING.yml import")
     print()
 
@@ -752,12 +763,16 @@ def cmd_keygen(args: argparse.Namespace) -> None:
                     try:
                         import tomllib as _tl
                     except ImportError:
-                        import tomli as _tl  # type: ignore[no-redef]
+                        import tomli as _tl
                 with open(toml_path_check, "rb") as _fh:
                     _data = _tl.load(_fh)
-                keyring_identity_arg = _data.get("identity", {}).get("pypi_username", "")
-            except Exception:
-                pass
+                identity = _data.get("identity", {})
+                if isinstance(identity, dict):
+                    username = identity.get("pypi_username", "")
+                    if isinstance(username, str):
+                        keyring_identity_arg = username
+            except (OSError, _tl.TOMLDecodeError) as exc:
+                logger.debug("Could not derive keyring identity from local TOML: %s", exc)
     keyring_identity: str | None = keyring_identity_arg or None
     store_in_keyring: bool = not getattr(args, "no_keyring", False)
 
@@ -1453,9 +1468,14 @@ def main() -> None:
     serve_p.add_argument("--allow-code", action="store_true", help="Enable plugin code execution")
     serve_p.set_defaults(func=cmd_serve)
 
-    validate_p = subparsers.add_parser("validate", help="Validate a pypi_profile.toml")
+    validate_p = subparsers.add_parser("validate", help="Validate a pypi_profile.toml (alias for inspect)")
     add_dry_run_argument(validate_p)
-    validate_p.add_argument("path", nargs="?", default="pypi_profile.toml")
+    validate_p.add_argument(
+        "path",
+        nargs="?",
+        default="pypi_profile.toml",
+        help="Profile path or package name (also accepted as SOURCE for GUI compatibility)",
+    )
     validate_p.set_defaults(func=cmd_validate)
 
     init_p = subparsers.add_parser("init", help="Create a starter pypi_profile.toml")
@@ -1496,20 +1516,35 @@ def main() -> None:
     )
     init_p.set_defaults(func=cmd_init)
 
-    inspect_p = subparsers.add_parser("inspect", help="Inspect a profile without executing code")
+    inspect_p = subparsers.add_parser("inspect", help="Inspect a profile (and validate schema by default)")
     add_dry_run_argument(inspect_p)
     inspect_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    inspect_p.add_argument(
+        "--no-validate",
+        action="store_true",
+        default=False,
+        help="Skip Pydantic schema validation (faster; shows summary even if schema errors exist)",
+    )
     inspect_p.set_defaults(func=cmd_inspect)
 
     doctor_p = subparsers.add_parser("doctor", help="Diagnose local setup")
     add_dry_run_argument(doctor_p)
     doctor_p.set_defaults(func=cmd_doctor)
 
-    fetch_p = subparsers.add_parser("fetch", help="Fetch live metadata from PyPI, GitHub, GitLab, Mastodon")
+    fetch_p = subparsers.add_parser(
+        "fetch-claims",
+        help="Fetch live verification claims from PyPI, GitHub, GitLab, Mastodon",
+    )
     add_dry_run_argument(fetch_p)
     fetch_p.add_argument("source", help="Profile package name, directory, or .toml path")
     fetch_p.add_argument("--json", action="store_true", help="Also print raw JSON results")
     fetch_p.set_defaults(func=cmd_fetch)
+
+    fetch_alias_p = subparsers.add_parser("fetch", help="Alias for fetch-claims (deprecated)")
+    add_dry_run_argument(fetch_alias_p)
+    fetch_alias_p.add_argument("source", help="Profile package name, directory, or .toml path")
+    fetch_alias_p.add_argument("--json", action="store_true", help="Also print raw JSON results")
+    fetch_alias_p.set_defaults(func=cmd_fetch)
 
     dump_p = subparsers.add_parser("dump", help="Dump profile data as JSON")
     add_dry_run_argument(dump_p)
