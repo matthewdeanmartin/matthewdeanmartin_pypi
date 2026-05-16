@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-import tkinter as tk
+import pytest
 
-from pypi_profile.gui import maximize_window
+tk = pytest.importorskip("tkinter")
+
+from pypi_profile.gui import maximize_window  # noqa: E402
 
 
 class FakeWindow:

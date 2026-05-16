@@ -193,7 +193,7 @@ def fingerprint_of_full_proof(full_token: str, key_id_hex: str) -> str:
     """
     if not full_token:
         raise ValueError("full_token must be non-empty")
-    keyid = key_id_hex.lower().lstrip("0x")[:16]
+    keyid = key_id_hex.lower().removeprefix("0x")[:16]
     if len(keyid) != 16:
         raise ValueError(f"key_id must be at least 8 bytes (16 hex chars), got {key_id_hex!r}")
     digest = hashlib.blake2b(full_token.encode(), digest_size=8).hexdigest()
