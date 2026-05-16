@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Live web server now validats correctly. 
+- Live web server now validats correctly.
 - Live web server can find installed packages with profile data.
 
 ## [0.2.0] - 2026-05-16

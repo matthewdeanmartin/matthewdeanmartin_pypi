@@ -9,7 +9,7 @@ from __future__ import annotations
 import string
 from datetime import datetime, timedelta, timezone
 
-from hypothesis import assume, given, settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 # ---------------------------------------------------------------------------
@@ -480,7 +480,8 @@ class TestExtractGithubUsername:
     def test_non_github_url_returns_empty(self, text):
         from pypi_profile.fetcher import extract_github_username
 
-        assume("github.com" not in text)
+        if "github.com" in text:
+            return
         result = extract_github_username(text)
         assert result == ""
 
@@ -519,7 +520,8 @@ class TestExtractGitlabUsername:
     def test_non_gitlab_url_returns_empty(self, text):
         from pypi_profile.fetcher import extract_gitlab_username
 
-        assume("gitlab.com" not in text)
+        if "gitlab.com" in text:
+            return
         result = extract_gitlab_username(text)
         assert result == ""
 
@@ -577,9 +579,10 @@ class TestShouldSkipDir:
     def test_normal_dir_names_not_skipped(self, name):
         from pypi_profile.finder import SKIP_DIRS, should_skip_dir
 
+        lowered_name = name.lower()
         # Exclude names that collide with the actual skip set or end in .egg-info
-        assume(name.lower() not in SKIP_DIRS)
-        assume(not name.lower().endswith(".egg-info"))
+        if lowered_name in SKIP_DIRS or lowered_name.endswith(".egg-info"):
+            return
         assert should_skip_dir(name) is False
 
     def test_src_not_skipped(self):

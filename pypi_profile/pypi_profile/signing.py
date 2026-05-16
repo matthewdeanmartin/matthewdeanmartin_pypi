@@ -275,7 +275,7 @@ def sign_controls_url(
     sk_path: Path | None = None,
     password: str | None = None,
     compact: bool = False,
-    format: str | None = None,
+    format: str | None = None,  # pylint: disable=redefined-builtin
 ) -> str:
     """Sign a controls-url claim and return the encoded proof string.
 

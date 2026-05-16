@@ -122,7 +122,7 @@ def discover_installed_profiles() -> list[tuple[str, Path, ProfileData]]:
         pkg_name = seen_paths[path]
         try:
             profile = load_profile(path, autopatch_public_key=False)
-        except Exception:
+        except (ImportError, OSError, ValueError):
             logger.warning("Could not load profile from %s", path, exc_info=True)
             continue
         results.append((pkg_name, path, profile))

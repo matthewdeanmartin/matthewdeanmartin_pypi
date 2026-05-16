@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from fastapi.testclient import TestClient
+
+if TYPE_CHECKING:
+    from pypi_profile.models import ProfileData
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -34,7 +37,7 @@ def john_doe_client() -> TestClient:
 
 
 @pytest.fixture()
-def minimal_profile():
+def minimal_profile() -> ProfileData:
     from pypi_profile.models import (
         ContactMethod,
         HiringSection,
@@ -110,7 +113,7 @@ def minimal_profile():
 
 
 @pytest.fixture()
-def minimal_client(minimal_profile) -> TestClient:
+def minimal_client(minimal_profile: ProfileData) -> TestClient:
     from pypi_profile.server import build_app
 
     app = build_app(minimal_profile, static_mode=True)
@@ -362,7 +365,7 @@ class TestJsonApiMinimal:
 
 
 class TestStaticMode:
-    def test_static_mode_verification_no_live_requests(self, minimal_profile, mocker: Any):
+    def test_static_mode_verification_no_live_requests(self, minimal_profile: ProfileData, mocker: Any) -> None:
         from pypi_profile.server import build_app
 
         mock_diagnose = mocker.patch("pypi_profile.verifier.diagnose_all_profiles")
@@ -370,7 +373,7 @@ class TestStaticMode:
         client.get("/api/verification.json")
         mock_diagnose.assert_not_called()
 
-    def test_dynamic_mode_calls_diagnose(self, minimal_profile, mocker: Any):
+    def test_dynamic_mode_calls_diagnose(self, minimal_profile: ProfileData, mocker: Any) -> None:
         from pypi_profile.server import build_app
 
         mock_diagnose = mocker.patch("pypi_profile.verifier.diagnose_all_profiles", return_value=[])

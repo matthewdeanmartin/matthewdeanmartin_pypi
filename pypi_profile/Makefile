@@ -212,7 +212,7 @@ publish-gha:
 
 publish-check:
 	@$(UV) build
-	@ls -lh dist/
+	@if [ -d dist ]; then ls -lh dist/; else ls -lh ../dist/; fi
 
 publish:
 	@$(UV) publish
