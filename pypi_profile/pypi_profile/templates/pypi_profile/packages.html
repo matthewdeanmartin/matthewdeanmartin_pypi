@@ -28,7 +28,18 @@
           {% if profile.packages %}
             <div class="file-list">
               {% for pkg in profile.packages %}
-                {{ pc.package_card(pkg) }}
+                {% set pkg_pubs = [] %}
+                {% set seen_keys = [] %}
+                {% for rec in (provenance_by_package or {}).get(pkg.name, []) %}
+                  {% for pub in rec.publishers %}
+                    {% set k = pub.kind ~ '|' ~ pub.repository ~ '|' ~ pub.workflow ~ '|' ~ pub.environment %}
+                    {% if k not in seen_keys %}
+                      {% if pkg_pubs.append(pub) %}{% endif %}
+                      {% if seen_keys.append(k) %}{% endif %}
+                    {% endif %}
+                  {% endfor %}
+                {% endfor %}
+                {{ pc.package_card(pkg, publishers=pkg_pubs) }}
               {% endfor %}
             </div>
           {% else %}

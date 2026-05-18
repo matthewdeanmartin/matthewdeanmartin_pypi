@@ -14,6 +14,27 @@ from fastapi.staticfiles import StaticFiles
 from pypi_profile.ds.paths import static_root_path, template_root_path
 from pypi_profile.models import ProfileData
 
+
+def _load_provenance_from_cache(package_names: list[str]) -> dict[str, Any]:
+    """Read cached provenance + recompute build identities, without network.
+
+    Returns {"provenance": {pkg: [records]}, "build_identities": [...]}.
+    Empty when no cache exists — the UI degrades to "no provenance fetched yet".
+    """
+    from pypi_profile.fetcher import cache_read, collect_build_identities
+
+    provenance_by_package: dict[str, list[dict[str, Any]]] = {}
+    for name in package_names:
+        cached = cache_read(f"pypi_provenance_{name}")
+        if cached:
+            provenance_by_package[name] = cached
+
+    return {
+        "provenance": provenance_by_package,
+        "build_identities": collect_build_identities(provenance_by_package),
+    }
+
+
 logger = logging.getLogger(__name__)
 
 ClaimResult = dict[str, Any]
@@ -182,7 +203,15 @@ def build_app(
 
     @app.get("/packages", response_class=HTMLResponse)
     async def packages(request: Request) -> HTMLResponse:
-        return render("pypi_profile/packages.html", {"request": request, "profile": profile})
+        prov = _load_provenance_from_cache([p.name for p in profile.packages])
+        return render(
+            "pypi_profile/packages.html",
+            {
+                "request": request,
+                "profile": profile,
+                "provenance_by_package": prov["provenance"],
+            },
+        )
 
     @app.get("/projects", response_class=HTMLResponse)
     async def projects(request: Request) -> HTMLResponse:
@@ -204,6 +233,7 @@ def build_app(
     async def verification(request: Request) -> HTMLResponse:
         claim_results = get_claim_results(profile, profile_package, static_mode)
         proofs = generate_proofs(profile, profile_package, claim_results)
+        prov = _load_provenance_from_cache([p.name for p in profile.packages])
 
         return render(
             "pypi_profile/verification.html",
@@ -213,6 +243,7 @@ def build_app(
                 "claim_results": claim_results,
                 "proofs": proofs,
                 "static_mode": static_mode,
+                "build_identities": prov["build_identities"],
             },
         )
 
@@ -244,6 +275,16 @@ def build_app(
                 **profile.verification.model_dump(),
                 "static_mode": static_mode,
                 "claim_results": claim_results,
+            }
+        )
+
+    @app.get("/api/build_identities.json")
+    async def api_build_identities() -> JSONResponse:
+        prov = _load_provenance_from_cache([p.name for p in profile.packages])
+        return JSONResponse(
+            {
+                "build_identities": prov["build_identities"],
+                "provenance_by_package": prov["provenance"],
             }
         )
 

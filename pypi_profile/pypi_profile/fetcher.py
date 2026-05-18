@@ -16,6 +16,7 @@ from pypi_profile.importers import (
     fetch_gitlab_profile,
     fetch_mastodon_profile,
     fetch_pypi_package_info,
+    fetch_pypi_provenance,
     fetch_pypi_user_packages,
 )
 from pypi_profile.models import ProfileData
@@ -53,8 +54,83 @@ def cache_write(key: str, payload: Any) -> None:
     p.write_text(json_dumps({"ts": time.time(), "payload": payload}), encoding="utf-8")
 
 
-def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
-    """Fetch live data for all services referenced in the profile."""
+def fetch_provenance_for_packages(package_names: list[str], verbose: bool = False) -> dict[str, list[dict[str, Any]]]:
+    """Fetch per-file provenance for each package, cached per package name."""
+    out: dict[str, list[dict[str, Any]]] = {}
+    for name in package_names:
+        key = f"pypi_provenance_{name}"
+        cached = cache_read(key)
+        if cached is not None:
+            out[name] = cached
+            logger.debug("[cache] PyPI provenance for %s", name)
+            if verbose:
+                print(f"  [cache] PyPI provenance for {name}")
+            continue
+        logger.debug("[fetch] PyPI provenance for %s", name)
+        if verbose:
+            print(f"  [fetch] PyPI provenance for {name} ...")
+        records = fetch_pypi_provenance(name)
+        cache_write(key, records)
+        out[name] = records
+    return out
+
+
+def collect_build_identities(
+    provenance_by_package: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Collapse all per-file publishers across all packages into a deduped identity list.
+
+    Each entry represents one (kind, repository, workflow, environment) tuple — i.e.
+    one distinct build server identity that has published any wheel/sdist tracked here.
+
+    The result is what you'd surface on a profile as "this person publishes from
+    these CI accounts / repos" — independent of any single package.
+    """
+    grouped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for package_name, records in provenance_by_package.items():
+        for rec in records:
+            for pub in rec.get("publishers", []):
+                key = (
+                    (pub.get("kind") or "").lower(),
+                    pub.get("repository") or "",
+                    pub.get("workflow") or "",
+                    pub.get("environment") or "",
+                )
+                entry = grouped.setdefault(
+                    key,
+                    {
+                        "kind": pub.get("kind", ""),
+                        "repository": pub.get("repository", ""),
+                        "workflow": pub.get("workflow", ""),
+                        "environment": pub.get("environment", ""),
+                        "identity_url": pub.get("identity_url", ""),
+                        "claims": pub.get("claims", {}),
+                        "file_count": 0,
+                        "packages": [],
+                    },
+                )
+                entry["file_count"] += 1
+                if package_name not in entry["packages"]:
+                    entry["packages"].append(package_name)
+
+    return sorted(
+        grouped.values(),
+        key=lambda e: (e["kind"].lower(), e["repository"], e["workflow"]),
+    )
+
+
+def fetch_all(
+    profile: ProfileData,
+    verbose: bool = False,
+    include_owned: bool = False,
+) -> dict[str, Any]:
+    """Fetch live data for all services referenced in the profile.
+
+    When include_owned is True, provenance is also fetched for every package
+    returned by pypi_user_packages() — not just the ones explicitly declared
+    in [[packages]]. This produces a more complete build-identity picture at
+    the cost of roughly 2x more requests.
+    """
     results: dict[str, Any] = {}
 
     username = profile.identity.pypi_username
@@ -178,6 +254,18 @@ def fetch_all(profile: ProfileData, verbose: bool = False) -> dict[str, Any]:
                 cache_write(key, masto)
                 results["mastodon"] = masto
             break
+
+    # Build provenance / publisher identities.
+    package_names: list[str] = [pkg.name for pkg in profile.packages]
+    if include_owned:
+        for owned in results.get("pypi_packages", []):
+            owned_name = owned.get("name") or ""
+            if owned_name and owned_name not in package_names:
+                package_names.append(owned_name)
+
+    provenance_by_package = fetch_provenance_for_packages(package_names, verbose=verbose)
+    results["provenance"] = provenance_by_package
+    results["build_identities"] = collect_build_identities(provenance_by_package)
 
     return results
 

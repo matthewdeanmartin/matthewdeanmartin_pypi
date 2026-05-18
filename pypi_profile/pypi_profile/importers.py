@@ -323,6 +323,103 @@ def fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
     return results
 
 
+def _publisher_identity_url(publisher: dict[str, Any]) -> str:
+    """Best-effort link to the publisher's home page (GitHub repo, GitLab project, etc.)."""
+    kind = (publisher.get("kind") or "").lower()
+    repo = publisher.get("repository") or ""
+    if kind == "github" and repo:
+        return f"https://github.com/{repo}"
+    if kind == "gitlab" and repo:
+        return f"https://gitlab.com/{repo}"
+    if kind == "google":
+        claims = publisher.get("claims") or {}
+        return claims.get("iss", "") or ""
+    return ""
+
+
+def fetch_pypi_provenance(package_name: str) -> list[dict[str, Any]]:
+    """Fetch per-file build provenance for a PyPI package.
+
+    Uses the Simple API to enumerate files, then the Integrity API to fetch
+    each file's provenance bundle. Returns a list of file-level records:
+
+        [{
+            "filename": "foo-1.0-py3-none-any.whl",
+            "version": "1.0",
+            "file_url": "https://files.pythonhosted.org/...",
+            "provenance_url": "https://pypi.org/integrity/foo/1.0/foo-1.0.../provenance",
+            "publishers": [
+                {"kind": "GitHub", "repository": "org/foo", "workflow": "release.yml",
+                 "environment": "", "identity_url": "https://github.com/org/foo"},
+            ],
+        }, ...]
+
+    Trust posture: this code does NOT cryptographically verify the bundles; it
+    relies on PyPI's server-side verification gate. Suitable for surfacing the
+    publisher identity as reported by PyPI, not for independent assurance.
+    """
+    normalized = package_name.replace("_", "-").lower()
+    simple_url = f"https://pypi.org/simple/{normalized}/"
+    logger.debug("Fetching PyPI Simple API for %r", package_name)
+    try:
+        simple = get_json(simple_url, accept="application/vnd.pypi.simple.v1+json")
+    except (
+        JSONDecodeError,
+        OSError,
+        TimeoutError,
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        ValueError,
+    ):
+        logger.warning("Failed to fetch PyPI Simple API for %r", package_name, exc_info=False)
+        return []
+
+    records: list[dict[str, Any]] = []
+    for file_info in simple.get("files", []):
+        provenance_url = file_info.get("provenance")
+        if not provenance_url:
+            continue
+        try:
+            bundle = get_json(provenance_url, accept="application/vnd.pypi.integrity.v1+json")
+        except (
+            JSONDecodeError,
+            OSError,
+            TimeoutError,
+            urllib.error.HTTPError,
+            urllib.error.URLError,
+            ValueError,
+        ):
+            logger.warning("Failed to fetch provenance for %s", provenance_url, exc_info=False)
+            continue
+
+        publishers: list[dict[str, Any]] = []
+        for ab in bundle.get("attestation_bundles", []):
+            raw_pub = ab.get("publisher") or {}
+            publishers.append(
+                {
+                    "kind": raw_pub.get("kind", ""),
+                    "repository": raw_pub.get("repository", ""),
+                    "workflow": raw_pub.get("workflow", ""),
+                    "environment": raw_pub.get("environment", ""),
+                    "claims": raw_pub.get("claims") or {},
+                    "identity_url": _publisher_identity_url(raw_pub),
+                    "attestation_count": len(ab.get("attestations", []) or []),
+                }
+            )
+
+        records.append(
+            {
+                "filename": file_info.get("filename", ""),
+                "version": file_info.get("version", ""),
+                "file_url": file_info.get("url", ""),
+                "provenance_url": provenance_url,
+                "publishers": publishers,
+            }
+        )
+
+    return records
+
+
 def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
     """Fetch metadata for a single PyPI package."""
     logger.debug("Fetching PyPI metadata for package %r", package_name)
@@ -665,4 +762,143 @@ def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, A
     if pypi_packages and not profile_data.get("packages"):
         profile_data["packages"] = pypi_packages
 
+    return profile_data
+
+
+def _validate_skip_trace_export(raw: dict[str, Any]) -> dict[str, Any]:
+    """Validate a skip_trace export when the defining model is available."""
+    try:
+        from skip_trace.pypi_profile_export import PypiProfileExchange
+    except ImportError:
+        return raw
+    return PypiProfileExchange.model_validate(raw).model_dump(mode="json")
+
+
+def from_skip_trace_export(path: Path) -> dict[str, Any]:
+    """Convert a skip_trace pypi_profile exchange JSON file into profile data."""
+    raw = json_loads(path.read_bytes())
+    if not isinstance(raw, dict):
+        raise ValueError("skip_trace export must be a JSON object")
+    return from_skip_trace_export_dict(raw)
+
+
+def from_skip_trace_export_dict(raw: dict[str, Any]) -> dict[str, Any]:
+    """Convert one skip_trace pypi_profile exchange object into profile data."""
+    return merge_skip_trace_exports([raw])
+
+
+def merge_skip_trace_exports(raw_exports: list[dict[str, Any]]) -> dict[str, Any]:
+    """Merge one or more skip_trace exchange payloads into pypi_profile data."""
+    exports = [_validate_skip_trace_export(raw) for raw in raw_exports]
+    usernames: list[str] = []
+    display_name = ""
+    legal_name = ""
+    summary = ""
+    kind = "individual"
+    organizations: list[str] = []
+    contact_methods: list[dict[str, Any]] = []
+    profiles: list[dict[str, Any]] = []
+    packages: list[dict[str, Any]] = []
+    contact_keys: set[tuple[str, str]] = set()
+    profile_urls: set[str] = set()
+    package_names: set[str] = set()
+    org_names: set[str] = set()
+
+    for export in exports:
+        subject = export.get("subject", {})
+        subject_usernames = [str(value) for value in subject.get("pypi_usernames", []) if value]
+        usernames.extend(subject_usernames)
+        display_name = display_name or str(subject.get("display_name", "") or "")
+        legal_name = legal_name or str(subject.get("legal_name", "") or "")
+        summary = summary or str(subject.get("summary", "") or "")
+        subject_kind = str(subject.get("kind", "") or "")
+        if subject_kind in {"team", "company", "llc", "foundation", "collective", "project", "other"}:
+            kind = subject_kind
+        for organization in subject.get("organizations", []):
+            org_value = str(organization or "")
+            if org_value and org_value not in org_names:
+                org_names.add(org_value)
+                organizations.append(org_value)
+        for contact in subject.get("contacts", []):
+            kind_value = str(contact.get("kind", "") or "")
+            value = str(contact.get("value", "") or "")
+            key = (kind_value, value)
+            if not kind_value or not value or key in contact_keys:
+                continue
+            contact_keys.add(key)
+            contact_methods.append(
+                {
+                    "kind": kind_value,
+                    "label": str(contact.get("label", "") or kind_value.title()),
+                    "value": value,
+                    "audience": ["general"],
+                    "visibility": "public",
+                }
+            )
+        for profile in subject.get("profiles", []):
+            url = str(profile.get("url", "") or "")
+            if not url or url in profile_urls:
+                continue
+            profile_urls.add(url)
+            profiles.append(
+                {
+                    "kind": str(profile.get("kind", "") or "website"),
+                    "label": str(profile.get("label", "") or "Website"),
+                    "url": url,
+                    "verification": "self_asserted",
+                }
+            )
+        for package in subject.get("packages", []):
+            name = str(package.get("name", "") or "")
+            if not name or name in package_names:
+                continue
+            package_names.add(name)
+            packages.append(
+                {
+                    "name": name,
+                    "role": str(package.get("role", "") or "maintainer"),
+                    "state": "active",
+                    "summary": str(package.get("summary", "") or ""),
+                    "url": str(package.get("url", "") or ""),
+                }
+            )
+
+    username = next((username for username in usernames if username), "")
+    if not display_name and organizations:
+        display_name = organizations[0]
+    if not legal_name:
+        legal_name = display_name
+    if not summary:
+        if packages:
+            package_list = ", ".join(pkg["name"] for pkg in packages[:3])
+            summary = f"Maintains Python packages including {package_list}."
+        else:
+            summary = "Maintains Python packages."
+
+    human_id = username or re.sub(r"[^a-z0-9]+", "-", display_name.lower()).strip("-") or "profile-owner"
+    human_name = display_name or username
+    profile_data: dict[str, Any] = {
+        "profile": {
+            "kind": kind,
+            "display_name": human_name,
+            "summary": summary,
+        },
+        "identity": {
+            "legal_name": legal_name or human_name,
+            "display_name": human_name,
+            "pypi_username": username,
+            "timezone": "",
+            "location": "",
+        },
+        "humans": [
+            {
+                "id": human_id,
+                "display_name": human_name,
+                "role": "Owner",
+            }
+        ],
+        "profiles": profiles,
+        "contact_methods": contact_methods,
+        "packages": packages,
+    }
     return profile_data

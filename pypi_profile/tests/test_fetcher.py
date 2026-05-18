@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from pypi_profile.fetcher import (
+    collect_build_identities,
     compare_packages,
     extract_github_username,
     extract_gitlab_username,
@@ -64,6 +65,7 @@ def test_fetch_all_calls_importers(mocker: Any, mock_cache_dir: Path, sample_pro
         "pypi_profile.fetcher.fetch_mastodon_profile",
         return_value={"display_name": "Alice M"},
     )
+    mocker.patch("pypi_profile.fetcher.fetch_pypi_provenance", return_value=[])
 
     results = fetch_all(sample_profile, verbose=True)
 
@@ -119,6 +121,7 @@ def test_fetch_all_uses_cache(mocker: Any, mock_cache_dir: Path, sample_profile:
     mocker.patch("pypi_profile.fetcher.fetch_github_funding")
     mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile")
     mocker.patch("pypi_profile.fetcher.fetch_mastodon_profile")
+    mocker.patch("pypi_profile.fetcher.fetch_pypi_provenance", return_value=[])
 
     results = fetch_all(sample_profile, verbose=True)
 
@@ -145,6 +148,7 @@ def test_fetch_all_cache_expiry(mocker: Any, mock_cache_dir: Path, sample_profil
     mocker.patch("pypi_profile.fetcher.fetch_github_funding", return_value={})
     mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile", return_value={})
     mocker.patch("pypi_profile.fetcher.fetch_mastodon_profile", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_pypi_provenance", return_value=[])
 
     results = fetch_all(sample_profile)
 
@@ -222,3 +226,149 @@ def test_extract_usernames() -> None:
     assert extract_gitlab_username("https://gitlab.com/alice") == "alice"
     assert extract_gitlab_username("https://gitlab.com/alice/") == "alice"
     assert extract_gitlab_username("https://notgitlab.com/alice") == ""
+
+
+def test_collect_build_identities_dedupes_across_packages() -> None:
+    provenance_by_package = {
+        "pkg-a": [
+            {
+                "filename": "pkg_a-1.0-py3-none-any.whl",
+                "publishers": [
+                    {
+                        "kind": "GitHub",
+                        "repository": "alice/pkg-a",
+                        "workflow": "release.yml",
+                        "environment": "",
+                        "identity_url": "https://github.com/alice/pkg-a",
+                        "claims": {},
+                    }
+                ],
+            },
+            {
+                "filename": "pkg_a-1.0.tar.gz",
+                "publishers": [
+                    {
+                        "kind": "GitHub",
+                        "repository": "alice/pkg-a",
+                        "workflow": "release.yml",
+                        "environment": "",
+                        "identity_url": "https://github.com/alice/pkg-a",
+                        "claims": {},
+                    }
+                ],
+            },
+        ],
+        "pkg-b": [
+            {
+                "filename": "pkg_b-2.0-py3-none-any.whl",
+                "publishers": [
+                    {
+                        "kind": "GitLab",
+                        "repository": "alice/pkg-b",
+                        "workflow": ".gitlab-ci.yml",
+                        "environment": "",
+                        "identity_url": "https://gitlab.com/alice/pkg-b",
+                        "claims": {},
+                    }
+                ],
+            }
+        ],
+    }
+
+    identities = collect_build_identities(provenance_by_package)
+
+    # Two distinct identities (GitHub repo + GitLab repo), GitHub one covers 2 files.
+    assert len(identities) == 2
+    github = next(i for i in identities if i["kind"] == "GitHub")
+    assert github["repository"] == "alice/pkg-a"
+    assert github["file_count"] == 2
+    assert github["packages"] == ["pkg-a"]
+    assert github["identity_url"] == "https://github.com/alice/pkg-a"
+
+    gitlab = next(i for i in identities if i["kind"] == "GitLab")
+    assert gitlab["file_count"] == 1
+    assert gitlab["packages"] == ["pkg-b"]
+
+
+def test_collect_build_identities_groups_same_repo_across_packages() -> None:
+    # Two packages published from the same monorepo workflow → one identity, file_count 2.
+    provenance_by_package = {
+        "lib-x": [
+            {
+                "filename": "lib_x-0.1.tar.gz",
+                "publishers": [
+                    {
+                        "kind": "GitHub",
+                        "repository": "alice/monorepo",
+                        "workflow": "publish.yml",
+                        "environment": "pypi",
+                        "identity_url": "https://github.com/alice/monorepo",
+                        "claims": {},
+                    }
+                ],
+            }
+        ],
+        "lib-y": [
+            {
+                "filename": "lib_y-0.1.tar.gz",
+                "publishers": [
+                    {
+                        "kind": "GitHub",
+                        "repository": "alice/monorepo",
+                        "workflow": "publish.yml",
+                        "environment": "pypi",
+                        "identity_url": "https://github.com/alice/monorepo",
+                        "claims": {},
+                    }
+                ],
+            }
+        ],
+    }
+
+    identities = collect_build_identities(provenance_by_package)
+    assert len(identities) == 1
+    assert identities[0]["file_count"] == 2
+    assert sorted(identities[0]["packages"]) == ["lib-x", "lib-y"]
+    assert identities[0]["environment"] == "pypi"
+
+
+def test_fetch_all_include_owned_extends_provenance_set(
+    mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData
+) -> None:
+    mocker.patch(
+        "pypi_profile.fetcher.fetch_pypi_user_packages",
+        return_value=[{"name": "my-cool-pkg"}, {"name": "other-owned-pkg"}],
+    )
+    mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_github_profile", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[])
+    mocker.patch("pypi_profile.fetcher.fetch_github_funding", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_mastodon_profile", return_value={})
+    prov_mock = mocker.patch("pypi_profile.fetcher.fetch_pypi_provenance", return_value=[])
+
+    fetch_all(sample_profile, include_owned=True)
+
+    called_names = sorted(c.args[0] for c in prov_mock.call_args_list)
+    assert called_names == ["my-cool-pkg", "other-owned-pkg"]
+
+
+def test_fetch_all_default_only_declared_packages(
+    mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData
+) -> None:
+    mocker.patch(
+        "pypi_profile.fetcher.fetch_pypi_user_packages",
+        return_value=[{"name": "my-cool-pkg"}, {"name": "other-owned-pkg"}],
+    )
+    mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_github_profile", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[])
+    mocker.patch("pypi_profile.fetcher.fetch_github_funding", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile", return_value={})
+    mocker.patch("pypi_profile.fetcher.fetch_mastodon_profile", return_value={})
+    prov_mock = mocker.patch("pypi_profile.fetcher.fetch_pypi_provenance", return_value=[])
+
+    fetch_all(sample_profile)
+
+    called_names = [c.args[0] for c in prov_mock.call_args_list]
+    assert called_names == ["my-cool-pkg"]

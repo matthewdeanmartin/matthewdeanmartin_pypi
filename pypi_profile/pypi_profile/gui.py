@@ -955,7 +955,7 @@ class PypiProfileGui(tk.Tk):
         label_width = 11
 
         top_bar = tk.Frame(self, bd=1, relief=tk.GROOVE)
-        top_bar.grid(row=0, column=0, columnspan=3, sticky="ew", padx=4, pady=(4, 0))
+        top_bar.grid(row=0, column=1, columnspan=2, sticky="ew", padx=(0, 4), pady=(4, 0))
         top_bar.columnconfigure(1, weight=2)
         top_bar.columnconfigure(4, weight=1)
 
@@ -1065,9 +1065,34 @@ class PypiProfileGui(tk.Tk):
         ).grid(row=3, column=4, sticky="ew", pady=(2, 4), padx=(0, 8))
 
     def build_left_panel(self) -> None:
-        left = tk.Frame(self, bd=1, relief=tk.SUNKEN)
-        left.grid(row=1, column=0, sticky="nsew", padx=(4, 0), pady=4)
+        outer = tk.Frame(self, bd=1, relief=tk.SUNKEN)
+        outer.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=(4, 0), pady=4)
+        outer.rowconfigure(0, weight=1)
+        outer.columnconfigure(0, weight=1)
+
+        canvas = tk.Canvas(outer, highlightthickness=0)
+        scrollbar = tk.Scrollbar(outer, orient=tk.VERTICAL, command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
+        left = tk.Frame(canvas)
         left.columnconfigure(0, weight=1)
+        canvas_window = canvas.create_window((0, 0), window=left, anchor="nw")
+
+        def on_frame_configure(_event: object = None) -> None:
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def on_canvas_configure(event: tk.Event) -> None:  # type: ignore[type-arg]
+            canvas.itemconfig(canvas_window, width=event.width)
+
+        left.bind("<Configure>", on_frame_configure)
+        canvas.bind("<Configure>", on_canvas_configure)
+
+        def on_mousewheel(event: tk.Event) -> None:  # type: ignore[type-arg]
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas.bind_all("<MouseWheel>", on_mousewheel)
 
         self.cmd_buttons: dict[str, tk.Button] = {}
         row_i = 0
@@ -1107,7 +1132,7 @@ class PypiProfileGui(tk.Tk):
 
     def build_center_panel(self, mono: font.Font) -> None:
         center = tk.Frame(self)
-        center.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        center.grid(row=1, column=1, sticky="nsew", padx=4, pady=(0, 4))
         center.rowconfigure(3, weight=1)
         center.columnconfigure(0, weight=1)
 
@@ -1131,10 +1156,10 @@ class PypiProfileGui(tk.Tk):
 
         btn_bar = tk.Frame(center)
         btn_bar.grid(row=4, column=0, sticky="ew", pady=(4, 0))
-        self.run_btn = tk.Button(btn_bar, text="Run", width=10, command=self.run_command, bg="#0e7c0e", fg="black")
+        self.run_btn = tk.Button(btn_bar, text="Run", width=10, command=self.run_command, bg="#0e7c0e", fg="white")
         self.run_btn.pack(side=tk.LEFT, padx=(0, 4))
         self.stop_btn = tk.Button(
-            btn_bar, text="Stop", width=10, command=self.stop_command, bg="#7c0e0e", fg="black", state=tk.DISABLED
+            btn_bar, text="Stop", width=10, command=self.stop_command, bg="#7c0e0e", fg="white", state=tk.DISABLED
         )
         self.stop_btn.pack(side=tk.LEFT, padx=(0, 4))
         self.open_btn = tk.Button(btn_bar, text="Open", width=10, command=self.open_in_browser, state=tk.DISABLED)
@@ -1145,7 +1170,7 @@ class PypiProfileGui(tk.Tk):
 
     def build_right_panel(self) -> None:
         right = tk.Frame(self, bd=1, relief=tk.SUNKEN)
-        right.grid(row=1, column=2, sticky="nsew", padx=(0, 4), pady=4)
+        right.grid(row=1, column=2, sticky="nsew", padx=(0, 4), pady=(0, 4))
         right.rowconfigure(1, weight=1)
         right.columnconfigure(0, weight=1)
 
@@ -1920,7 +1945,10 @@ class PypiProfileGui(tk.Tk):
 
     def on_done(self, rc: int, cmd: GuiCommand) -> None:
         self.stop_btn.config(state=tk.DISABLED)
-        if not cmd["readonly"]:
+        # Check current_cmd (not finished cmd) — prevents a background task from enabling
+        # Run after the user has already switched to a readonly command.
+        current = self.current_cmd
+        if current is not None and not current["readonly"] and self.running_proc is None:
             self.run_btn.config(state=tk.NORMAL)
         msg = f"Exited {rc}"
         self.status_var.set(msg)

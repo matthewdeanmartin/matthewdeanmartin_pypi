@@ -49,6 +49,25 @@
           {% endif %}
         {% endcall %}
 
+        {% call layout.card("Build identities", "project-panel") %}
+          {% if build_identities %}
+            {{ feedback.notification(
+              "These are the CI/CD accounts that PyPI says published wheels for this profile's packages. Identities are reported by PyPI's Integrity API and are not independently verified by this page.",
+              tone="info", title="Reported by PyPI"
+            ) }}
+            <div class="file-list">
+              {% for ident in build_identities %}
+                {{ pc.build_identity_card(ident) }}
+              {% endfor %}
+            </div>
+          {% else %}
+            {{ feedback.notification(
+              "No build provenance has been fetched yet. Run <code>pypi-profile fetch-claims &lt;source&gt;</code> to populate the cache, then reload.",
+              tone="neutral", title="No provenance cached"
+            ) }}
+          {% endif %}
+        {% endcall %}
+
         {% call layout.card("External profile claims", "project-panel") %}
           {% if static_mode %}
             {{ feedback.notification(

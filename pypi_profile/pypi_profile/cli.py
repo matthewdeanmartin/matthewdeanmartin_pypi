@@ -327,6 +327,7 @@ def cmd_init(args: argparse.Namespace) -> None:
     dest = Path(args.output or "pypi_profile.toml")
     username = args.username or ""
     kind = args.kind or "individual"
+    from_skip_trace = str(getattr(args, "from_skip_trace", "") or "")
 
     if is_dry_run(args):
         if dest.exists() and not args.force:
@@ -337,11 +338,17 @@ def cmd_init(args: argparse.Namespace) -> None:
             if not jrp.exists():
                 logger.error("JSON Resume file not found: %s", jrp)
                 raise CliError(f"JSON Resume file not found: {jrp}", EXIT_USAGE)
+        if from_skip_trace:
+            stp = Path(from_skip_trace)
+            if not stp.exists():
+                logger.error("skip_trace export file not found: %s", stp)
+                raise CliError(f"skip_trace export file not found: {stp}", EXIT_USAGE)
         details = [
             f"output={dest}",
             f"kind={kind}",
             f"username={username or '(auto/default)'}",
             f"from_json_resume={args.from_json_resume or '(none)'}",
+            f"from_skip_trace={from_skip_trace or '(none)'}",
             f"fetch_live_data={args.fetch}",
             f"force={args.force}",
         ]
@@ -378,7 +385,7 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     profile_data: dict[str, Any] = {}
 
-    # Import from JSON Resume if provided
+    # Import from JSON Resume or skip_trace export if provided
     if args.from_json_resume:
         from pypi_profile.importers import from_json_resume
 
@@ -388,6 +395,17 @@ def cmd_init(args: argparse.Namespace) -> None:
             raise CliError(f"JSON Resume file not found: {jrp}", EXIT_USAGE)
         print(f"Importing JSON Resume from {jrp} ...")
         profile_data = from_json_resume(jrp)
+        if args.kind:
+            profile_data.setdefault("profile", {})["kind"] = kind
+    elif from_skip_trace:
+        from pypi_profile.importers import from_skip_trace_export
+
+        stp = Path(from_skip_trace)
+        if not stp.exists():
+            logger.error("skip_trace export file not found: %s", stp)
+            raise CliError(f"skip_trace export file not found: {stp}", EXIT_USAGE)
+        print(f"Importing skip_trace export from {stp} ...")
+        profile_data = from_skip_trace_export(stp)
         if args.kind:
             profile_data.setdefault("profile", {})["kind"] = kind
 
@@ -934,7 +952,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         print(f"Fetching live data for: {profile.profile.display_name!r}")
         print()
 
-    live = fetch_all(profile, verbose=True)
+    live = fetch_all(profile, verbose=True, include_owned=getattr(args, "include_owned", False))
     report = compare_packages(profile, live)
 
     if wants_json_output(args):
@@ -991,6 +1009,24 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         print("=== Funding platforms (FUNDING.yml) ===")
         for platform, handle in live["github_funding"].items():
             print(f"  {platform}: {handle}")
+
+    build_idents = live.get("build_identities") or []
+    if build_idents:
+        print()
+        print("=== Build identities (PyPI Trusted Publishers) ===")
+        for ident in build_idents:
+            label = f"{ident.get('kind', '')}:{ident.get('repository', '') or '(unknown)'}"
+            extras = []
+            if ident.get("workflow"):
+                extras.append(f"workflow={ident['workflow']}")
+            if ident.get("environment"):
+                extras.append(f"env={ident['environment']}")
+            suffix = f"  ({', '.join(extras)})" if extras else ""
+            print(f"  {label}{suffix}")
+            pkgs = ident.get("packages") or []
+            print(f"      {ident.get('file_count', 0)} file(s) across {len(pkgs)} package(s): {', '.join(pkgs)}")
+            if ident.get("identity_url"):
+                print(f"      {ident['identity_url']}")
 
 
 def cmd_keygen(args: argparse.Namespace) -> None:
@@ -1352,6 +1388,85 @@ def cmd_find_profiles(args: argparse.Namespace) -> None:
         return
     for p in found:
         print(p)
+
+
+def cmd_generate_missing(args: argparse.Namespace) -> None:
+    """Generate starter profiles for discovered PyPI usernames across a venv."""
+    from pypi_profile.finder import find_profile_files
+    from pypi_profile.importers import merge_skip_trace_exports
+    from pypi_profile.loader import load_profile
+    from pypi_profile.skip_trace_bridge import (
+        collect_skip_trace_exports,
+        group_exports_by_username,
+        list_installed_package_names,
+    )
+
+    output_dir = Path(args.output_dir).expanduser().resolve()
+    target = Path(args.venv).expanduser().resolve() if args.venv else None
+    packages = list_installed_package_names(target)
+    if args.limit:
+        packages = packages[: args.limit]
+
+    existing_usernames: set[str] = set()
+    if output_dir.exists():
+        for path in find_profile_files(root=output_dir):
+            try:
+                profile = load_profile(path, autopatch_public_key=False)
+            except (OSError, ValueError):
+                continue
+            if profile.identity.pypi_username:
+                existing_usernames.add(profile.identity.pypi_username)
+
+    if is_dry_run(args):
+        print_dry_run(
+            "generate-missing would analyze installed packages with skip_trace and write starter profiles.",
+            [
+                f"venv={target or '(current environment)'}",
+                f"output_dir={output_dir}",
+                f"packages_to_analyze={len(packages)}",
+                f"existing_profiles={len(existing_usernames)}",
+                f"force={args.force}",
+            ],
+        )
+        return
+
+    exports, failures = collect_skip_trace_exports(packages)
+    grouped = group_exports_by_username(exports)
+    created: list[str] = []
+    skipped: list[str] = []
+    for username, grouped_exports in sorted(grouped.items()):
+        dest = output_dir / username / "pypi_profile.toml"
+        if (username in existing_usernames or dest.exists()) and not args.force:
+            skipped.append(username)
+            continue
+        profile_data = merge_skip_trace_exports(grouped_exports)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        write_toml_from_data(
+            dest,
+            profile_data,
+            username=profile_data.get("identity", {}).get("pypi_username", username),
+            kind=profile_data.get("profile", {}).get("kind", "individual"),
+        )
+        created.append(str(dest))
+
+    summary = {
+        "venv": str(target) if target else "",
+        "output_dir": str(output_dir),
+        "packages_analyzed": len(packages),
+        "exports_with_usernames": len(grouped),
+        "created": created,
+        "skipped": skipped,
+        "failures": failures,
+    }
+    if wants_json_output(args):
+        emit_json(summary)
+        return
+    print(f"Analyzed {len(packages)} installed packages.")
+    print(f"Created {len(created)} profile file(s).")
+    if skipped:
+        print(f"Skipped {len(skipped)} existing profile(s).")
+    if failures:
+        print(f"Failed to analyze {len(failures)} package(s).")
 
 
 def cmd_update_proofs(args: argparse.Namespace) -> None:
@@ -1875,11 +1990,18 @@ def build_parser() -> argparse.ArgumentParser:
     init_p.add_argument("--username", default="", help="PyPI username")
     init_p.add_argument("--output", default="", help="Output path (default: pypi_profile.toml)")
     init_p.add_argument("--force", action="store_true", help="Overwrite existing file")
-    init_p.add_argument(
+    init_import_group = init_p.add_mutually_exclusive_group()
+    init_import_group.add_argument(
         "--from-json-resume",
         default="",
         metavar="PATH",
         help="Import from a JSON Resume file (resume.json)",
+    )
+    init_import_group.add_argument(
+        "--from-skip-trace",
+        default="",
+        metavar="PATH",
+        help="Import from skip_trace's pypi_profile exchange JSON",
     )
     init_p.add_argument(
         "--fetch",
@@ -1915,6 +2037,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_interactive_arguments(fetch_p)
     fetch_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
     fetch_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
+    fetch_p.add_argument(
+        "--include-owned",
+        action="store_true",
+        help="Also fetch provenance for packages owned via pypi_username (not just declared ones)",
+    )
     fetch_p.set_defaults(func=cmd_fetch)
 
     fetch_alias_p = subparsers.add_parser("fetch", help="Alias for fetch-claims (deprecated)")
@@ -1922,6 +2049,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_interactive_arguments(fetch_alias_p)
     fetch_alias_p.add_argument("source", nargs="?", default="", help="Profile package name, directory, or .toml path")
     fetch_alias_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
+    fetch_alias_p.add_argument(
+        "--include-owned",
+        action="store_true",
+        help="Also fetch provenance for packages owned via pypi_username (not just declared ones)",
+    )
     fetch_alias_p.set_defaults(func=cmd_fetch)
 
     dump_p = subparsers.add_parser("dump", help="Dump profile data as JSON")
@@ -2056,6 +2188,38 @@ def build_parser() -> argparse.ArgumentParser:
     )
     find_profiles_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     find_profiles_p.set_defaults(func=cmd_find_profiles)
+
+    generate_missing_p = subparsers.add_parser(
+        "generate-missing",
+        help="Generate starter profiles for missing PyPI identities across a venv",
+    )
+    add_dry_run_argument(generate_missing_p)
+    add_interactive_arguments(generate_missing_p)
+    generate_missing_p.add_argument(
+        "--venv",
+        default="",
+        metavar="PATH",
+        help="Venv root, python executable, or site-packages path (default: current environment)",
+    )
+    generate_missing_p.add_argument(
+        "--output-dir",
+        default="generated-profiles",
+        metavar="PATH",
+        help="Directory where per-username profile folders will be created",
+    )
+    generate_missing_p.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Limit how many installed packages to analyze",
+    )
+    generate_missing_p.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite generated profiles even when a matching destination exists",
+    )
+    generate_missing_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
+    generate_missing_p.set_defaults(func=cmd_generate_missing)
 
     gui_p = subparsers.add_parser("gui", help="Launch the Tkinter GUI")
     add_dry_run_argument(gui_p)

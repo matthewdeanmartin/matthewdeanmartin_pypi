@@ -80,7 +80,14 @@ If you already have source data, you can bootstrap from it:
 
 ```bash
 pypi-profile init --from-json-resume resume.json --output pypi_profile.toml
+pypi-profile init --from-skip-trace skip-trace-profile.json --output pypi_profile.toml
 pypi-profile init --username your-pypi-name --fetch
+```
+
+To generate starter profiles for identities discovered across a virtual environment:
+
+```bash
+pypi-profile generate-missing --venv .venv --output-dir generated-profiles
 ```
 
 ## Security notes

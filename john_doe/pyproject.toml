@@ -52,15 +52,15 @@ include = ["/README.md", "LICENSE", "/john_doe", "/tests"]
 
 [dependency-groups]
 dev = [
-    "bandit>=1.9.4",
-    "black>=26.0.0",
-    "isort>=6.0.0",
-    "mypy>=1.18.0",
-    "pre-commit>=4.0.0",
-    "pytest>=8.4.0",
-    "pytest-cov>=6.0.0",
-    "pytest-timeout>=2.4.0",
-    "ruff>=0.12.0",
+#    "bandit>=1.9.4",
+#    "black>=26.0.0",
+#    "isort>=6.0.0",
+#    "mypy>=1.18.0",
+#    "pre-commit>=4.0.0",
+#    "pytest>=8.4.0",
+#    "pytest-cov>=6.0.0",
+#    "pytest-timeout>=2.4.0",
+#    "ruff>=0.12.0",
 ]
 
 [tool.uv]

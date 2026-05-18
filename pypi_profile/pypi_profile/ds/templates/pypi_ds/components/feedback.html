@@ -24,7 +24,7 @@
       {{ icons.symbol(symbol_name, class_name="pypi-ds-symbol") }}
     </span>
     <span class="notification-bar__message">
-      {% if title %}<strong>{{ title }}</strong> {% endif %}{{ message }}
+      {% if title %}<strong>{{ title }}</strong> {% endif %}{{ message | safe }}
     </span>
   </div>
 {%- endmacro %}

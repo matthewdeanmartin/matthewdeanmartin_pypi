@@ -76,7 +76,7 @@
 {%- endmacro %}
 
 {# Single package card #}
-{% macro package_card(pkg) -%}
+{% macro package_card(pkg, publishers=None) -%}
   <article class="file-card">
     <div class="file-card__body">
       <h3 class="file-card__title">
@@ -90,6 +90,43 @@
       {% if pkg.summary %}
         <p>{{ pkg.summary }}</p>
       {% endif %}
+      {% if publishers %}
+        <p class="file-card__meta" style="margin-top:0.5rem;">
+          {% for pub in publishers %}
+            <span title="{{ pub.kind }} · {{ pub.workflow }}{% if pub.environment %} · {{ pub.environment }}{% endif %}">
+              built by
+              {% if pub.identity_url %}
+                <a href="{{ pub.identity_url }}"><strong>{{ pub.kind }}:{{ pub.repository }}</strong></a>
+              {% else %}
+                <strong>{{ pub.kind }}{% if pub.repository %}:{{ pub.repository }}{% endif %}</strong>
+              {% endif %}
+            </span>{% if not loop.last %} · {% endif %}
+          {% endfor %}
+        </p>
+      {% endif %}
+    </div>
+  </article>
+{%- endmacro %}
+
+{# Build identity card — one CI account / repo / workflow that publishes wheels #}
+{% macro build_identity_card(ident) -%}
+  <article class="file-card">
+    <div class="file-card__body">
+      <h3 class="file-card__title">
+        {% if ident.identity_url %}
+          <a href="{{ ident.identity_url }}">{{ ident.kind }}:{{ ident.repository or "(unknown repo)" }}</a>
+        {% else %}
+          {{ ident.kind }}{% if ident.repository %}:{{ ident.repository }}{% endif %}
+        {% endif %}
+      </h3>
+      <p class="file-card__meta">
+        {% if ident.workflow %}workflow: <code>{{ ident.workflow }}</code>{% endif %}
+        {% if ident.environment %} &nbsp;·&nbsp; env: <code>{{ ident.environment }}</code>{% endif %}
+      </p>
+      <p class="file-card__meta">
+        {{ ident.file_count }} file(s) across {{ ident.packages | length }} package(s):
+        {{ ident.packages | join(", ") }}
+      </p>
     </div>
   </article>
 {%- endmacro %}

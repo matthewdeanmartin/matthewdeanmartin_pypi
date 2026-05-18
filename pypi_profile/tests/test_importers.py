@@ -237,3 +237,75 @@ def test_init_from_json_resume_produces_valid_toml(tmp_path: Path) -> None:
     assert profile.profile.display_name == "John Doe"
     assert len(profile.work_experience) == 2
     assert any(p.kind == "github" for p in profile.profiles)
+
+
+def test_fetch_pypi_provenance_parses_publishers(mocker: Any) -> None:
+    from pypi_profile import importers
+
+    simple_response = {
+        "files": [
+            {
+                "filename": "foo-1.0-py3-none-any.whl",
+                "url": "https://files.pythonhosted.org/packages/.../foo-1.0-py3-none-any.whl",
+                "version": "1.0",
+                "provenance": "https://pypi.org/integrity/foo/1.0/foo-1.0-py3-none-any.whl/provenance",
+            },
+            {
+                "filename": "foo-0.9-py3-none-any.whl",
+                "url": "https://files.pythonhosted.org/packages/.../foo-0.9-py3-none-any.whl",
+                "version": "0.9",
+                "provenance": None,
+            },
+        ]
+    }
+    bundle_response = {
+        "attestation_bundles": [
+            {
+                "publisher": {
+                    "kind": "GitHub",
+                    "repository": "alice/foo",
+                    "workflow": "release.yml",
+                    "environment": "",
+                    "claims": None,
+                },
+                "attestations": [{"envelope": {}}, {"envelope": {}}],
+            }
+        ]
+    }
+
+    def fake_get_json(url: str, accept: str = "application/json") -> Any:
+        if "/simple/" in url:
+            return simple_response
+        if "/integrity/" in url:
+            return bundle_response
+        raise AssertionError(f"unexpected URL: {url}")
+
+    mocker.patch.object(importers, "get_json", side_effect=fake_get_json)
+
+    records = importers.fetch_pypi_provenance("foo")
+    assert len(records) == 1
+    rec = records[0]
+    assert rec["filename"] == "foo-1.0-py3-none-any.whl"
+    assert rec["version"] == "1.0"
+    assert len(rec["publishers"]) == 1
+    pub = rec["publishers"][0]
+    assert pub["kind"] == "GitHub"
+    assert pub["repository"] == "alice/foo"
+    assert pub["workflow"] == "release.yml"
+    assert pub["identity_url"] == "https://github.com/alice/foo"
+    assert pub["attestation_count"] == 2
+
+
+def test_fetch_pypi_provenance_handles_no_files(mocker: Any) -> None:
+    from pypi_profile import importers
+
+    mocker.patch.object(importers, "get_json", return_value={"files": []})
+    assert importers.fetch_pypi_provenance("nopkg") == []
+
+
+def test_fetch_pypi_provenance_swallows_simple_api_errors(mocker: Any) -> None:
+    from pypi_profile import importers
+
+    mocker.patch.object(importers, "get_json", side_effect=OSError("network down"))
+    # Should return empty list, not raise.
+    assert importers.fetch_pypi_provenance("foo") == []
