@@ -1,5 +1,7 @@
 [tool.uv]
-universal = true
 
 [tool.uv.workspace]
 members = ["pypi_profile", "matthewdeanmartin", "john_doe"]
+
+[tool.uv.pip]
+universal = true
