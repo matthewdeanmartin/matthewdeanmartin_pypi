@@ -19,7 +19,9 @@ SCRIPT_PATH = REPO_ROOT / "scripts" / "delete_failed_github_actions.py"
 
 
 def _load_delete_failed_script() -> Any:
-    spec = importlib.util.spec_from_file_location("delete_failed_github_actions", SCRIPT_PATH)
+    spec = importlib.util.spec_from_file_location(
+        "delete_failed_github_actions", SCRIPT_PATH
+    )
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -69,7 +71,9 @@ def test_all_subcommand_help_renders(capsys: pytest.CaptureFixture[str]) -> None
         assert f"usage: pypi-profile {command}" in out
 
 
-def test_missing_required_value_returns_usage_code_and_stderr(capsys: pytest.CaptureFixture[str]) -> None:
+def test_missing_required_value_returns_usage_code_and_stderr(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     exit_code = main(["inspect", "--no-interactive"])
     out, err = capsys.readouterr()
 
@@ -78,8 +82,12 @@ def test_missing_required_value_returns_usage_code_and_stderr(capsys: pytest.Cap
     assert "Profile source is required" in err
 
 
-def test_fetch_json_output_is_machine_readable(capsys: pytest.CaptureFixture[str], mocker: Any, tmp_path: Path) -> None:
-    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+def test_fetch_json_output_is_machine_readable(
+    capsys: pytest.CaptureFixture[str], mocker: Any, tmp_path: Path
+) -> None:
+    mocker.patch(
+        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
+    )
     mock_profile = mocker.patch("pypi_profile.loader.load_profile").return_value
     mock_profile.profile.display_name = "Alice"
     mock_profile.profiles = []
@@ -87,9 +95,14 @@ def test_fetch_json_output_is_machine_readable(capsys: pytest.CaptureFixture[str
         "pypi_profile.fetcher.fetch_all",
         return_value={"pypi_packages": [{"name": "demo"}], "github": {"name": "Alice"}},
     )
-    mocker.patch("pypi_profile.fetcher.compare_packages", return_value=[{"name": "demo", "status": "confirmed"}])
+    mocker.patch(
+        "pypi_profile.fetcher.compare_packages",
+        return_value=[{"name": "demo", "status": "confirmed"}],
+    )
 
-    args = argparse.Namespace(source=str(tmp_path / "pypi_profile.toml"), json=True, dry_run=False)
+    args = argparse.Namespace(
+        source=str(tmp_path / "pypi_profile.toml"), json=True, dry_run=False
+    )
     cmd_fetch(args)
 
     out, err = capsys.readouterr()
@@ -99,10 +112,14 @@ def test_fetch_json_output_is_machine_readable(capsys: pytest.CaptureFixture[str
     assert payload["package_comparison"][0]["status"] == "confirmed"
 
 
-def test_key_list_json_output_is_machine_readable(capsys: pytest.CaptureFixture[str], mocker: Any) -> None:
+def test_key_list_json_output_is_machine_readable(
+    capsys: pytest.CaptureFixture[str], mocker: Any
+) -> None:
     mocker.patch(
         "pypi_profile.key_management.key_list",
-        return_value=[{"identity_or_path": "alice", "key_id": "kid-1", "source": "keyring"}],
+        return_value=[
+            {"identity_or_path": "alice", "key_id": "kid-1", "source": "keyring"}
+        ],
     )
 
     args = argparse.Namespace(json=True, dry_run=False)
@@ -124,7 +141,12 @@ def test_interactive_prompt_supplies_missing_source(
     mocker.patch("pypi_profile.loader.find_profile", return_value=profile_path)
 
     args = argparse.Namespace(
-        source="", no_validate=False, json=False, interactive=True, no_interactive=False, dry_run=True
+        source="",
+        no_validate=False,
+        json=False,
+        interactive=True,
+        no_interactive=False,
+        dry_run=True,
     )
     cmd_inspect(args)
 
@@ -134,7 +156,9 @@ def test_interactive_prompt_supplies_missing_source(
     assert str(profile_path) in out
 
 
-def test_standalone_script_help_version_and_json_output(capsys: pytest.CaptureFixture[str]) -> None:
+def test_standalone_script_help_version_and_json_output(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     module = _load_delete_failed_script()
 
     with pytest.raises(SystemExit) as help_exit:

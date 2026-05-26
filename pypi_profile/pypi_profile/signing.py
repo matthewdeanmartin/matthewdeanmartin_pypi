@@ -39,12 +39,19 @@ KEYRING_SERVICE = "pypi-profile"
 
 def pypi_username_from_nearby_toml() -> str:
     """Return the pypi_username from a pypi_profile.toml in cwd, or ''."""
-    for candidate in (Path("pypi_profile.toml"), Path("matthewdeanmartin/pypi_profile.toml")):
+    for candidate in (
+        Path("pypi_profile.toml"),
+        Path("matthewdeanmartin/pypi_profile.toml"),
+    ):
         if candidate.exists():
             try:
                 data = toml_load(candidate)
                 identity = data.get("identity", {})
-                username = identity.get("pypi_username", "") if isinstance(identity, dict) else ""
+                username = (
+                    identity.get("pypi_username", "")
+                    if isinstance(identity, dict)
+                    else ""
+                )
                 if isinstance(username, str) and username:
                     return username
             except (OSError, TOMLDecodeError):
@@ -164,7 +171,9 @@ def generate_keypair(
         pk_path = key_dir / DEFAULT_PK_NAME
 
     if sk_path.exists() and not force:
-        raise FileExistsError(f"Secret key already exists at {sk_path}. Use force=True to overwrite.")
+        raise FileExistsError(
+            f"Secret key already exists at {sk_path}. Use force=True to overwrite."
+        )
 
     logger.debug("Generating minisign keypair in %s", key_dir)
     kp = minisign.KeyPair.generate()
@@ -177,7 +186,11 @@ def generate_keypair(
     pk_path.write_bytes(bytes(kp.public_key) + b"\n")
     logger.info("Keypair written: sk=%s pk=%s", sk_path, pk_path)
 
-    if store_in_keyring and keyring_is_usable() and store_key_in_keyring(sk_bytes, keyring_identity):
+    if (
+        store_in_keyring
+        and keyring_is_usable()
+        and store_key_in_keyring(sk_bytes, keyring_identity)
+    ):
         logger.info(
             "Secret key also stored in system keyring (username=%r)",
             keyring_username(keyring_identity),
@@ -206,7 +219,9 @@ def load_secret_key(
     # Explicit path — load directly from disk, no keyring.
     if sk_path is not None:
         if not sk_path.exists():
-            raise FileNotFoundError(f"Secret key not found at {sk_path}. Run: pypi-profile keygen")
+            raise FileNotFoundError(
+                f"Secret key not found at {sk_path}. Run: pypi-profile keygen"
+            )
         logger.debug("Loading secret key from explicit path %s", sk_path)
         sk = minisign.SecretKey.from_file(sk_path)
         if password:
@@ -217,7 +232,9 @@ def load_secret_key(
     if env_path:
         disk_path = Path(env_path).expanduser()
         if not disk_path.exists():
-            raise FileNotFoundError(f"Secret key not found at {disk_path} (from PYPI_PROFILE_KEY_PATH).")
+            raise FileNotFoundError(
+                f"Secret key not found at {disk_path} (from PYPI_PROFILE_KEY_PATH)."
+            )
         logger.debug("Loading secret key from PYPI_PROFILE_KEY_PATH=%s", disk_path)
         sk = minisign.SecretKey.from_file(disk_path)
         if password:
@@ -229,7 +246,9 @@ def load_secret_key(
         sk_bytes = load_key_bytes_from_keyring(keyring_identity)
         if sk_bytes is not None:
             username = keyring_username(keyring_identity)
-            logger.debug("Loading secret key from system keyring (username=%r)", username)
+            logger.debug(
+                "Loading secret key from system keyring (username=%r)", username
+            )
             sk = minisign.SecretKey.from_bytes(sk_bytes.rstrip(b"\n"))
             if password:
                 sk.decrypt(password)
@@ -249,7 +268,9 @@ def load_secret_key(
     disk_path = DEFAULT_KEY_DIR / DEFAULT_SK_NAME
     if not disk_path.exists():
         logger.error("Secret key not found at %s", disk_path)
-        raise FileNotFoundError(f"Secret key not found at {disk_path}. Run: pypi-profile keygen")
+        raise FileNotFoundError(
+            f"Secret key not found at {disk_path}. Run: pypi-profile keygen"
+        )
     logger.debug("Loading secret key from disk fallback %s", disk_path)
     sk = minisign.SecretKey.from_file(disk_path)
     if password:
@@ -346,7 +367,9 @@ def sign_controls_url(
     claim_json_bytes = claim_to_bytes(claim)
     sig = sk.sign(claim_json_bytes, prehash=True)
     # Store only the 74-byte binary (algo + key_id + ed25519_sig), not the armored text format.
-    sig_b64 = base64.standard_b64encode(sig._signature_algorithm.value + sig._key_id + sig._signature).decode()
+    sig_b64 = base64.standard_b64encode(
+        sig._signature_algorithm.value + sig._key_id + sig._signature
+    ).decode()
     claim["signature"] = sig_b64
     return encode_claim(claim)
 
@@ -355,7 +378,11 @@ def read_public_key_b64(pk_path: Path | None = None) -> str | None:
     """Return the base64-encoded public key from disk, or None if unavailable."""
     if pk_path is None:
         env_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
-        pk_path = Path(env_path).expanduser().with_suffix(".pub") if env_path else DEFAULT_KEY_DIR / DEFAULT_PK_NAME
+        pk_path = (
+            Path(env_path).expanduser().with_suffix(".pub")
+            if env_path
+            else DEFAULT_KEY_DIR / DEFAULT_PK_NAME
+        )
     if not pk_path.exists():
         logger.debug("Public key not found at %s", pk_path)
         return None
@@ -368,7 +395,9 @@ def read_public_key_b64(pk_path: Path | None = None) -> str | None:
         return None
 
 
-def patch_public_key_in_toml(toml_path: Path, pk_path: Path | None = None) -> str | None:
+def patch_public_key_in_toml(
+    toml_path: Path, pk_path: Path | None = None
+) -> str | None:
     """If toml_path has an empty public_key and a key exists on disk, write it in-place.
 
     Returns the base64 public key string if patched, None otherwise.
@@ -398,7 +427,9 @@ def patch_public_key_in_toml(toml_path: Path, pk_path: Path | None = None) -> st
         toml_path.write_text(patched, encoding="utf-8")
         logger.info("Patched public key into %s", toml_path)
     except OSError:
-        logger.warning("Cannot write patched public key to %s", toml_path, exc_info=True)
+        logger.warning(
+            "Cannot write patched public key to %s", toml_path, exc_info=True
+        )
         return None
 
     return pub_b64
@@ -475,29 +506,33 @@ def patch_proofs_in_toml(
         escaped_url = re.escape(url)
         replacer = make_proof_replacer(proof, escaped_url)
         # (?:(?!\[\[profiles\]\])[\s\S])*? — lazy match that cannot cross into the next [[profiles]] block
-        pattern = (
-            rf'(\[\[profiles\]\](?:(?!\[\[profiles\]\])[\s\S])*?url\s*=\s*"{escaped_url}"[\s\S]*?)(?=\[\[|\[(?!\[)|\Z)'
-        )
+        pattern = rf'(\[\[profiles\]\](?:(?!\[\[profiles\]\])[\s\S])*?url\s*=\s*"{escaped_url}"[\s\S]*?)(?=\[\[|\[(?!\[)|\Z)'
         new_text, n = re.subn(pattern, replacer, text, flags=re.DOTALL)
         if n:
             text = new_text
             updated.append(url)
             logger.info("Wrote stored_proof for %s into %s", url, toml_path)
         else:
-            logger.warning("Could not locate [[profiles]] block for url=%s in %s", url, toml_path)
+            logger.warning(
+                "Could not locate [[profiles]] block for url=%s in %s", url, toml_path
+            )
 
     if updated:
         try:
             toml_path.write_text(text, encoding="utf-8")
         except OSError:
-            logger.warning("Cannot write patched proofs to %s", toml_path, exc_info=True)
+            logger.warning(
+                "Cannot write patched proofs to %s", toml_path, exc_info=True
+            )
             return []
 
         # Validate the written file parses as valid TOML; roll back if not.
         try:
             written = toml_load(toml_path)
         except (OSError, TOMLDecodeError) as exc:
-            logger.error("Patched TOML is invalid (%s); rolling back to original content", exc)
+            logger.error(
+                "Patched TOML is invalid (%s); rolling back to original content", exc
+            )
             try:
                 toml_path.write_text(original_text, encoding="utf-8")
             except OSError:

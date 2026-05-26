@@ -10,7 +10,11 @@ from unittest.mock import MagicMock
 import pytest
 
 from pypi_profile.claims import decode_claim, is_expired
-from pypi_profile.ds.paths import package_root_path, static_root_path, template_root_path
+from pypi_profile.ds.paths import (
+    package_root_path,
+    static_root_path,
+    template_root_path,
+)
 from pypi_profile.loader import find_profile
 from pypi_profile.signing import generate_keypair, load_secret_key
 

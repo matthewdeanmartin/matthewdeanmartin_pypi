@@ -195,7 +195,9 @@ def fingerprint_of_full_proof(full_token: str, key_id_hex: str) -> str:
         raise ValueError("full_token must be non-empty")
     keyid = key_id_hex.lower().removeprefix("0x")[:16]
     if len(keyid) != 16:
-        raise ValueError(f"key_id must be at least 8 bytes (16 hex chars), got {key_id_hex!r}")
+        raise ValueError(
+            f"key_id must be at least 8 bytes (16 hex chars), got {key_id_hex!r}"
+        )
     digest = hashlib.blake2b(full_token.encode(), digest_size=8).hexdigest()
     return f"{FINGERPRINT_PREFIX}{keyid}:{digest}"
 
@@ -204,7 +206,9 @@ def parse_fingerprint(token: str) -> tuple[str, str]:
     """Return (key_id_hex, hash_hex) parsed from a fingerprint token."""
     token = token.strip()
     if not token.startswith(FINGERPRINT_PREFIX):
-        raise ValueError(f"not a fingerprint token (missing {FINGERPRINT_PREFIX!r} prefix)")
+        raise ValueError(
+            f"not a fingerprint token (missing {FINGERPRINT_PREFIX!r} prefix)"
+        )
     body = token[len(FINGERPRINT_PREFIX) :]
     parts = body.split(":")
     if len(parts) != 2 or len(parts[0]) != 16 or len(parts[1]) != 16:
@@ -214,7 +218,9 @@ def parse_fingerprint(token: str) -> tuple[str, str]:
 
 def is_tiny_token(s: str) -> bool:
     """Return True if s looks like a tiny token."""
-    return s.strip().startswith(TINY_PREFIX) and not s.strip().startswith(FINGERPRINT_PREFIX)
+    return s.strip().startswith(TINY_PREFIX) and not s.strip().startswith(
+        FINGERPRINT_PREFIX
+    )
 
 
 def is_fingerprint_token(s: str) -> bool:
@@ -265,8 +271,12 @@ def is_expired(claim: dict[str, Any]) -> bool:
     if not expires_str:
         return False
     try:
-        expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc
+        )
         return datetime.now(tz=timezone.utc) > expires
     except ValueError:
-        logger.debug("Could not parse expires_at %r in claim", expires_str, exc_info=True)
+        logger.debug(
+            "Could not parse expires_at %r in claim", expires_str, exc_info=True
+        )
         return False

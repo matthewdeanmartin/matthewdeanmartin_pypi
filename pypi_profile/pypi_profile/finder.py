@@ -38,7 +38,9 @@ def should_skip_dir(name: str) -> bool:
     return lowered in SKIP_DIRS or lowered.endswith(".egg-info")
 
 
-def record_profile_match(entry: Path, direct: list[Path], via_pyproject: list[Path]) -> None:
+def record_profile_match(
+    entry: Path, direct: list[Path], via_pyproject: list[Path]
+) -> None:
     """Append matching profile files to the appropriate result list."""
     if entry.name == "pypi_profile.toml":
         direct.append(entry)
@@ -80,7 +82,11 @@ def find_profile_files(
     via_pyproject: list[Path] = []
     scanned_files = 0
     stop_scan = False
-    deadline = None if max_duration_ms is None else time.perf_counter() + (max_duration_ms / 1000)
+    deadline = (
+        None
+        if max_duration_ms is None
+        else time.perf_counter() + (max_duration_ms / 1000)
+    )
 
     def should_stop() -> bool:
         if max_files is not None and scanned_files >= max_files:
@@ -107,7 +113,9 @@ def find_profile_files(
                             walk(Path(raw_entry.path), depth + 1)
                         elif raw_entry.is_file(follow_symlinks=False):
                             scanned_files += 1
-                            record_profile_match(Path(raw_entry.path), direct, via_pyproject)
+                            record_profile_match(
+                                Path(raw_entry.path), direct, via_pyproject
+                            )
                     except OSError:
                         continue
         except OSError:

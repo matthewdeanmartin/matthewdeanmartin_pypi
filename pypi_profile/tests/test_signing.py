@@ -133,7 +133,9 @@ def test_generate_keypair_and_sign_verify(tmp_path):
     from pypi_profile.signing import generate_keypair, sign_controls_url
     from pypi_profile.verifier import verify_claim_signature
 
-    sk_path, pk_path, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+    sk_path, pk_path, pub_b64 = generate_keypair(
+        key_dir=tmp_path, password="", force=True
+    )
     assert sk_path.exists()
     assert pk_path.exists()
     assert pub_b64
@@ -159,7 +161,9 @@ def test_compact_sign_verify_roundtrip(tmp_path):
     from pypi_profile.signing import generate_keypair, sign_controls_url
     from pypi_profile.verifier import verify_claim_signature
 
-    sk_path, _pk_path, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+    sk_path, _pk_path, pub_b64 = generate_keypair(
+        key_dir=tmp_path, password="", force=True
+    )
 
     proof = sign_controls_url(
         profile_package="pypi-profile-test",
@@ -187,7 +191,9 @@ def test_compact_sign_verify_wrong_key(tmp_path):
     from pypi_profile.verifier import verify_claim_signature
 
     sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, password="", force=True)
-    _sk2, _pk2, pub_b64_other = generate_keypair(key_dir=tmp_path / "other", password="", force=True)
+    _sk2, _pk2, pub_b64_other = generate_keypair(
+        key_dir=tmp_path / "other", password="", force=True
+    )
 
     proof = sign_controls_url(
         profile_package="pypi-profile-test",
@@ -228,8 +234,12 @@ def test_verify_claim_signature_wrong_key(tmp_path):
     from pypi_profile.signing import generate_keypair, sign_controls_url
     from pypi_profile.verifier import verify_claim_signature
 
-    sk_path, _pk_path, _pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
-    _sk2, _pk2, pub_b64_other = generate_keypair(key_dir=tmp_path / "other", password="", force=True)
+    sk_path, _pk_path, _pub_b64 = generate_keypair(
+        key_dir=tmp_path, password="", force=True
+    )
+    _sk2, _pk2, pub_b64_other = generate_keypair(
+        key_dir=tmp_path / "other", password="", force=True
+    )
 
     proof = sign_controls_url(
         profile_package="pypi-profile-test",
@@ -462,7 +472,8 @@ def test_patch_proofs_distinct_per_url(tmp_path):
 
     # Proofs must be different (different subjects)
     assert (
-        proofs["https://github.com/testuser"] != proofs["https://mastodon.social/@testuser/99999"]
+        proofs["https://github.com/testuser"]
+        != proofs["https://mastodon.social/@testuser/99999"]
     ), "Both profiles received the same stored_proof — subject was not applied per URL"
 
     # Each proof must encode the correct subject URL
@@ -596,7 +607,9 @@ def test_tiny_sign_verify_rejects_wrong_key(tmp_path):
     from pypi_profile.verifier import verify_tiny_token
 
     sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, password="", force=True)
-    _sk2, _pk2, pub_b64_other = generate_keypair(key_dir=tmp_path / "other", password="", force=True)
+    _sk2, _pk2, pub_b64_other = generate_keypair(
+        key_dir=tmp_path / "other", password="", force=True
+    )
     tok = sign_controls_url(
         profile_package="pypi-profile-test",
         pypi_username="testuser",
@@ -683,7 +696,11 @@ def test_tiny_rejects_token_older_than_window(tmp_path):
 
 
 def test_fingerprint_resolver_match(tmp_path):
-    from pypi_profile.signing import generate_keypair, load_secret_key, sign_controls_url
+    from pypi_profile.signing import (
+        generate_keypair,
+        load_secret_key,
+        sign_controls_url,
+    )
     from pypi_profile.verifier import verify_fingerprint_token
 
     sk_path, _pk, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
@@ -746,7 +763,11 @@ def test_fingerprint_without_resolver_unverified():
 
 
 def test_find_proof_tokens_picks_up_all_three_formats(tmp_path):
-    from pypi_profile.signing import generate_keypair, load_secret_key, sign_controls_url
+    from pypi_profile.signing import (
+        generate_keypair,
+        load_secret_key,
+        sign_controls_url,
+    )
     from pypi_profile.verifier import find_proof_tokens
 
     sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, password="", force=True)

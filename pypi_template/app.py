@@ -230,7 +230,9 @@ def build_footer_menus() -> list[dict[str, object]]:
     ]
 
 
-def build_base_context(request: Request, current_page: str, page_title: str) -> dict[str, object]:
+def build_base_context(
+    request: Request, current_page: str, page_title: str
+) -> dict[str, object]:
     context = {
         "request": request,
         "asset_base": "/static/pypi_ds",
@@ -327,7 +329,9 @@ async def search(request: Request, q: str = Query(default="")) -> HTMLResponse:
 @app.get("/projects/{project_slug}", response_class=HTMLResponse)
 async def project_detail(request: Request, project_slug: str) -> HTMLResponse:
     project = find_project(project_slug)
-    context = build_base_context(request, current_page="project", page_title=str(project["name"]))
+    context = build_base_context(
+        request, current_page="project", page_title=str(project["name"])
+    )
     context.update(
         {
             "project": project,

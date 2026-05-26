@@ -43,9 +43,13 @@ def list_installed_package_names(target: Path | None = None) -> list[str]:
     """Return distribution names for the current environment or a target venv/site-packages path."""
     search_paths = resolve_site_packages(target)
     distributions = (
-        meta.distributions(path=[str(path) for path in search_paths]) if search_paths else meta.distributions()
+        meta.distributions(path=[str(path) for path in search_paths])
+        if search_paths
+        else meta.distributions()
     )
-    names = {dist.metadata["Name"] for dist in distributions if dist.metadata.get("Name")}
+    names = {
+        dist.metadata["Name"] for dist in distributions if dist.metadata.get("Name")
+    }
     return sorted(names)
 
 
@@ -68,7 +72,13 @@ def collect_skip_trace_exports(
         try:
             result = analyze_package(package_name)
             exports.append(build_exchange(result).model_dump(mode="json"))
-        except (CollectorError, NetworkError, NoEvidenceError, OSError, ValueError) as exc:
+        except (
+            CollectorError,
+            NetworkError,
+            NoEvidenceError,
+            OSError,
+            ValueError,
+        ) as exc:
             failures.append({"package": package_name, "error": str(exc)})
     return exports, failures
 

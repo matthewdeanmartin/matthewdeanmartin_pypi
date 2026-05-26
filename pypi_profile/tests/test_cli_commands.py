@@ -37,7 +37,9 @@ def test_cmd_validate_invalid(capsys: Any, tmp_path: Path) -> None:
     assert "INVALID:" in str(exc.value)
 
 
-def test_cmd_validate_dry_run_skips_public_key_autopatch(capsys: Any, tmp_path: Path, mocker: Any) -> None:
+def test_cmd_validate_dry_run_skips_public_key_autopatch(
+    capsys: Any, tmp_path: Path, mocker: Any
+) -> None:
     from pypi_profile.cli import cmd_validate
 
     autopatch = mocker.patch("pypi_profile.signing.patch_public_key_in_toml")
@@ -86,7 +88,9 @@ def test_cmd_init_basic(capsys: Any, tmp_path: Path, mocker: Any) -> None:
     assert "Created" in captured.out
 
 
-def test_cmd_init_dry_run_does_not_write(capsys: Any, tmp_path: Path, mocker: Any) -> None:
+def test_cmd_init_dry_run_does_not_write(
+    capsys: Any, tmp_path: Path, mocker: Any
+) -> None:
     from pypi_profile.cli import cmd_init
 
     mocker.patch("sys.stdin.isatty", return_value=False)
@@ -120,7 +124,9 @@ def test_cmd_serve_mock(mocker: Any, tmp_path: Path) -> None:
     toml = tmp_path / "pypi_profile.toml"
     toml.touch()
 
-    args = argparse.Namespace(source=str(toml), host="127.0.0.1", port=8000, allow_code=False)
+    args = argparse.Namespace(
+        source=str(toml), host="127.0.0.1", port=8000, allow_code=False
+    )
 
     cmd_serve(args)
 
@@ -128,15 +134,23 @@ def test_cmd_serve_mock(mocker: Any, tmp_path: Path) -> None:
     assert mock_uvicorn.call_args[1]["host"] == "127.0.0.1"
 
 
-def test_cmd_serve_dry_run_skips_uvicorn(mocker: Any, tmp_path: Path, capsys: Any) -> None:
+def test_cmd_serve_dry_run_skips_uvicorn(
+    mocker: Any, tmp_path: Path, capsys: Any
+) -> None:
     from pypi_profile.cli import cmd_serve
 
     mock_uvicorn = mocker.patch("uvicorn.run")
     mocker.patch("pypi_profile.loader.load_profile")
-    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+    mocker.patch(
+        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
+    )
 
     args = argparse.Namespace(
-        source=str(tmp_path / "pypi_profile.toml"), host="127.0.0.1", port=8000, allow_code=False, dry_run=True
+        source=str(tmp_path / "pypi_profile.toml"),
+        host="127.0.0.1",
+        port=8000,
+        allow_code=False,
+        dry_run=True,
     )
 
     cmd_serve(args)
@@ -149,10 +163,14 @@ def test_cmd_serve_dry_run_skips_uvicorn(mocker: Any, tmp_path: Path, capsys: An
 def test_cmd_fetch_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_fetch
 
-    mock_fetch_all = mocker.patch("pypi_profile.fetcher.fetch_all", return_value={"pypi_packages": []})
+    mock_fetch_all = mocker.patch(
+        "pypi_profile.fetcher.fetch_all", return_value={"pypi_packages": []}
+    )
     mocker.patch("pypi_profile.fetcher.compare_packages", return_value=[])
     mocker.patch("pypi_profile.loader.load_profile")
-    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+    mocker.patch(
+        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
+    )
 
     toml = tmp_path / "pypi_profile.toml"
     toml.touch()
@@ -181,8 +199,12 @@ def test_cmd_doctor(capsys: Any, tmp_path: Path, mocker: Any) -> None:
     mocker.patch("pypi_profile.finder.find_profile_files", return_value=[])
     mocker.patch("pypi_profile.signing.keyring_is_usable", return_value=False)
     mocker.patch("pypi_profile.cli.Path", side_effect=Path)
-    mocker.patch("pypi_profile.ds.paths.template_root_path", return_value=tmp_path / "templates")
-    mocker.patch("pypi_profile.ds.paths.static_root_path", return_value=tmp_path / "static")
+    mocker.patch(
+        "pypi_profile.ds.paths.template_root_path", return_value=tmp_path / "templates"
+    )
+    mocker.patch(
+        "pypi_profile.ds.paths.static_root_path", return_value=tmp_path / "static"
+    )
 
     args = argparse.Namespace(dry_run=False)
     cmd_doctor(args)
@@ -209,7 +231,9 @@ def test_cmd_keygen_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     assert "Secret key" in captured.out
 
 
-def test_cmd_keygen_dry_run_skips_generation(mocker: Any, tmp_path: Path, capsys: Any) -> None:
+def test_cmd_keygen_dry_run_skips_generation(
+    mocker: Any, tmp_path: Path, capsys: Any
+) -> None:
     from pypi_profile.cli import cmd_keygen
 
     mock_gen = mocker.patch("pypi_profile.signing.generate_keypair")
@@ -232,7 +256,9 @@ def test_cmd_keygen_dry_run_skips_generation(mocker: Any, tmp_path: Path, capsys
 def test_cmd_sign_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_sign
 
-    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+    mocker.patch(
+        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
+    )
     mocker.patch("pypi_profile.loader.load_profile")
     mock_sign = mocker.patch(
         "pypi_profile.signing.sign_controls_url",
@@ -256,11 +282,15 @@ def test_cmd_sign_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     assert "pypi-profile-proof" in captured.out
 
 
-def test_cmd_update_proofs_dry_run_skips_patch(mocker: Any, tmp_path: Path, capsys: Any) -> None:
+def test_cmd_update_proofs_dry_run_skips_patch(
+    mocker: Any, tmp_path: Path, capsys: Any
+) -> None:
     from pypi_profile.cli import cmd_update_proofs
 
     mock_patch = mocker.patch("pypi_profile.signing.patch_proofs_in_toml")
-    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+    mocker.patch(
+        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
+    )
     mock_profile = mocker.patch("pypi_profile.loader.load_profile").return_value
     mock_profile.identity.pypi_username = "alice"
     mock_profile.profiles = []
@@ -281,11 +311,15 @@ def test_cmd_update_proofs_dry_run_skips_patch(mocker: Any, tmp_path: Path, caps
     assert "DRY RUN:" in captured.out
 
 
-def test_cmd_inspect_no_validate_warns_but_continues(capsys: Any, tmp_path: Path) -> None:
+def test_cmd_inspect_no_validate_warns_but_continues(
+    capsys: Any, tmp_path: Path
+) -> None:
     from pypi_profile.cli import cmd_inspect
 
     toml = tmp_path / "pypi_profile.toml"
-    toml.write_text('[profile]\ndisplay_name = "Alice"\nkind = "not-a-kind"\n', encoding="utf-8")
+    toml.write_text(
+        '[profile]\ndisplay_name = "Alice"\nkind = "not-a-kind"\n', encoding="utf-8"
+    )
 
     args = argparse.Namespace(source=str(toml), no_validate=True)
     cmd_inspect(args)
@@ -298,14 +332,20 @@ def test_cmd_inspect_no_validate_warns_but_continues(capsys: Any, tmp_path: Path
 def test_cmd_verify_mock(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_verify
 
-    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+    mocker.patch(
+        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
+    )
     mocker.patch("pypi_profile.loader.load_profile")
     mock_verify = mocker.patch(
         "pypi_profile.verifier.diagnose_all_profiles",
-        return_value=[{"label": "GH", "url": "url", "status": "verified", "detail": []}],
+        return_value=[
+            {"label": "GH", "url": "url", "status": "verified", "detail": []}
+        ],
     )
 
-    args = argparse.Namespace(source=str(tmp_path / "pypi_profile.toml"), verbose=False, profile_package=None)
+    args = argparse.Namespace(
+        source=str(tmp_path / "pypi_profile.toml"), verbose=False, profile_package=None
+    )
 
     cmd_verify(args)
 
@@ -339,7 +379,9 @@ def test_cmd_key_list_dry_run(capsys: Any) -> None:
 def test_cmd_key_rotate_dry_run(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_key_rotate
 
-    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+    mocker.patch(
+        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
+    )
     mock_profile = mocker.patch("pypi_profile.loader.load_profile").return_value
     mock_profile.identity.pypi_username = "alice"
 
@@ -362,7 +404,9 @@ def test_cmd_key_rotate_dry_run(mocker: Any, tmp_path: Path, capsys: Any) -> Non
 def test_cmd_key_recover_dry_run(mocker: Any, tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_key_recover
 
-    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
+    mocker.patch(
+        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
+    )
     mock_profile = mocker.patch("pypi_profile.loader.load_profile").return_value
     mock_profile.identity.pypi_username = "alice"
 
@@ -384,7 +428,9 @@ def test_cmd_key_recover_dry_run(mocker: Any, tmp_path: Path, capsys: Any) -> No
 def test_cmd_key_export_dry_run(tmp_path: Path, capsys: Any) -> None:
     from pypi_profile.cli import cmd_key_export
 
-    args = argparse.Namespace(key="", output=str(tmp_path / "exported.key"), dry_run=True)
+    args = argparse.Namespace(
+        key="", output=str(tmp_path / "exported.key"), dry_run=True
+    )
     cmd_key_export(args)
 
     captured = capsys.readouterr()

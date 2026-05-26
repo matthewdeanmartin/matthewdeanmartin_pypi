@@ -110,7 +110,9 @@ def build_static_site(
     if resume_path and resume_path.exists():
         resume_dest = output / "api" / "resume.json"
         resume_dest.parent.mkdir(parents=True, exist_ok=True)
-        resume_dest.write_text(resume_path.read_text(encoding="utf-8"), encoding="utf-8")
+        resume_dest.write_text(
+            resume_path.read_text(encoding="utf-8"), encoding="utf-8"
+        )
         json_count += 1
         resume_written = True
         logger.debug("Copied resume.json -> api/resume.json")

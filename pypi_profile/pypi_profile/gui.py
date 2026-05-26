@@ -134,7 +134,9 @@ def has_signing_key() -> bool:
     try:
         backend = keyring.get_keyring()
         if not isinstance(backend, keyring.backends.fail.Keyring):
-            keyring.get_password("pypi-profile", keyring.get_keyring().__class__.__name__)
+            keyring.get_password(
+                "pypi-profile", keyring.get_keyring().__class__.__name__
+            )
             # Any non-fail backend counts — we can't easily check without knowing the username yet
             # so just confirm the backend is usable; load_secret_key will resolve the rest.
             return True
@@ -214,7 +216,9 @@ def profile_text(path_str: str) -> str:
         for lnk in profiles:
             vstat = lnk.get("verification", "self_asserted")
             proof = "✓" if lnk.get("stored_proof") else "·"
-            lines.append(f"  {proof} {lnk.get('label', lnk.get('kind', '?'))}: {lnk.get('url', '')}")
+            lines.append(
+                f"  {proof} {lnk.get('label', lnk.get('kind', '?'))}: {lnk.get('url', '')}"
+            )
             if vstat not in ("self_asserted", ""):
                 lines.append(f"      verification: {vstat}")
         lines.append("")
@@ -225,7 +229,9 @@ def profile_text(path_str: str) -> str:
         for c in contacts:
             vis = c.get("visibility", "public")
             aud = ", ".join(c.get("audience", []))
-            lines.append(f"  - {c.get('label', c.get('kind', '?'))}: {c.get('value', '')}  [{vis}] {aud}")
+            lines.append(
+                f"  - {c.get('label', c.get('kind', '?'))}: {c.get('value', '')}  [{vis}] {aud}"
+            )
         lines.append("")
 
     hiring = data.get("hiring", {})
@@ -242,7 +248,9 @@ def profile_text(path_str: str) -> str:
     if projects:
         lines.append(f"## Projects ({len(projects)})")
         for proj in projects:
-            lines.append(f"  - **{proj.get('name', '?')}**  {proj.get('role', '')}  [{proj.get('state', '')}]")
+            lines.append(
+                f"  - **{proj.get('name', '?')}**  {proj.get('role', '')}  [{proj.get('state', '')}]"
+            )
             if proj.get("url"):
                 lines.append(f"      {proj['url']}")
         lines.append("")
@@ -398,7 +406,12 @@ COMMANDS: list[GuiCommand] = [
             "--force: overwrite (bulldoze) an existing file"
         ),
         "args": [
-            {"flag": "--username", "label": "PyPI username", "default": "", "kind": "str"},
+            {
+                "flag": "--username",
+                "label": "PyPI username",
+                "default": "",
+                "kind": "str",
+            },
             {
                 "flag": "--kind",
                 "label": "Kind",
@@ -415,8 +428,18 @@ COMMANDS: list[GuiCommand] = [
                     "other",
                 ],
             },
-            {"flag": "--output", "label": "Output path", "default": "pypi_profile.toml", "kind": "str"},
-            {"flag": "--force", "label": "Force overwrite (bulldoze)", "default": False, "kind": "bool"},
+            {
+                "flag": "--output",
+                "label": "Output path",
+                "default": "pypi_profile.toml",
+                "kind": "str",
+            },
+            {
+                "flag": "--force",
+                "label": "Force overwrite (bulldoze)",
+                "default": False,
+                "kind": "bool",
+            },
         ],
         "extra_argv": ["--no-interactive"],
         "readonly": False,
@@ -435,9 +458,24 @@ COMMANDS: list[GuiCommand] = [
             "Uses the profile selected in the top bar."
         ),
         "args": [
-            {"flag": "--fetch", "label": "Fetch live data (PyPI / GitHub)", "default": True, "kind": "bool"},
-            {"flag": "--from-json-resume", "label": "JSON Resume path", "default": "", "kind": "file"},
-            {"flag": "--force", "label": "Force overwrite", "default": True, "kind": "bool"},
+            {
+                "flag": "--fetch",
+                "label": "Fetch live data (PyPI / GitHub)",
+                "default": True,
+                "kind": "bool",
+            },
+            {
+                "flag": "--from-json-resume",
+                "label": "JSON Resume path",
+                "default": "",
+                "kind": "file",
+            },
+            {
+                "flag": "--force",
+                "label": "Force overwrite",
+                "default": True,
+                "kind": "bool",
+            },
         ],
         "extra_argv": ["--no-interactive"],
         "readonly": False,
@@ -457,7 +495,8 @@ COMMANDS: list[GuiCommand] = [
             "--url: the full URL to your profile on that platform\n"
             "--label: display label (defaults to the platform name)\n"
             "--rel-me: set rel_me = true (for IndieWeb / webfinger verification)\n\n"  # nosec: B608
-            "Supported platforms:\n" + "\n".join(f"  {s['label']}: {s['notes']}" for s in IDENTITY_SITES)
+            "Supported platforms:\n"
+            + "\n".join(f"  {s['label']}: {s['notes']}" for s in IDENTITY_SITES)
         ),
         "args": [
             {
@@ -468,8 +507,18 @@ COMMANDS: list[GuiCommand] = [
                 "choices": IDENTITY_SITE_LABELS,
             },
             {"flag": "--url", "label": "Profile URL", "default": "", "kind": "str"},
-            {"flag": "--label", "label": "Display label (optional)", "default": "", "kind": "str"},
-            {"flag": "--rel-me", "label": "Set rel_me = true", "default": True, "kind": "bool"},
+            {
+                "flag": "--label",
+                "label": "Display label (optional)",
+                "default": "",
+                "kind": "str",
+            },
+            {
+                "flag": "--rel-me",
+                "label": "Set rel_me = true",
+                "default": True,
+                "kind": "bool",
+            },
         ],
         "readonly": False,
     },
@@ -489,16 +538,36 @@ COMMANDS: list[GuiCommand] = [
             "--force: overwrite existing key files"
         ),
         "args": [
-            {"flag": "--key-dir", "label": "Key directory", "default": "~/.pypi_profile/", "kind": "dir"},
+            {
+                "flag": "--key-dir",
+                "label": "Key directory",
+                "default": "~/.pypi_profile/",
+                "kind": "dir",
+            },
             {
                 "flag": "--keyring-identity",
                 "label": "Keyring identity (blank = PyPI username)",
                 "default": "",
                 "kind": "str",
             },
-            {"flag": "--no-keyring", "label": "Disk only (skip keyring)", "default": False, "kind": "bool"},
-            {"flag": "--password", "label": "Disk-key password (optional)", "default": "", "kind": "password"},
-            {"flag": "--force", "label": "Force overwrite", "default": False, "kind": "bool"},
+            {
+                "flag": "--no-keyring",
+                "label": "Disk only (skip keyring)",
+                "default": False,
+                "kind": "bool",
+            },
+            {
+                "flag": "--password",
+                "label": "Disk-key password (optional)",
+                "default": "",
+                "kind": "password",
+            },
+            {
+                "flag": "--force",
+                "label": "Force overwrite",
+                "default": False,
+                "kind": "bool",
+            },
         ],
         "readonly": False,
     },
@@ -519,10 +588,30 @@ COMMANDS: list[GuiCommand] = [
             "keyring automatically."
         ),
         "args": [
-            {"flag": "--url", "label": "URL to sign (required)", "default": "", "kind": "str"},
-            {"flag": "--key", "label": "Secret key path (blank = keyring)", "default": "", "kind": "file"},
-            {"flag": "--password", "label": "Key password (keyring fallback only)", "default": "", "kind": "password"},
-            {"flag": "--profile-package", "label": "Profile package name override", "default": "", "kind": "str"},
+            {
+                "flag": "--url",
+                "label": "URL to sign (required)",
+                "default": "",
+                "kind": "str",
+            },
+            {
+                "flag": "--key",
+                "label": "Secret key path (blank = keyring)",
+                "default": "",
+                "kind": "file",
+            },
+            {
+                "flag": "--password",
+                "label": "Key password (keyring fallback only)",
+                "default": "",
+                "kind": "password",
+            },
+            {
+                "flag": "--profile-package",
+                "label": "Profile package name override",
+                "default": "",
+                "kind": "str",
+            },
         ],
         "readonly": False,
     },
@@ -544,10 +633,30 @@ COMMANDS: list[GuiCommand] = [
             "keyring automatically."
         ),
         "args": [
-            {"flag": "--key", "label": "Secret key path (blank = keyring)", "default": "", "kind": "file"},
-            {"flag": "--password", "label": "Key password (keyring fallback only)", "default": "", "kind": "password"},
-            {"flag": "--profile-package", "label": "Profile package name override", "default": "", "kind": "str"},
-            {"flag": "--force", "label": "Re-sign existing proofs", "default": False, "kind": "bool"},
+            {
+                "flag": "--key",
+                "label": "Secret key path (blank = keyring)",
+                "default": "",
+                "kind": "file",
+            },
+            {
+                "flag": "--password",
+                "label": "Key password (keyring fallback only)",
+                "default": "",
+                "kind": "password",
+            },
+            {
+                "flag": "--profile-package",
+                "label": "Profile package name override",
+                "default": "",
+                "kind": "str",
+            },
+            {
+                "flag": "--force",
+                "label": "Re-sign existing proofs",
+                "default": False,
+                "kind": "bool",
+            },
         ],
         "readonly": False,
     },
@@ -597,7 +706,12 @@ COMMANDS: list[GuiCommand] = [
             "Uses the profile selected in the top bar."
         ),
         "args": [
-            {"flag": "--no-validate", "label": "Skip schema validation", "default": False, "kind": "bool"},
+            {
+                "flag": "--no-validate",
+                "label": "Skip schema validation",
+                "default": False,
+                "kind": "bool",
+            },
         ],
         "readonly": True,
     },
@@ -613,7 +727,12 @@ COMMANDS: list[GuiCommand] = [
             "--json: also print the raw API responses as JSON."
         ),
         "args": [
-            {"flag": "--json", "label": "Print raw JSON", "default": False, "kind": "bool"},
+            {
+                "flag": "--json",
+                "label": "Print raw JSON",
+                "default": False,
+                "kind": "bool",
+            },
         ],
         "readonly": True,
     },
@@ -629,7 +748,12 @@ COMMANDS: list[GuiCommand] = [
             "--profile-package: override the profile package name used in the claim message."
         ),
         "args": [
-            {"flag": "--profile-package", "label": "Profile package name override", "default": "", "kind": "str"},
+            {
+                "flag": "--profile-package",
+                "label": "Profile package name override",
+                "default": "",
+                "kind": "str",
+            },
         ],
         "readonly": True,
     },
@@ -654,9 +778,24 @@ COMMANDS: list[GuiCommand] = [
             "./site/ directory and push to GitHub Pages."
         ),
         "args": [
-            {"flag": "--output", "label": "Output directory", "default": "", "kind": "dir"},
-            {"flag": "--base-url", "label": "Base URL (e.g. /myuser)", "default": "", "kind": "str"},
-            {"flag": "--port", "label": "Preview port", "default": "8001", "kind": "str"},
+            {
+                "flag": "--output",
+                "label": "Output directory",
+                "default": "",
+                "kind": "dir",
+            },
+            {
+                "flag": "--base-url",
+                "label": "Base URL (e.g. /myuser)",
+                "default": "",
+                "kind": "str",
+            },
+            {
+                "flag": "--port",
+                "label": "Preview port",
+                "default": "8001",
+                "kind": "str",
+            },
         ],
         "readonly": False,
     },
@@ -677,7 +816,12 @@ COMMANDS: list[GuiCommand] = [
         "args": [
             {"flag": "--host", "label": "Host", "default": "127.0.0.1", "kind": "str"},
             {"flag": "--port", "label": "Port", "default": "8000", "kind": "str"},
-            {"flag": "--allow-code", "label": "Allow plugin code", "default": False, "kind": "bool"},
+            {
+                "flag": "--allow-code",
+                "label": "Allow plugin code",
+                "default": False,
+                "kind": "bool",
+            },
         ],
         "readonly": False,
     },
@@ -708,7 +852,12 @@ COMMANDS: list[GuiCommand] = [
             "--json: emit machine-readable JSON instead of a table."
         ),
         "args": [
-            {"flag": "--json", "label": "JSON output", "default": False, "kind": "bool"},
+            {
+                "flag": "--json",
+                "label": "JSON output",
+                "default": False,
+                "kind": "bool",
+            },
         ],
         "readonly": True,
     },
@@ -730,15 +879,30 @@ COMMANDS: list[GuiCommand] = [
             "--force: skip the interactive confirmation prompt"
         ),
         "args": [
-            {"flag": "--key-dir", "label": "Key directory", "default": "~/.pypi_profile/", "kind": "dir"},
+            {
+                "flag": "--key-dir",
+                "label": "Key directory",
+                "default": "~/.pypi_profile/",
+                "kind": "dir",
+            },
             {
                 "flag": "--keyring-identity",
                 "label": "Keyring identity (blank = default)",
                 "default": "",
                 "kind": "str",
             },
-            {"flag": "--no-keep-old", "label": "Discard old key (no archive)", "default": False, "kind": "bool"},
-            {"flag": "--force", "label": "Skip confirmation prompt", "default": True, "kind": "bool"},
+            {
+                "flag": "--no-keep-old",
+                "label": "Discard old key (no archive)",
+                "default": False,
+                "kind": "bool",
+            },
+            {
+                "flag": "--force",
+                "label": "Skip confirmation prompt",
+                "default": True,
+                "kind": "bool",
+            },
         ],
         "readonly": False,
     },
@@ -758,7 +922,12 @@ COMMANDS: list[GuiCommand] = [
             "Uses the profile selected in the top bar."
         ),
         "args": [
-            {"flag": "--key-dir", "label": "Key directory", "default": "~/.pypi_profile/", "kind": "dir"},
+            {
+                "flag": "--key-dir",
+                "label": "Key directory",
+                "default": "~/.pypi_profile/",
+                "kind": "dir",
+            },
             {
                 "flag": "--keyring-identity",
                 "label": "Keyring identity (blank = default)",
@@ -782,8 +951,18 @@ COMMANDS: list[GuiCommand] = [
             "--key: source key file (blank = keyring or default disk path)"
         ),
         "args": [
-            {"flag": "--output", "label": "Output file path", "default": "minisign.key.export", "kind": "file"},
-            {"flag": "--key", "label": "Source key (blank = default)", "default": "", "kind": "file"},
+            {
+                "flag": "--output",
+                "label": "Output file path",
+                "default": "minisign.key.export",
+                "kind": "file",
+            },
+            {
+                "flag": "--key",
+                "label": "Source key (blank = default)",
+                "default": "",
+                "kind": "file",
+            },
         ],
         "readonly": False,
     },
@@ -802,15 +981,30 @@ COMMANDS: list[GuiCommand] = [
             "--force: overwrite an existing key on disk"
         ),
         "args": [
-            {"flag": "file", "label": "Key file to import", "default": "", "kind": "file"},
+            {
+                "flag": "file",
+                "label": "Key file to import",
+                "default": "",
+                "kind": "file",
+            },
             {
                 "flag": "--keyring-identity",
                 "label": "Keyring identity (blank = default)",
                 "default": "",
                 "kind": "str",
             },
-            {"flag": "--no-keyring", "label": "Disk only (skip keyring)", "default": False, "kind": "bool"},
-            {"flag": "--force", "label": "Overwrite existing key", "default": False, "kind": "bool"},
+            {
+                "flag": "--no-keyring",
+                "label": "Disk only (skip keyring)",
+                "default": False,
+                "kind": "bool",
+            },
+            {
+                "flag": "--force",
+                "label": "Overwrite existing key",
+                "default": False,
+                "kind": "bool",
+            },
         ],
         "readonly": False,
     },
@@ -922,7 +1116,11 @@ class PypiProfileGui(tk.Tk):
         # Global signing key — source of truth for all signing commands.
         # Default to keyring if available; fall back to disk path.
         keyring_available = detect_keyring_status().startswith("active")
-        default_key = KEYRING_SENTINEL if keyring_available else str(Path("~/.pypi_profile/minisign.key").expanduser())
+        default_key = (
+            KEYRING_SENTINEL
+            if keyring_available
+            else str(Path("~/.pypi_profile/minisign.key").expanduser())
+        )
         self.global_key_path = tk.StringVar(value=default_key)
         self.global_key_path.trace_add("write", self.on_key_changed)
         self.global_key_password = tk.StringVar(value="")
@@ -955,7 +1153,9 @@ class PypiProfileGui(tk.Tk):
         label_width = 11
 
         top_bar = tk.Frame(self, bd=1, relief=tk.GROOVE)
-        top_bar.grid(row=0, column=1, columnspan=2, sticky="ew", padx=(0, 4), pady=(4, 0))
+        top_bar.grid(
+            row=0, column=1, columnspan=2, sticky="ew", padx=(0, 4), pady=(4, 0)
+        )
         top_bar.columnconfigure(1, weight=2)
         top_bar.columnconfigure(4, weight=1)
 
@@ -969,13 +1169,22 @@ class PypiProfileGui(tk.Tk):
                 padx=4,
             ).grid(row=row, column=col, sticky="e", pady=2)
 
-        def val_lbl(parent: tk.Frame, var: tk.StringVar, row: int, col: int, columnspan: int = 1) -> None:
+        def val_lbl(
+            parent: tk.Frame, var: tk.StringVar, row: int, col: int, columnspan: int = 1
+        ) -> None:
             tk.Label(
                 parent,
                 textvariable=var,
                 font=font_value,
                 anchor="w",
-            ).grid(row=row, column=col, columnspan=columnspan, sticky="ew", pady=2, padx=(0, 4))
+            ).grid(
+                row=row,
+                column=col,
+                columnspan=columnspan,
+                sticky="ew",
+                pady=2,
+                padx=(0, 4),
+            )
 
         # ── Row 0: Active profile picker ──
         lbl(top_bar, "Profile:", 0, 0)
@@ -987,16 +1196,28 @@ class PypiProfileGui(tk.Tk):
             state="normal",
             font=font_value,
         )
-        self.profile_picker.grid(row=0, column=1, columnspan=2, sticky="ew", pady=(4, 2), padx=(0, 4))
-        self.profile_picker.bind("<<ComboboxSelected>>", self.on_profile_picker_selected)
+        self.profile_picker.grid(
+            row=0, column=1, columnspan=2, sticky="ew", pady=(4, 2), padx=(0, 4)
+        )
+        self.profile_picker.bind(
+            "<<ComboboxSelected>>", self.on_profile_picker_selected
+        )
         self.profile_picker.bind("<Return>", self.on_profile_picker_selected)
 
-        tk.Button(top_bar, text="Browse…", font=("Helvetica", 8), padx=4, command=self.browse_profile).grid(
-            row=0, column=3, pady=(4, 2), padx=(0, 4)
-        )
-        tk.Button(top_bar, text="Refresh", font=("Helvetica", 8), padx=4, command=self.refresh_profile_list).grid(
-            row=0, column=4, pady=(4, 2), padx=(0, 8)
-        )
+        tk.Button(
+            top_bar,
+            text="Browse…",
+            font=("Helvetica", 8),
+            padx=4,
+            command=self.browse_profile,
+        ).grid(row=0, column=3, pady=(4, 2), padx=(0, 4))
+        tk.Button(
+            top_bar,
+            text="Refresh",
+            font=("Helvetica", 8),
+            padx=4,
+            command=self.refresh_profile_list,
+        ).grid(row=0, column=4, pady=(4, 2), padx=(0, 8))
 
         # ── Row 1: Resolved path + PyPI user ──
         lbl(top_bar, "Path:", 1, 0)
@@ -1019,14 +1240,20 @@ class PypiProfileGui(tk.Tk):
             state="normal",
             font=font_value,
         )
-        self.key_picker.grid(row=2, column=1, columnspan=2, sticky="ew", pady=2, padx=(0, 4))
+        self.key_picker.grid(
+            row=2, column=1, columnspan=2, sticky="ew", pady=2, padx=(0, 4)
+        )
         self.key_picker.bind("<<ComboboxSelected>>", self.on_key_picker_selected)
         self.key_picker.bind("<Return>", self.on_key_picker_selected)
         self.after(150, self.refresh_key_list)
 
-        tk.Button(top_bar, text="Browse…", font=("Helvetica", 8), padx=4, command=self.browse_key).grid(
-            row=2, column=3, pady=2, padx=(0, 4)
-        )
+        tk.Button(
+            top_bar,
+            text="Browse…",
+            font=("Helvetica", 8),
+            padx=4,
+            command=self.browse_key,
+        ).grid(row=2, column=3, pady=2, padx=(0, 4))
 
         keyring_status = detect_keyring_status()
         keyring_note = f"Keyring backend: {keyring_status}"
@@ -1047,7 +1274,9 @@ class PypiProfileGui(tk.Tk):
             font=font_value,
             anchor="w",
         )
-        self.bar_key_label.grid(row=3, column=1, columnspan=2, sticky="ew", pady=2, padx=(0, 4))
+        self.bar_key_label.grid(
+            row=3, column=1, columnspan=2, sticky="ew", pady=2, padx=(0, 4)
+        )
 
         tk.Label(
             top_bar,
@@ -1149,23 +1378,46 @@ class PypiProfileGui(tk.Tk):
         args_outer.columnconfigure(0, weight=1)
         self.args_frame = args_outer
 
-        tk.Label(center, text="Output", anchor="w", font=("Helvetica", 10, "bold")).grid(row=2, column=0, sticky="w")
+        tk.Label(
+            center, text="Output", anchor="w", font=("Helvetica", 10, "bold")
+        ).grid(row=2, column=0, sticky="w")
 
         self.output = scrolledtext.ScrolledText(center, font=mono, wrap=tk.WORD)
         self.output.grid(row=3, column=0, sticky="nsew")
 
         btn_bar = tk.Frame(center)
         btn_bar.grid(row=4, column=0, sticky="ew", pady=(4, 0))
-        self.run_btn = tk.Button(btn_bar, text="Run", width=10, command=self.run_command, bg="#0e7c0e", fg="white")
+        self.run_btn = tk.Button(
+            btn_bar,
+            text="Run",
+            width=10,
+            command=self.run_command,
+            bg="#0e7c0e",
+            fg="white",
+        )
         self.run_btn.pack(side=tk.LEFT, padx=(0, 4))
         self.stop_btn = tk.Button(
-            btn_bar, text="Stop", width=10, command=self.stop_command, bg="#7c0e0e", fg="white", state=tk.DISABLED
+            btn_bar,
+            text="Stop",
+            width=10,
+            command=self.stop_command,
+            bg="#7c0e0e",
+            fg="white",
+            state=tk.DISABLED,
         )
         self.stop_btn.pack(side=tk.LEFT, padx=(0, 4))
-        self.open_btn = tk.Button(btn_bar, text="Open", width=10, command=self.open_in_browser, state=tk.DISABLED)
+        self.open_btn = tk.Button(
+            btn_bar,
+            text="Open",
+            width=10,
+            command=self.open_in_browser,
+            state=tk.DISABLED,
+        )
         self.open_btn.pack(side=tk.LEFT, padx=(0, 4))
         self.status_var = tk.StringVar(value="")
-        self.status_label = tk.Label(btn_bar, textvariable=self.status_var, fg="#888888")
+        self.status_label = tk.Label(
+            btn_bar, textvariable=self.status_var, fg="#888888"
+        )
         self.status_label.pack(side=tk.LEFT, padx=8)
 
     def build_right_panel(self) -> None:
@@ -1174,10 +1426,12 @@ class PypiProfileGui(tk.Tk):
         right.rowconfigure(1, weight=1)
         right.columnconfigure(0, weight=1)
 
-        tk.Label(right, text="Help", font=("Helvetica", 11, "bold"), anchor="w", pady=4).grid(
-            row=0, column=0, sticky="ew", padx=6
+        tk.Label(
+            right, text="Help", font=("Helvetica", 11, "bold"), anchor="w", pady=4
+        ).grid(row=0, column=0, sticky="ew", padx=6)
+        self.help_text = scrolledtext.ScrolledText(
+            right, font=("Helvetica", 10), wrap=tk.WORD, relief=tk.FLAT
         )
-        self.help_text = scrolledtext.ScrolledText(right, font=("Helvetica", 10), wrap=tk.WORD, relief=tk.FLAT)
         self.help_text.grid(row=1, column=0, sticky="nsew", padx=4, pady=(0, 4))
         self.help_text.insert(tk.END, HELP_INTRO)
         self.help_text.config(state=tk.DISABLED)
@@ -1202,7 +1456,11 @@ class PypiProfileGui(tk.Tk):
         kind, display = classify_key(info["public_key"])
         self.bar_key_var.set(display)
         if hasattr(self, "bar_key_label"):
-            color = "#006600" if kind == "public" else ("#cc0000" if kind == "private" else "#888888")
+            color = (
+                "#006600"
+                if kind == "public"
+                else ("#cc0000" if kind == "private" else "#888888")
+            )
             self.bar_key_label.config(fg=color)
 
     def update_keyring_identity_hint(self) -> None:
@@ -1396,9 +1654,9 @@ class PypiProfileGui(tk.Tk):
         self.arg_widgets.clear()
 
         if not cmd["args"]:
-            tk.Label(self.args_frame, text="No arguments needed.", fg="#888888", pady=4).grid(
-                row=0, column=0, columnspan=3, padx=8
-            )
+            tk.Label(
+                self.args_frame, text="No arguments needed.", fg="#888888", pady=4
+            ).grid(row=0, column=0, columnspan=3, padx=8)
             return
 
         self.args_frame.columnconfigure(1, weight=1)
@@ -1420,13 +1678,19 @@ class PypiProfileGui(tk.Tk):
 
             if kind == "bool":
                 bool_var = tk.BooleanVar(value=bool(default))
-                tk.Checkbutton(self.args_frame, variable=bool_var).grid(row=row_i, column=1, sticky="w", pady=3)
+                tk.Checkbutton(self.args_frame, variable=bool_var).grid(
+                    row=row_i, column=1, sticky="w", pady=3
+                )
                 self.arg_widgets[flag] = bool_var
 
             elif kind == "choice":
                 choice_var = tk.StringVar(value=str(default))
                 cb = ttk.Combobox(
-                    self.args_frame, textvariable=choice_var, values=arg["choices"], state="readonly", width=24
+                    self.args_frame,
+                    textvariable=choice_var,
+                    values=arg["choices"],
+                    state="readonly",
+                    width=24,
                 )
                 cb.grid(row=row_i, column=1, sticky="ew", pady=3, padx=(0, 8))
                 self.arg_widgets[flag] = choice_var
@@ -1436,9 +1700,13 @@ class PypiProfileGui(tk.Tk):
             elif kind == "password":
                 password_var = tk.StringVar(value=str(default))
                 pw_frame = tk.Frame(self.args_frame)
-                pw_frame.grid(row=row_i, column=1, columnspan=2, sticky="ew", pady=3, padx=(0, 8))
+                pw_frame.grid(
+                    row=row_i, column=1, columnspan=2, sticky="ew", pady=3, padx=(0, 8)
+                )
                 pw_frame.columnconfigure(0, weight=1)
-                tk.Entry(pw_frame, textvariable=password_var, show="*", width=36).grid(row=0, column=0, sticky="ew")
+                tk.Entry(pw_frame, textvariable=password_var, show="*", width=36).grid(
+                    row=0, column=0, sticky="ew"
+                )
                 tk.Label(
                     pw_frame,
                     text="Leave blank — keyring handles this automatically.",
@@ -1691,7 +1959,9 @@ class PypiProfileGui(tk.Tk):
                 return
 
             if not serve_dir.is_dir():
-                self.append_output(f"\nERROR: build output directory not found: {serve_dir}\n")
+                self.append_output(
+                    f"\nERROR: build output directory not found: {serve_dir}\n"
+                )
                 self.schedule_on_done(1, cmd_ref)
                 return
 
@@ -1704,7 +1974,9 @@ class PypiProfileGui(tk.Tk):
                     client_address: tuple[str, int],
                     server: socketserver.BaseServer,
                 ) -> None:
-                    super().__init__(request, client_address, server, directory=serve_dir_str)
+                    super().__init__(
+                        request, client_address, server, directory=serve_dir_str
+                    )
 
                 def log_message(  # pylint: disable=arguments-differ,redefined-builtin
                     self, format: str, *args: object
@@ -1733,7 +2005,9 @@ class PypiProfileGui(tk.Tk):
         """Show current proof tokens from the TOML with per-platform paste instructions."""
         source = self.active_source.get().strip()
         if not source:
-            self.append_output("No profile selected. Choose a pypi_profile.toml in the top bar.\n")
+            self.append_output(
+                "No profile selected. Choose a pypi_profile.toml in the top bar.\n"
+            )
             self.after(0, lambda: self.finish_current_command(1))
             return
 
@@ -1785,7 +2059,9 @@ class PypiProfileGui(tk.Tk):
             kind = entry.get("kind", "other")
             label = entry.get("label", kind)
             proof = entry.get("stored_proof", "")
-            hint = PASTE_HINTS.get(kind, "Paste the token somewhere visible on the page.")
+            hint = PASTE_HINTS.get(
+                kind, "Paste the token somewhere visible on the page."
+            )
 
             lines.append(f"\n{label}  —  {url}\n")
             lines.append(f"Where to paste: {hint}\n")
@@ -1794,7 +2070,9 @@ class PypiProfileGui(tk.Tk):
                 lines.append("\nToken:\n")
                 lines.append(proof + "\n")
             else:
-                lines.append("\n(No token yet — run 'Update Proofs' to generate one.)\n")
+                lines.append(
+                    "\n(No token yet — run 'Update Proofs' to generate one.)\n"
+                )
 
             lines.append("-" * 72 + "\n")
 
@@ -1813,7 +2091,14 @@ class PypiProfileGui(tk.Tk):
         resume_var = self.arg_widgets.get("--from-json-resume")
         source = self.active_source.get().strip()
 
-        argv = [sys.executable, "-m", "pypi_profile.cli", "init", "--no-interactive", "--force"]
+        argv = [
+            sys.executable,
+            "-m",
+            "pypi_profile.cli",
+            "init",
+            "--no-interactive",
+            "--force",
+        ]
         if source:
             argv += ["--output", source]
         if get_bool_var(fetch_var):
@@ -1924,7 +2209,9 @@ class PypiProfileGui(tk.Tk):
 
             self.append_output(f"Added [[profiles]] entry to {p}\n\n")
             self.append_output(new_block)
-            self.append_output("\nNext step: run 'Update Proofs' to sign this URL and embed the proof.\n")
+            self.append_output(
+                "\nNext step: run 'Update Proofs' to sign this URL and embed the proof.\n"
+            )
             self.after(0, lambda: self.finish_current_command(0))
             self.active_source.set(source)
         except OSError as exc:
@@ -1948,7 +2235,11 @@ class PypiProfileGui(tk.Tk):
         # Check current_cmd (not finished cmd) — prevents a background task from enabling
         # Run after the user has already switched to a readonly command.
         current = self.current_cmd
-        if current is not None and not current["readonly"] and self.running_proc is None:
+        if (
+            current is not None
+            and not current["readonly"]
+            and self.running_proc is None
+        ):
             self.run_btn.config(state=tk.NORMAL)
         msg = f"Exited {rc}"
         self.status_var.set(msg)
@@ -1957,7 +2248,12 @@ class PypiProfileGui(tk.Tk):
         self.after(5000, lambda: self.status_var.set(""))
         if rc == 0 and cmd.get("name") in ("init", "import"):
             self.after(200, self.refresh_profile_list)
-        if rc == 0 and cmd.get("name") in ("key-rotate", "key-recover", "key-import", "keygen"):
+        if rc == 0 and cmd.get("name") in (
+            "key-rotate",
+            "key-recover",
+            "key-import",
+            "keygen",
+        ):
             self.after(200, self.refresh_key_list)
 
     def open_in_browser(self) -> None:

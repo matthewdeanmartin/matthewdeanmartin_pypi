@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import json as stdlib_json
 import sys
+import types
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Optional, cast
 
+orjson: Optional[types.ModuleType]
 try:
     import orjson  # type: ignore[import-not-found]
 except ImportError:
     orjson = None
 
+rtoml: Optional[types.ModuleType]
 try:
     import rtoml  # type: ignore[import-not-found]
 except ImportError:
@@ -29,7 +32,9 @@ else:
 JSON_BACKEND = "orjson" if orjson is not None else "json"
 TOML_BACKEND = "rtoml" if rtoml is not None else stdlib_toml.__name__
 
-JSONDecodeError = orjson.JSONDecodeError if orjson is not None else stdlib_json.JSONDecodeError
+JSONDecodeError = (
+    orjson.JSONDecodeError if orjson is not None else stdlib_json.JSONDecodeError
+)
 
 
 class TOMLDecodeError(ValueError):
@@ -64,7 +69,9 @@ def json_dumps(
             option |= orjson.OPT_SORT_KEYS
         if indent == 2:
             option |= orjson.OPT_INDENT_2
-        return cast(bytes, orjson.dumps(value, default=default, option=option)).decode("utf-8")
+        return cast(bytes, orjson.dumps(value, default=default, option=option)).decode(
+            "utf-8"
+        )
     return stdlib_json.dumps(
         value,
         indent=indent,

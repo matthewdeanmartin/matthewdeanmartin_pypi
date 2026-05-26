@@ -87,7 +87,10 @@ def key_info(
             sk_bytes = sk_path.read_bytes()
             source = f"disk ({sk_path})"
         else:
-            return {"not_found": True, "source": f"disk path given but not found ({sk_path})"}
+            return {
+                "not_found": True,
+                "source": f"disk path given but not found ({sk_path})",
+            }
 
     elif env_path:
         disk_path = Path(env_path).expanduser()
@@ -95,7 +98,10 @@ def key_info(
             sk_bytes = disk_path.read_bytes()
             source = f"env var PYPI_PROFILE_KEY_PATH ({disk_path})"
         else:
-            return {"not_found": True, "source": f"PYPI_PROFILE_KEY_PATH set but key not found ({disk_path})"}
+            return {
+                "not_found": True,
+                "source": f"PYPI_PROFILE_KEY_PATH set but key not found ({disk_path})",
+            }
 
     elif keyring_is_usable():
         raw = load_key_bytes_from_keyring(keyring_identity)
@@ -128,7 +134,9 @@ def key_info(
     generated = "unknown"
     if disk_key_path.exists():
         mtime = disk_key_path.stat().st_mtime
-        generated = datetime.datetime.fromtimestamp(mtime, tz=datetime.timezone.utc).strftime("%Y-%m-%d")
+        generated = datetime.datetime.fromtimestamp(
+            mtime, tz=datetime.timezone.utc
+        ).strftime("%Y-%m-%d")
 
     toml_entries = load_all_toml_public_keys()
     binding = key_match_status(pub_b64, toml_entries)
@@ -160,11 +168,19 @@ def key_list(extra_dirs: list[Path] | None = None) -> list[dict[str, Any]]:
         except (AttributeError, TypeError, ValueError):
             return None
         binding = key_match_status(pub, toml_entries)
-        return {"identity_or_path": label, "key_id": kid, "source": source, "public_key": pub, "binding": binding}
+        return {
+            "identity_or_path": label,
+            "key_id": kid,
+            "source": source,
+            "public_key": pub,
+            "binding": binding,
+        }
 
     if keyring_is_usable():
         for identity in ["default", keyring_username()]:
-            raw = load_key_bytes_from_keyring(identity if identity != "default" else None)
+            raw = load_key_bytes_from_keyring(
+                identity if identity != "default" else None
+            )
             if raw is None:
                 continue
             label = f"{KEYRING_SERVICE}/{identity}"
@@ -325,7 +341,10 @@ def key_recover(
             key_present = True
 
     if key_present:
-        return {"key_was_present": True, "message": "Key found — use key-rotate instead of key-recover."}
+        return {
+            "key_was_present": True,
+            "message": "Key found — use key-rotate instead of key-recover.",
+        }
 
     if sys.version_info >= (3, 11):
         import tomllib
@@ -410,7 +429,9 @@ def key_export(
     elif env_path:
         disk_path = Path(env_path).expanduser()
         if not disk_path.exists():
-            raise FileNotFoundError(f"Secret key not found at {disk_path} (from PYPI_PROFILE_KEY_PATH)")
+            raise FileNotFoundError(
+                f"Secret key not found at {disk_path} (from PYPI_PROFILE_KEY_PATH)"
+            )
         sk_bytes = disk_path.read_bytes()
         source = str(disk_path)
     elif keyring_is_usable():
@@ -446,7 +467,9 @@ def key_export(
         }
 
     if output_path is None:
-        raise ValueError("output_path is required for key-export (never write key material to stdout)")
+        raise ValueError(
+            "output_path is required for key-export (never write key material to stdout)"
+        )
 
     output_path.write_bytes(sk_bytes)
     return {
@@ -489,7 +512,9 @@ def key_import(
     key_id = derive_key_id(sk_bytes)
 
     if disk_path.exists() and not force:
-        raise FileExistsError(f"Key already exists at {disk_path}. Use --force to overwrite.")
+        raise FileExistsError(
+            f"Key already exists at {disk_path}. Use --force to overwrite."
+        )
 
     stored_keyring = False
     if not no_keyring and keyring_is_usable():

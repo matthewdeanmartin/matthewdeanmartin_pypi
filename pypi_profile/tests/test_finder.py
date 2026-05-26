@@ -52,7 +52,9 @@ def test_find_profile_files_respects_max_depth(tmp_path: Path) -> None:
     assert found == [shallow / "pypi_profile.toml"]
 
 
-def test_find_profile_files_respects_max_files(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_find_profile_files_respects_max_files(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
     real_scandir = os.scandir
 
     for index in range(500):
@@ -74,7 +76,9 @@ def test_find_profile_files_respects_max_files(tmp_path: Path, monkeypatch: Monk
     assert find_profile_files(root=tmp_path) == [profile]
 
 
-def test_find_profile_files_respects_time_budget(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_find_profile_files_respects_time_budget(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
     real_scandir = os.scandir
 
     (tmp_path / "a.txt").write_text("", encoding="utf-8")
@@ -101,12 +105,16 @@ def test_find_profile_files_respects_time_budget(tmp_path: Path, monkeypatch: Mo
     assert find_profile_files(root=tmp_path) == [profile]
 
 
-def test_find_profile_files_skips_pyproject_parse_without_marker(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_find_profile_files_skips_pyproject_parse_without_marker(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text("[tool.black]\nline-length = 120\n", encoding="utf-8")
 
     def fail_if_called(_path: Path) -> dict[str, object]:
-        raise AssertionError("pyproject without pypi-profile marker should not be parsed")
+        raise AssertionError(
+            "pyproject without pypi-profile marker should not be parsed"
+        )
 
     monkeypatch.setattr("pypi_profile.finder.toml_load", fail_if_called)
 

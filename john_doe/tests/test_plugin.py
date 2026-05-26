@@ -35,4 +35,6 @@ def test_toml_loads() -> None:
     profile = load_profile(TOML)
     assert profile.identity.pypi_username == "john_doe"
     assert len(profile.packages) >= 1
-    assert profile.hiring.open_to_work_since != "" or profile.hiring.employment_types == []
+    assert (
+        profile.hiring.open_to_work_since != "" or profile.hiring.employment_types == []
+    )

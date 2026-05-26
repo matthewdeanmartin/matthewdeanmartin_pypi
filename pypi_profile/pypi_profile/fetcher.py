@@ -44,7 +44,14 @@ def cache_read(key: str) -> Any | None:
             logger.debug("Cache expired for key derived from %s", p.name)
             return None
         return data.get("payload")
-    except (JSONDecodeError, OSError, TimeoutError, urllib.error.HTTPError, urllib.error.URLError, ValueError):
+    except (
+        JSONDecodeError,
+        OSError,
+        TimeoutError,
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        ValueError,
+    ):
         logger.warning("Failed to read cache file %s", p, exc_info=True)
         return None
 
@@ -54,7 +61,9 @@ def cache_write(key: str, payload: Any) -> None:
     p.write_text(json_dumps({"ts": time.time(), "payload": payload}), encoding="utf-8")
 
 
-def fetch_provenance_for_packages(package_names: list[str], verbose: bool = False) -> dict[str, list[dict[str, Any]]]:
+def fetch_provenance_for_packages(
+    package_names: list[str], verbose: bool = False
+) -> dict[str, list[dict[str, Any]]]:
     """Fetch per-file provenance for each package, cached per package name."""
     out: dict[str, list[dict[str, Any]]] = {}
     for name in package_names:
@@ -263,14 +272,18 @@ def fetch_all(
             if owned_name and owned_name not in package_names:
                 package_names.append(owned_name)
 
-    provenance_by_package = fetch_provenance_for_packages(package_names, verbose=verbose)
+    provenance_by_package = fetch_provenance_for_packages(
+        package_names, verbose=verbose
+    )
     results["provenance"] = provenance_by_package
     results["build_identities"] = collect_build_identities(provenance_by_package)
 
     return results
 
 
-def compare_packages(profile: ProfileData, live_results: dict[str, Any]) -> list[dict[str, Any]]:
+def compare_packages(
+    profile: ProfileData, live_results: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Compare self-asserted package roles against PyPI live data."""
     pypi_username = profile.identity.pypi_username
     package_meta = live_results.get("package_meta", {})
@@ -278,7 +291,9 @@ def compare_packages(profile: ProfileData, live_results: dict[str, Any]) -> list
     # Build a set of package names the user actually owns/maintains according to
     # the XML-RPC user_packages() endpoint — the authoritative source for ownership.
     # Per-package JSON info.maintainers is often empty for sole-owner packages.
-    owned_names: set[str] = {p["name"].lower() for p in live_results.get("pypi_packages", [])}
+    owned_names: set[str] = {
+        p["name"].lower() for p in live_results.get("pypi_packages", [])
+    }
 
     report = []
     for pkg in profile.packages:

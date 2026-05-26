@@ -5,7 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pypi_profile.serialization import json_dumps, json_dumps_bytes, json_loads, toml_load, toml_load_path
+from pypi_profile.serialization import (
+    json_dumps,
+    json_dumps_bytes,
+    json_loads,
+    toml_load,
+    toml_load_path,
+)
 
 
 def test_json_helpers_round_trip() -> None:

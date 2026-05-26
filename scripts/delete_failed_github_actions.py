@@ -74,9 +74,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         description=(
             "Delete failed GitHub Actions workflow runs for the current repo. "
             "By default this is a dry run; add --execute to actually delete."
-        )
+        ),
     )
-    parser.add_argument("--version", action="version", version=f"%(prog)s {SCRIPT_VERSION}")
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {SCRIPT_VERSION}"
+    )
     parser.add_argument(
         "--repo",
         help="Repository in owner/repo form. Defaults to the current git remote.",
@@ -102,7 +104,10 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "--conclusion",
         action="append",
         dest="conclusions",
-        help=("Workflow conclusion to target. Repeat to include more than one. " "Defaults to: failure"),
+        help=(
+            "Workflow conclusion to target. Repeat to include more than one. "
+            "Defaults to: failure"
+        ),
     )
     parser.add_argument(
         "--max-delete",
@@ -222,7 +227,9 @@ def resolve_repo(explicit_repo: str | None) -> str:
             text=True,
         )
     except subprocess.CalledProcessError as exc:
-        raise RuntimeError("Could not read git remote 'origin'. Pass --repo owner/repo explicitly.") from exc
+        raise RuntimeError(
+            "Could not read git remote 'origin'. Pass --repo owner/repo explicitly."
+        ) from exc
     remote = result.stdout.strip()
 
     patterns = [
@@ -235,7 +242,9 @@ def resolve_repo(explicit_repo: str | None) -> str:
             repo = match.group("repo")
             return f"{owner}/{repo}"
 
-    raise RuntimeError("Could not infer owner/repo from the current git remote. Pass --repo owner/repo explicitly.")
+    raise RuntimeError(
+        "Could not infer owner/repo from the current git remote. Pass --repo owner/repo explicitly."
+    )
 
 
 def iter_workflow_runs(
@@ -302,7 +311,10 @@ def render_run(run: WorkflowRun) -> str:
     """Render a single workflow run for terminal output."""
     created = run.created_at or "unknown-date"
     branch = run.head_branch or "unknown-branch"
-    return f"- {run.id} | {created} | {run.name} | {run.display_title} | " f"{branch} | {run.conclusion or 'unknown'}"
+    return (
+        f"- {run.id} | {created} | {run.name} | {run.display_title} | "
+        f"{branch} | {run.conclusion or 'unknown'}"
+    )
 
 
 def run_to_dict(run: WorkflowRun) -> dict[str, object]:
@@ -326,10 +338,14 @@ def main(argv: Sequence[str]) -> int:
         args = parse_args(argv)
         env = build_gh_env(args.env_file)
         repo = resolve_repo(args.repo)
-        conclusions = {value.lower() for value in (args.conclusions or FAILED_CONCLUSIONS)}
+        conclusions = {
+            value.lower() for value in (args.conclusions or FAILED_CONCLUSIONS)
+        }
 
         runs = filter_runs(
-            iter_workflow_runs(repo=repo, env=env, branch=args.branch, event=args.event),
+            iter_workflow_runs(
+                repo=repo, env=env, branch=args.branch, event=args.event
+            ),
             conclusions=conclusions,
             max_delete=args.max_delete,
         )
@@ -376,7 +392,9 @@ def main(argv: Sequence[str]) -> int:
                 )
                 return EXIT_OK
             action = "delete logs for" if args.mode == "logs" else "delete"
-            print(f"\nDry run only. Re-run with --execute to {action} these workflow runs.")
+            print(
+                f"\nDry run only. Re-run with --execute to {action} these workflow runs."
+            )
             return EXIT_OK
 
         failures: list[tuple[int, str]] = []
@@ -400,7 +418,10 @@ def main(argv: Sequence[str]) -> int:
                         "execute": True,
                         "matched_runs": run_payload,
                         "deleted_count": deleted,
-                        "failures": [{"run_id": run_id, "error": message} for run_id, message in failures],
+                        "failures": [
+                            {"run_id": run_id, "error": message}
+                            for run_id, message in failures
+                        ],
                     },
                     indent=2,
                 )

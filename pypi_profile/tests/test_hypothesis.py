@@ -18,7 +18,9 @@ from hypothesis import strategies as st
 
 printable_text = st.text(alphabet=string.printable, min_size=0, max_size=200)
 safe_text = st.text(min_size=1, max_size=100)
-nonempty_text = st.text(min_size=1, max_size=80, alphabet=string.ascii_letters + string.digits + "-_.")
+nonempty_text = st.text(
+    min_size=1, max_size=80, alphabet=string.ascii_letters + string.digits + "-_."
+)
 
 # Reasonable datetimes — avoid edge cases like year 0 or year 9999 overflow
 reasonable_datetime = st.datetimes(
@@ -43,7 +45,9 @@ class TestClaimsEncodeDecodeRoundtrip:
         nonce=nonempty_text,
         issued=reasonable_datetime,
     )
-    def test_full_claim_roundtrip(self, profile_package, pypi_username, subject_url, nonce, issued):
+    def test_full_claim_roundtrip(
+        self, profile_package, pypi_username, subject_url, nonce, issued
+    ):
         from pypi_profile.claims import build_claim, decode_claim, encode_claim
 
         expires = issued + timedelta(days=365)
@@ -68,7 +72,9 @@ class TestClaimsEncodeDecodeRoundtrip:
         nonce=nonempty_text,
         issued=reasonable_datetime,
     )
-    def test_compact_claim_roundtrip(self, profile_package, pypi_username, subject_url, nonce, issued):
+    def test_compact_claim_roundtrip(
+        self, profile_package, pypi_username, subject_url, nonce, issued
+    ):
         from pypi_profile.claims import build_compact_claim, decode_claim, encode_claim
 
         expires = issued + timedelta(days=365)
@@ -101,7 +107,9 @@ class TestClaimsEncodeDecodeRoundtrip:
         pypi_username=nonempty_text,
         subject_url=nonempty_text,
     )
-    def test_encode_always_starts_with_prefix(self, profile_package, pypi_username, subject_url):
+    def test_encode_always_starts_with_prefix(
+        self, profile_package, pypi_username, subject_url
+    ):
         from pypi_profile.claims import PROOF_PREFIX, build_compact_claim, encode_claim
 
         claim = build_compact_claim(
@@ -139,7 +147,9 @@ class TestIsCompactClaim:
         pypi_username=nonempty_text,
         subject_url=nonempty_text,
     )
-    def test_compact_build_is_detected_as_compact(self, profile_package, pypi_username, subject_url):
+    def test_compact_build_is_detected_as_compact(
+        self, profile_package, pypi_username, subject_url
+    ):
         from pypi_profile.claims import build_compact_claim, is_compact_claim
 
         claim = build_compact_claim(
@@ -154,7 +164,9 @@ class TestIsCompactClaim:
         pypi_username=nonempty_text,
         subject_url=nonempty_text,
     )
-    def test_full_build_is_not_compact(self, profile_package, pypi_username, subject_url):
+    def test_full_build_is_not_compact(
+        self, profile_package, pypi_username, subject_url
+    ):
         from pypi_profile.claims import build_claim, is_compact_claim
 
         claim = build_claim(
@@ -293,8 +305,12 @@ class TestBuildClaimTimestamps:
             key_id="AABB",
             issued_at=issued,
         )
-        issued_at = datetime.strptime(claim["issued_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-        expires_at = datetime.strptime(claim["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        issued_at = datetime.strptime(claim["issued_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc
+        )
+        expires_at = datetime.strptime(
+            claim["expires_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).replace(tzinfo=timezone.utc)
         assert expires_at > issued_at
 
     @given(issued=reasonable_datetime)
@@ -358,7 +374,9 @@ class TestFindProofTokens:
         pypi_username=nonempty_text,
         subject_url=nonempty_text,
     )
-    def test_encoded_claim_is_found_in_text(self, profile_package, pypi_username, subject_url):
+    def test_encoded_claim_is_found_in_text(
+        self, profile_package, pypi_username, subject_url
+    ):
         from pypi_profile.claims import build_compact_claim, encode_claim
         from pypi_profile.verifier import find_proof_tokens
 
@@ -389,7 +407,9 @@ class TestFindProofTokens:
         pypi_username=nonempty_text,
         subject_url=nonempty_text,
     )
-    def test_case_insensitive_prefix_is_found(self, profile_package, pypi_username, subject_url):
+    def test_case_insensitive_prefix_is_found(
+        self, profile_package, pypi_username, subject_url
+    ):
         from pypi_profile.claims import build_compact_claim, encode_claim
         from pypi_profile.verifier import find_proof_tokens
 
@@ -428,7 +448,13 @@ class TestCachePath:
         result = cache_path(key)
         assert result.name.endswith(".json")
 
-    @given(st.text(alphabet=string.printable.replace("\\", "").replace("/", ""), min_size=1, max_size=50))
+    @given(
+        st.text(
+            alphabet=string.printable.replace("\\", "").replace("/", ""),
+            min_size=1,
+            max_size=50,
+        )
+    )
     @settings(max_examples=50)
     def test_cache_path_stays_in_cache_dir(self, key):
         """Keys without path separators always resolve inside the cache dir."""
@@ -460,7 +486,13 @@ class TestCachePath:
 
 
 class TestExtractGithubUsername:
-    @given(username=st.text(alphabet=string.ascii_letters + string.digits + "-_", min_size=1, max_size=39))
+    @given(
+        username=st.text(
+            alphabet=string.ascii_letters + string.digits + "-_",
+            min_size=1,
+            max_size=39,
+        )
+    )
     def test_valid_github_url_extracts_username(self, username):
         from pypi_profile.fetcher import extract_github_username
 
@@ -468,7 +500,13 @@ class TestExtractGithubUsername:
         result = extract_github_username(url)
         assert result == username
 
-    @given(username=st.text(alphabet=string.ascii_letters + string.digits + "-_", min_size=1, max_size=39))
+    @given(
+        username=st.text(
+            alphabet=string.ascii_letters + string.digits + "-_",
+            min_size=1,
+            max_size=39,
+        )
+    )
     def test_trailing_slash_still_extracts(self, username):
         from pypi_profile.fetcher import extract_github_username
 
@@ -490,7 +528,13 @@ class TestExtractGithubUsername:
 
         assert extract_github_username("https://github.com/user/repo") == ""
 
-    @given(username=st.text(alphabet=string.ascii_letters + string.digits + "-_", min_size=1, max_size=39))
+    @given(
+        username=st.text(
+            alphabet=string.ascii_letters + string.digits + "-_",
+            min_size=1,
+            max_size=39,
+        )
+    )
     def test_extracted_username_has_no_slash(self, username):
         from pypi_profile.fetcher import extract_github_username
 
@@ -500,7 +544,13 @@ class TestExtractGithubUsername:
 
 
 class TestExtractGitlabUsername:
-    @given(username=st.text(alphabet=string.ascii_letters + string.digits + "-_", min_size=1, max_size=39))
+    @given(
+        username=st.text(
+            alphabet=string.ascii_letters + string.digits + "-_",
+            min_size=1,
+            max_size=39,
+        )
+    )
     def test_valid_gitlab_url_extracts_username(self, username):
         from pypi_profile.fetcher import extract_gitlab_username
 
@@ -508,7 +558,13 @@ class TestExtractGitlabUsername:
         result = extract_gitlab_username(url)
         assert result == username
 
-    @given(username=st.text(alphabet=string.ascii_letters + string.digits + "-_", min_size=1, max_size=39))
+    @given(
+        username=st.text(
+            alphabet=string.ascii_letters + string.digits + "-_",
+            min_size=1,
+            max_size=39,
+        )
+    )
     def test_trailing_slash_still_extracts(self, username):
         from pypi_profile.fetcher import extract_gitlab_username
 
@@ -563,19 +619,35 @@ class TestShouldSkipDir:
 
         assert should_skip_dir(name) is True
 
-    @given(name=st.sampled_from([".VENV", "VENV", ".Git", "NODE_MODULES", "__PYCACHE__", "DIST"]))
+    @given(
+        name=st.sampled_from(
+            [".VENV", "VENV", ".Git", "NODE_MODULES", "__PYCACHE__", "DIST"]
+        )
+    )
     def test_skip_is_case_insensitive(self, name):
         from pypi_profile.finder import should_skip_dir
 
         assert should_skip_dir(name) is True
 
-    @given(suffix=st.text(alphabet=string.ascii_lowercase + string.digits + "_-", min_size=1, max_size=20))
+    @given(
+        suffix=st.text(
+            alphabet=string.ascii_lowercase + string.digits + "_-",
+            min_size=1,
+            max_size=20,
+        )
+    )
     def test_egg_info_suffix_is_skipped(self, suffix):
         from pypi_profile.finder import should_skip_dir
 
         assert should_skip_dir(f"{suffix}.egg-info") is True
 
-    @given(name=st.text(alphabet=string.ascii_letters + string.digits + "_-", min_size=1, max_size=30))
+    @given(
+        name=st.text(
+            alphabet=string.ascii_letters + string.digits + "_-",
+            min_size=1,
+            max_size=30,
+        )
+    )
     def test_normal_dir_names_not_skipped(self, name):
         from pypi_profile.finder import SKIP_DIRS, should_skip_dir
 

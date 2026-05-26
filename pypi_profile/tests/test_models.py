@@ -5,8 +5,15 @@ from typing import Any
 
 import pytest
 
-JOHN_DOE_TOML = Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
-MATT_TOML = Path(__file__).parent.parent.parent / "matthewdeanmartin" / "matthewdeanmartin" / "pypi_profile.toml"
+JOHN_DOE_TOML = (
+    Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
+)
+MATT_TOML = (
+    Path(__file__).parent.parent.parent
+    / "matthewdeanmartin"
+    / "matthewdeanmartin"
+    / "pypi_profile.toml"
+)
 
 
 def test_empty_profile_has_defaults() -> None:
@@ -59,7 +66,9 @@ def test_find_profile_missing_raises() -> None:
         find_profile("no-such-package-name-xyz")
 
 
-def test_find_installed_profile_files_prefers_resources_and_deduplicates(mocker: Any, tmp_path: Path) -> None:
+def test_find_installed_profile_files_prefers_resources_and_deduplicates(
+    mocker: Any, tmp_path: Path
+) -> None:
     from pypi_profile.loader import find_installed_profile_files
 
     resource_path = tmp_path / "john_doe" / "pypi_profile.toml"

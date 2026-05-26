@@ -116,7 +116,9 @@ def test_verify_profile_link_no_tokens(mocker: Any) -> None:
 
 
 def test_verify_profile_link_expired(mocker: Any) -> None:
-    mocker.patch("pypi_profile.verifier.fetch_page", return_value="pypi-profile-proof: token")
+    mocker.patch(
+        "pypi_profile.verifier.fetch_page", return_value="pypi-profile-proof: token"
+    )
     mocker.patch(
         "pypi_profile.verifier.decode_claim",
         return_value={

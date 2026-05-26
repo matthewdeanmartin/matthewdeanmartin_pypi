@@ -26,7 +26,9 @@ def open_http_url(request: urllib.request.Request) -> Any:
 
 
 def get_json(url: str, accept: str = "application/json") -> Any:
-    req = urllib.request.Request(url, headers={"Accept": accept, "User-Agent": "pypi-profile/0.1"})
+    req = urllib.request.Request(
+        url, headers={"Accept": accept, "User-Agent": "pypi-profile/0.1"}
+    )
     with open_http_url(req) as resp:
         return json_loads(cast(bytes, resp.read()))
 
@@ -286,7 +288,9 @@ def fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
         client = xmlrpc.client.ServerProxy("https://pypi.org/pypi")
         role_pkg_pairs = cast(list[list[str]], client.user_packages(username))
     except (OSError, xmlrpc.client.Error):
-        logger.warning("Failed to fetch PyPI package list for %r", username, exc_info=False)
+        logger.warning(
+            "Failed to fetch PyPI package list for %r", username, exc_info=False
+        )
         return []
 
     for role, name in role_pkg_pairs:
@@ -299,7 +303,8 @@ def fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
                     "role": role.lower(),
                     "state": "active",
                     "summary": (info.get("summary") or "")[:200],
-                    "url": info.get("project_url") or f"https://pypi.org/project/{name}/",
+                    "url": info.get("project_url")
+                    or f"https://pypi.org/project/{name}/",
                 }
             )
         except (
@@ -310,7 +315,9 @@ def fetch_pypi_user_packages(username: str) -> list[dict[str, Any]]:
             urllib.error.URLError,
             ValueError,
         ):
-            logger.warning("Failed to fetch PyPI metadata for package %r", name, exc_info=False)
+            logger.warning(
+                "Failed to fetch PyPI metadata for package %r", name, exc_info=False
+            )
             results.append(
                 {
                     "name": name,
@@ -371,7 +378,9 @@ def fetch_pypi_provenance(package_name: str) -> list[dict[str, Any]]:
         urllib.error.URLError,
         ValueError,
     ):
-        logger.warning("Failed to fetch PyPI Simple API for %r", package_name, exc_info=False)
+        logger.warning(
+            "Failed to fetch PyPI Simple API for %r", package_name, exc_info=False
+        )
         return []
 
     records: list[dict[str, Any]] = []
@@ -380,7 +389,9 @@ def fetch_pypi_provenance(package_name: str) -> list[dict[str, Any]]:
         if not provenance_url:
             continue
         try:
-            bundle = get_json(provenance_url, accept="application/vnd.pypi.integrity.v1+json")
+            bundle = get_json(
+                provenance_url, accept="application/vnd.pypi.integrity.v1+json"
+            )
         except (
             JSONDecodeError,
             OSError,
@@ -389,7 +400,9 @@ def fetch_pypi_provenance(package_name: str) -> list[dict[str, Any]]:
             urllib.error.URLError,
             ValueError,
         ):
-            logger.warning("Failed to fetch provenance for %s", provenance_url, exc_info=False)
+            logger.warning(
+                "Failed to fetch provenance for %s", provenance_url, exc_info=False
+            )
             continue
 
         publishers: list[dict[str, Any]] = []
@@ -434,7 +447,9 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
             "author_email": info.get("author_email", ""),
             "home_page": info.get("home_page", ""),
             "project_url": info.get("project_url", ""),
-            "maintainers": [m.get("username", "") for m in (info.get("maintainers") or [])],
+            "maintainers": [
+                m.get("username", "") for m in (info.get("maintainers") or [])
+            ],
             "classifiers": info.get("classifiers", []),
             "requires_python": info.get("requires_python", ""),
         }
@@ -446,7 +461,9 @@ def fetch_pypi_package_info(package_name: str) -> dict[str, Any]:
         urllib.error.URLError,
         ValueError,
     ):
-        logger.warning("Failed to fetch PyPI metadata for package %r", package_name, exc_info=False)
+        logger.warning(
+            "Failed to fetch PyPI metadata for package %r", package_name, exc_info=False
+        )
         return {}
 
 
@@ -489,7 +506,9 @@ def fetch_github_profile(username: str, token: str | None = None) -> dict[str, A
         urllib.error.URLError,
         ValueError,
     ):
-        logger.warning("Failed to fetch GitHub profile for %r", username, exc_info=False)
+        logger.warning(
+            "Failed to fetch GitHub profile for %r", username, exc_info=False
+        )
         return {}
 
 
@@ -543,14 +562,24 @@ def fetch_github_repos(username: str, token: str | None = None) -> list[dict[str
     return results
 
 
-def fetch_github_funding(username: str, repo: str = "", token: str | None = None) -> dict[str, Any]:
+def fetch_github_funding(
+    username: str, repo: str = "", token: str | None = None
+) -> dict[str, Any]:
     """Fetch FUNDING.yml from a GitHub user's .github or specified repo."""
     targets = []
     if repo:
-        targets.append(f"https://raw.githubusercontent.com/{username}/{repo}/main/.github/FUNDING.yml")
-        targets.append(f"https://raw.githubusercontent.com/{username}/{repo}/master/.github/FUNDING.yml")
-    targets.append(f"https://raw.githubusercontent.com/{username}/.github/main/FUNDING.yml")
-    targets.append(f"https://raw.githubusercontent.com/{username}/.github/master/FUNDING.yml")
+        targets.append(
+            f"https://raw.githubusercontent.com/{username}/{repo}/main/.github/FUNDING.yml"
+        )
+        targets.append(
+            f"https://raw.githubusercontent.com/{username}/{repo}/master/.github/FUNDING.yml"
+        )
+    targets.append(
+        f"https://raw.githubusercontent.com/{username}/.github/main/FUNDING.yml"
+    )
+    targets.append(
+        f"https://raw.githubusercontent.com/{username}/.github/master/FUNDING.yml"
+    )
 
     for url in targets:
         try:
@@ -634,7 +663,9 @@ def fetch_gitlab_profile(username: str, token: str | None = None) -> dict[str, A
         urllib.error.URLError,
         ValueError,
     ):
-        logger.warning("Failed to fetch GitLab profile for %r", username, exc_info=False)
+        logger.warning(
+            "Failed to fetch GitLab profile for %r", username, exc_info=False
+        )
         return {}
 
 
@@ -682,7 +713,9 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
         urllib.error.URLError,
         ValueError,
     ):
-        logger.warning("Failed to fetch Mastodon profile for %r", account_url, exc_info=False)
+        logger.warning(
+            "Failed to fetch Mastodon profile for %r", account_url, exc_info=False
+        )
         return {}
 
 
@@ -691,7 +724,9 @@ def fetch_mastodon_profile(account_url: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, Any]) -> dict[str, Any]:
+def merge_live_data_into_profile(
+    profile_data: dict[str, Any], live: dict[str, Any]
+) -> dict[str, Any]:
     """Merge fetched live data into a profile dict, preferring existing non-empty values."""
 
     def fill(section: str, field: str, value: Any) -> None:
@@ -704,7 +739,9 @@ def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, A
     pypi_packages = live.get("pypi_packages", [])
 
     # Fill identity from GitHub
-    fill("identity", "location", github.get("location", "") or gitlab.get("location", ""))
+    fill(
+        "identity", "location", github.get("location", "") or gitlab.get("location", "")
+    )
     fill(
         "profile",
         "summary",
@@ -716,7 +753,11 @@ def merge_live_data_into_profile(profile_data: dict[str, Any], live: dict[str, A
 
     # Email from GitHub
     if github.get("email"):
-        existing_emails = [c["value"] for c in profile_data.get("contact_methods", []) if c.get("kind") == "email"]
+        existing_emails = [
+            c["value"]
+            for c in profile_data.get("contact_methods", [])
+            if c.get("kind") == "email"
+        ]
         if github["email"] not in existing_emails:
             profile_data.setdefault("contact_methods", []).append(
                 {
@@ -806,13 +847,23 @@ def merge_skip_trace_exports(raw_exports: list[dict[str, Any]]) -> dict[str, Any
 
     for export in exports:
         subject = export.get("subject", {})
-        subject_usernames = [str(value) for value in subject.get("pypi_usernames", []) if value]
+        subject_usernames = [
+            str(value) for value in subject.get("pypi_usernames", []) if value
+        ]
         usernames.extend(subject_usernames)
         display_name = display_name or str(subject.get("display_name", "") or "")
         legal_name = legal_name or str(subject.get("legal_name", "") or "")
         summary = summary or str(subject.get("summary", "") or "")
         subject_kind = str(subject.get("kind", "") or "")
-        if subject_kind in {"team", "company", "llc", "foundation", "collective", "project", "other"}:
+        if subject_kind in {
+            "team",
+            "company",
+            "llc",
+            "foundation",
+            "collective",
+            "project",
+            "other",
+        }:
             kind = subject_kind
         for organization in subject.get("organizations", []):
             org_value = str(organization or "")
@@ -875,7 +926,11 @@ def merge_skip_trace_exports(raw_exports: list[dict[str, Any]]) -> dict[str, Any
         else:
             summary = "Maintains Python packages."
 
-    human_id = username or re.sub(r"[^a-z0-9]+", "-", display_name.lower()).strip("-") or "profile-owner"
+    human_id = (
+        username
+        or re.sub(r"[^a-z0-9]+", "-", display_name.lower()).strip("-")
+        or "profile-owner"
+    )
     human_name = display_name or username
     profile_data: dict[str, Any] = {
         "profile": {

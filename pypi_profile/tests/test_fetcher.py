@@ -39,7 +39,9 @@ def sample_profile() -> ProfileData:
         identity=IdentitySection(pypi_username="alice_pypi"),
         profiles=[
             ProfileLink(kind="github", label="GitHub", url="https://github.com/alice"),
-            ProfileLink(kind="gitlab", label="GitLab", url="https://gitlab.com/alice_gl"),
+            ProfileLink(
+                kind="gitlab", label="GitLab", url="https://gitlab.com/alice_gl"
+            ),
             ProfileLink(
                 kind="mastodon",
                 label="Mastodon",
@@ -50,17 +52,29 @@ def sample_profile() -> ProfileData:
     )
 
 
-def test_fetch_all_calls_importers(mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData) -> None:
+def test_fetch_all_calls_importers(
+    mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData
+) -> None:
     # Mock all importer functions
     mock_pypi_user = mocker.patch(
         "pypi_profile.fetcher.fetch_pypi_user_packages",
         return_value=[{"name": "pkg1"}],
     )
-    mock_pypi_pkg = mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={"summary": "desc"})
-    mock_gh_profile = mocker.patch("pypi_profile.fetcher.fetch_github_profile", return_value={"name": "Alice GH"})
-    mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[{"name": "repo1"}])
-    mocker.patch("pypi_profile.fetcher.fetch_github_funding", return_value={"github": "alice"})
-    mock_gl_profile = mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile", return_value={"name": "Alice GL"})
+    mock_pypi_pkg = mocker.patch(
+        "pypi_profile.fetcher.fetch_pypi_package_info", return_value={"summary": "desc"}
+    )
+    mock_gh_profile = mocker.patch(
+        "pypi_profile.fetcher.fetch_github_profile", return_value={"name": "Alice GH"}
+    )
+    mocker.patch(
+        "pypi_profile.fetcher.fetch_github_repos", return_value=[{"name": "repo1"}]
+    )
+    mocker.patch(
+        "pypi_profile.fetcher.fetch_github_funding", return_value={"github": "alice"}
+    )
+    mock_gl_profile = mocker.patch(
+        "pypi_profile.fetcher.fetch_gitlab_profile", return_value={"name": "Alice GL"}
+    )
     mocker.patch(
         "pypi_profile.fetcher.fetch_mastodon_profile",
         return_value={"display_name": "Alice M"},
@@ -84,7 +98,9 @@ def test_fetch_all_calls_importers(mocker: Any, mock_cache_dir: Path, sample_pro
     mock_gl_profile.assert_called_once_with("alice_gl")
 
 
-def test_fetch_all_uses_cache(mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData) -> None:
+def test_fetch_all_uses_cache(
+    mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData
+) -> None:
     # Pre-populate cache
     mock_cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -109,7 +125,9 @@ def test_fetch_all_uses_cache(mocker: Any, mock_cache_dir: Path, sample_profile:
     cache_file_gl.write_text(json.dumps(cache_data_gl))
 
     # Mastodon profile
-    cache_file_masto = mock_cache_dir / "mastodon_https___fosstodon.org__at_alice_masto.json"
+    cache_file_masto = (
+        mock_cache_dir / "mastodon_https___fosstodon.org__at_alice_masto.json"
+    )
     cache_data_masto = {"ts": time.time(), "payload": {"display_name": "Cached M"}}
     cache_file_masto.write_text(json.dumps(cache_data_masto))
 
@@ -133,7 +151,9 @@ def test_fetch_all_uses_cache(mocker: Any, mock_cache_dir: Path, sample_profile:
     mock_gh_profile.assert_not_called()
 
 
-def test_fetch_all_cache_expiry(mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData) -> None:
+def test_fetch_all_cache_expiry(
+    mocker: Any, mock_cache_dir: Path, sample_profile: ProfileData
+) -> None:
     # Pre-populate cache with expired data
     cache_file = mock_cache_dir / "github_profile_alice.json"
     mock_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -141,7 +161,9 @@ def test_fetch_all_cache_expiry(mocker: Any, mock_cache_dir: Path, sample_profil
     cache_file.write_text(json.dumps(cache_data))
 
     # Mock importer functions - GH profile SHOULD be called
-    mock_gh_profile = mocker.patch("pypi_profile.fetcher.fetch_github_profile", return_value={"name": "New Alice"})
+    mock_gh_profile = mocker.patch(
+        "pypi_profile.fetcher.fetch_github_profile", return_value={"name": "New Alice"}
+    )
     mocker.patch("pypi_profile.fetcher.fetch_pypi_user_packages", return_value=[])
     mocker.patch("pypi_profile.fetcher.fetch_pypi_package_info", return_value={})
     mocker.patch("pypi_profile.fetcher.fetch_github_repos", return_value=[])
@@ -345,7 +367,9 @@ def test_fetch_all_include_owned_extends_provenance_set(
     mocker.patch("pypi_profile.fetcher.fetch_github_funding", return_value={})
     mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile", return_value={})
     mocker.patch("pypi_profile.fetcher.fetch_mastodon_profile", return_value={})
-    prov_mock = mocker.patch("pypi_profile.fetcher.fetch_pypi_provenance", return_value=[])
+    prov_mock = mocker.patch(
+        "pypi_profile.fetcher.fetch_pypi_provenance", return_value=[]
+    )
 
     fetch_all(sample_profile, include_owned=True)
 
@@ -366,7 +390,9 @@ def test_fetch_all_default_only_declared_packages(
     mocker.patch("pypi_profile.fetcher.fetch_github_funding", return_value={})
     mocker.patch("pypi_profile.fetcher.fetch_gitlab_profile", return_value={})
     mocker.patch("pypi_profile.fetcher.fetch_mastodon_profile", return_value={})
-    prov_mock = mocker.patch("pypi_profile.fetcher.fetch_pypi_provenance", return_value=[])
+    prov_mock = mocker.patch(
+        "pypi_profile.fetcher.fetch_pypi_provenance", return_value=[]
+    )
 
     fetch_all(sample_profile)
 

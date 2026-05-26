@@ -88,7 +88,9 @@ def test_key_info_disk(tmp_path, mocker, mock_minisign):
     mock_sk.get_public_key.return_value = mock_pk
     mock_minisign.return_value = mock_sk
 
-    mocker.patch("pypi_profile.key_management.load_all_toml_public_keys", return_value=[])
+    mocker.patch(
+        "pypi_profile.key_management.load_all_toml_public_keys", return_value=[]
+    )
 
     info = key_info(sk_path=sk_path)
     assert info["not_found"] is False
@@ -99,7 +101,9 @@ def test_key_info_disk(tmp_path, mocker, mock_minisign):
 
 def test_key_list(mocker, mock_minisign):
     mocker.patch("pypi_profile.key_management.keyring_is_usable", return_value=False)
-    mocker.patch("pypi_profile.key_management.load_all_toml_public_keys", return_value=[])
+    mocker.patch(
+        "pypi_profile.key_management.load_all_toml_public_keys", return_value=[]
+    )
 
     # Mocking Path.glob and exists is tricky, let's just mock the whole search part or use tmp_path
     mocker.patch("pathlib.Path.is_dir", return_value=False)
@@ -137,7 +141,11 @@ def test_key_rotate_dry_run(tmp_path, mocker):
     toml_path.write_text('public_key = "old"', encoding="utf-8")
 
     res = key_rotate(
-        toml_path=toml_path, profile_package="pkg", pypi_username="user", dry_run=True, key_dir=tmp_path / "keys"
+        toml_path=toml_path,
+        profile_package="pkg",
+        pypi_username="user",
+        dry_run=True,
+        key_dir=tmp_path / "keys",
     )
     assert res["dry_run"] is True
     assert res["new_key_id"] == "(would generate)"
@@ -150,7 +158,11 @@ def test_key_recover_dry_run(tmp_path, mocker):
     mocker.patch("pypi_profile.key_management.keyring_is_usable", return_value=False)
 
     res = key_recover(
-        toml_path=toml_path, profile_package="pkg", pypi_username="user", dry_run=True, key_dir=tmp_path / "keys"
+        toml_path=toml_path,
+        profile_package="pkg",
+        pypi_username="user",
+        dry_run=True,
+        key_dir=tmp_path / "keys",
     )
     assert res["dry_run"] is True
     assert "DRY RUN" in res["message"]
@@ -191,13 +203,20 @@ def test_key_rotate_success(tmp_path, mocker):
         "pypi_profile.key_management.generate_keypair",
         return_value=(tmp_path / "new.key", tmp_path / "new.pub", "newpubb64"),
     )
-    mocker.patch("pypi_profile.key_management.patch_proofs_in_toml", return_value=["url1"])
+    mocker.patch(
+        "pypi_profile.key_management.patch_proofs_in_toml", return_value=["url1"]
+    )
 
     mock_sk = MagicMock()
     mock_sk._keynum_sk.key_id = b"\x01\x02\x03\x04\x05\x06\x07\x08"
     mocker.patch("minisign.SecretKey.from_file", return_value=mock_sk)
 
-    res = key_rotate(toml_path=toml_path, profile_package="pkg", pypi_username="user", key_dir=tmp_path)
+    res = key_rotate(
+        toml_path=toml_path,
+        profile_package="pkg",
+        pypi_username="user",
+        key_dir=tmp_path,
+    )
 
     assert res["new_key_id"] == "0102030405060708"
     assert res["updated_urls"] == ["url1"]
@@ -213,14 +232,21 @@ def test_key_recover_success(tmp_path, mocker):
         "pypi_profile.key_management.generate_keypair",
         return_value=(tmp_path / "new.key", tmp_path / "new.pub", "newpubb64"),
     )
-    mocker.patch("pypi_profile.key_management.patch_proofs_in_toml", return_value=["url1"])
+    mocker.patch(
+        "pypi_profile.key_management.patch_proofs_in_toml", return_value=["url1"]
+    )
     mocker.patch("pypi_profile.key_management.patch_public_key_in_toml")
 
     mock_sk = MagicMock()
     mock_sk._keynum_sk.key_id = b"\x01\x02\x03\x04\x05\x06\x07\x08"
     mocker.patch("minisign.SecretKey.from_file", return_value=mock_sk)
 
-    res = key_recover(toml_path=toml_path, profile_package="pkg", pypi_username="user", key_dir=tmp_path)
+    res = key_recover(
+        toml_path=toml_path,
+        profile_package="pkg",
+        pypi_username="user",
+        key_dir=tmp_path,
+    )
 
     assert res["new_key_id"] == "0102030405060708"
     assert res["updated_urls"] == ["url1"]

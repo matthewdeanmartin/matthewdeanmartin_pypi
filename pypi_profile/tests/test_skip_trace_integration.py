@@ -78,7 +78,9 @@ def test_init_from_skip_trace_produces_valid_toml(tmp_path: Path) -> None:
     from pypi_profile.serialization import json_dumps
 
     export_path = tmp_path / "skip-trace.json"
-    export_path.write_text(json_dumps(_sample_skip_trace_export(), indent=2), encoding="utf-8")
+    export_path.write_text(
+        json_dumps(_sample_skip_trace_export(), indent=2), encoding="utf-8"
+    )
     dest = tmp_path / "pypi_profile.toml"
     args = argparse.Namespace(
         kind="individual",
@@ -99,7 +101,9 @@ def test_init_from_skip_trace_produces_valid_toml(tmp_path: Path) -> None:
     assert profile.packages[0].name == "demo-package"
 
 
-def test_cmd_generate_missing_writes_grouped_profiles(tmp_path: Path, mocker: Any) -> None:
+def test_cmd_generate_missing_writes_grouped_profiles(
+    tmp_path: Path, mocker: Any
+) -> None:
     from pypi_profile.cli import cmd_generate_missing
 
     mocker.patch(

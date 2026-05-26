@@ -7,7 +7,13 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from pypi_profile.models import IdentitySection, ProfileData, ProfileLink, ProfileSection, VerificationSection
+from pypi_profile.models import (
+    IdentitySection,
+    ProfileData,
+    ProfileLink,
+    ProfileSection,
+    VerificationSection,
+)
 from pypi_profile.server import build_app, generate_proofs
 
 
@@ -16,7 +22,9 @@ def minimal_profile() -> ProfileData:
     return ProfileData(
         profile=ProfileSection(display_name="Alice"),
         identity=IdentitySection(pypi_username="alice"),
-        profiles=[ProfileLink(kind="github", label="GH", url="https://github.com/alice")],
+        profiles=[
+            ProfileLink(kind="github", label="GH", url="https://github.com/alice")
+        ],
         verification=VerificationSection(public_key="pubkey"),
     )
 
@@ -73,7 +81,9 @@ def test_verification_route_error(minimal_profile: ProfileData, mocker: Any) -> 
     assert "PyPI-published" in response.text
 
 
-def test_api_verification_route_error(minimal_profile: ProfileData, mocker: Any) -> None:
+def test_api_verification_route_error(
+    minimal_profile: ProfileData, mocker: Any
+) -> None:
     mock_verify = mocker.patch("pypi_profile.verifier.diagnose_all_profiles")
     mock_verify.side_effect = ValueError("verify boom")
 
@@ -106,7 +116,9 @@ def test_api_projects_json(minimal_profile: ProfileData) -> None:
     assert data[0]["name"] == "my-proj"
 
 
-def test_generate_proofs_sign_raises_os_error(minimal_profile: ProfileData, mocker: Any) -> None:
+def test_generate_proofs_sign_raises_os_error(
+    minimal_profile: ProfileData, mocker: Any
+) -> None:
     # sign_controls_url raises OSError (e.g. key file unreadable)
     mocker.patch(
         "pypi_profile.signing.sign_controls_url",

@@ -61,16 +61,24 @@ def test_verify_claim_signature_invalid_full_sig():
 
 
 def test_diagnose_tokens_no_tokens():
-    status, steps = diagnose_tokens([], subject_url="url", pypi_username="u", profile_package="p", public_key_b64="")
+    status, steps = diagnose_tokens(
+        [], subject_url="url", pypi_username="u", profile_package="p", public_key_b64=""
+    )
     assert status == "unverified"
     assert "No pypi-profile-proof tokens found" in steps[0]
 
 
 def test_diagnose_tokens_mismatch(mocker):
     # Mock decode_claim to return a claim that doesn't match
-    mocker.patch("pypi_profile.verifier.decode_claim", return_value={"subject": "other"})
+    mocker.patch(
+        "pypi_profile.verifier.decode_claim", return_value={"subject": "other"}
+    )
     status, steps = diagnose_tokens(
-        ["token"], subject_url="url", pypi_username="u", profile_package="p", public_key_b64=""
+        ["token"],
+        subject_url="url",
+        pypi_username="u",
+        profile_package="p",
+        public_key_b64="",
     )
     assert status == "unverified"
     assert any("Subject mismatch" in s for s in steps)
@@ -78,18 +86,24 @@ def test_diagnose_tokens_mismatch(mocker):
 
 def test_extract_urls_from_field():
     assert extract_urls_from_field("http://example.com") == ["http://example.com"]
-    assert extract_urls_from_field('<a href="http://example.com">link</a>') == ["http://example.com"]
+    assert extract_urls_from_field('<a href="http://example.com">link</a>') == [
+        "http://example.com"
+    ]
 
 
 def test_diagnose_profile_link_scraper_hostile():
-    link = ProfileLink(kind="github", label="GitHub", url="https://linkedin.com/in/user")
+    link = ProfileLink(
+        kind="github", label="GitHub", url="https://linkedin.com/in/user"
+    )
     status, steps = diagnose_profile_link(link, "", "p", "u")
     assert status == "unverified"
     assert "actively blocks automated requests" in steps[0]
 
 
 def test_diagnose_mastodon_link_invalid_url():
-    link = ProfileLink(kind="mastodon", label="M", url="https://example.com/not-mastodon")
+    link = ProfileLink(
+        kind="mastodon", label="M", url="https://example.com/not-mastodon"
+    )
     status, steps = diagnose_mastodon_link(link, "p")
     assert status == "unverified"
     assert "does not look like a Mastodon profile URL" in steps[0]
@@ -100,15 +114,15 @@ def test_diagnose_mastodon_link_success(mocker):
 
     # Mock API call
     mock_r = MagicMock()
-    mock_r.read.return_value = (
-        b'{"fields": [{"name": "PyPI", "value": "https://pypi.org/project/p", "verified_at": "2023-01-01"}]}'
-    )
+    mock_r.read.return_value = b'{"fields": [{"name": "PyPI", "value": "https://pypi.org/project/p", "verified_at": "2023-01-01"}]}'
     mock_r.__enter__.return_value = mock_r
     mocker.patch("urllib.request.urlopen", return_value=mock_r)
 
     status, steps = diagnose_mastodon_link(link, profile_package="p")
     assert status == "verified"
-    assert any("Contains 'pypi.org/project/p' and is Mastodon-verified" in s for s in steps)
+    assert any(
+        "Contains 'pypi.org/project/p' and is Mastodon-verified" in s for s in steps
+    )
 
 
 def test_diagnose_mastodon_link_api_fail(mocker):
@@ -129,11 +143,17 @@ def test_diagnose_mastodon_link_fallback_verified(mocker):
     mock_api_r.__enter__.return_value = mock_api_r
 
     mocker.patch("urllib.request.urlopen", return_value=mock_api_r)
-    mocker.patch("pypi_profile.verifier.fetch_page", return_value="pypi-profile-proof: token")
+    mocker.patch(
+        "pypi_profile.verifier.fetch_page", return_value="pypi-profile-proof: token"
+    )
     mocker.patch("pypi_profile.verifier.find_proof_tokens", return_value=["token"])
-    mocker.patch("pypi_profile.verifier.diagnose_tokens", return_value=("verified", ["step"]))
+    mocker.patch(
+        "pypi_profile.verifier.diagnose_tokens", return_value=("verified", ["step"])
+    )
 
-    status, steps = diagnose_mastodon_link(link, profile_package="p", public_key_b64="pk")
+    status, steps = diagnose_mastodon_link(
+        link, profile_package="p", public_key_b64="pk"
+    )
     assert status == "verified"
     assert "step" in steps
 
@@ -150,7 +170,11 @@ def test_diagnose_tokens_expired(mocker):
     )
     mocker.patch("pypi_profile.verifier.is_expired", return_value=True)
     status, steps = diagnose_tokens(
-        ["token"], subject_url="url", pypi_username="u", profile_package="p", public_key_b64="pk"
+        ["token"],
+        subject_url="url",
+        pypi_username="u",
+        profile_package="p",
+        public_key_b64="pk",
     )
     assert status == "expired"
     assert any("Claim expired" in s for s in steps)
@@ -163,7 +187,11 @@ def test_diagnose_tokens_no_pk(mocker):
     )
     mocker.patch("pypi_profile.verifier.is_expired", return_value=False)
     status, steps = diagnose_tokens(
-        ["token"], subject_url="url", pypi_username="u", profile_package="p", public_key_b64=""
+        ["token"],
+        subject_url="url",
+        pypi_username="u",
+        profile_package="p",
+        public_key_b64="",
     )
     assert status == "unverified"
     assert any("No public_key in [verification]" in s for s in steps)

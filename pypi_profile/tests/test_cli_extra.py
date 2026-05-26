@@ -44,7 +44,13 @@ def test_cli_key_list(capsys, mocker):
     mocker.patch(
         "pypi_profile.key_management.key_list",
         return_value=[
-            {"identity_or_path": "label", "key_id": "KID", "source": "src", "public_key": "pub", "binding": "bind"}
+            {
+                "identity_or_path": "label",
+                "key_id": "KID",
+                "source": "src",
+                "public_key": "pub",
+                "binding": "bind",
+            }
         ],
     )
 
@@ -69,7 +75,9 @@ def test_cli_key_export(capsys, mocker, tmp_path):
         },
     )
 
-    with patch.object(sys, "argv", ["pypi-profile", "key-export", "--output", str(out_path)]):
+    with patch.object(
+        sys, "argv", ["pypi-profile", "key-export", "--output", str(out_path)]
+    ):
         assert main() == 0
 
     out, _ = capsys.readouterr()

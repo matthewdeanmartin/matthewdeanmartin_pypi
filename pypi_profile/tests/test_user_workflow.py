@@ -104,7 +104,11 @@ def edit_profile(toml_path: Path, proof_url: str, tmp_path: Path) -> Path:
         ),
     )
     text = replace_once(text, 'name = "your-package"', 'name = "workflow-package"')
-    text = replace_once(text, 'summary = "A Python package."', 'summary = "Exercises the end-to-end user workflow."')
+    text = replace_once(
+        text,
+        'summary = "A Python package."',
+        'summary = "Exercises the end-to-end user workflow."',
+    )
     text = replace_once(
         text,
         "[hiring]\n",
@@ -120,7 +124,9 @@ def edit_profile(toml_path: Path, proof_url: str, tmp_path: Path) -> Path:
     )
     toml_path.write_text(text, encoding="utf-8")
 
-    sk_path, pk_path, _public_key = generate_keypair(key_dir=tmp_path / "keys", password="", force=True)
+    sk_path, pk_path, _public_key = generate_keypair(
+        key_dir=tmp_path / "keys", password="", force=True
+    )
     patched_public_key = patch_public_key_in_toml(toml_path, pk_path)
     assert patched_public_key
     return sk_path
@@ -142,7 +148,9 @@ def update_proofs(toml_path: Path, secret_key_path: Path) -> str:
     return profile.profiles[0].stored_proof
 
 
-def test_init_phase_creates_a_starter_profile(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_init_phase_creates_a_starter_profile(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     toml_path = tmp_path / "pypi_profile.toml"
 
     run_init(toml_path)
@@ -157,7 +165,9 @@ def test_init_phase_creates_a_starter_profile(tmp_path: Path, capsys: pytest.Cap
     assert profile.profiles[0].url == "https://github.com/alice"
 
 
-def test_edit_phase_keeps_manual_changes_loadable(tmp_path: Path, proof_page_server: ProofPageServer) -> None:
+def test_edit_phase_keeps_manual_changes_loadable(
+    tmp_path: Path, proof_page_server: ProofPageServer
+) -> None:
     toml_path = tmp_path / "pypi_profile.toml"
     run_init(toml_path)
 
@@ -166,7 +176,10 @@ def test_edit_phase_keeps_manual_changes_loadable(tmp_path: Path, proof_page_ser
     profile = load_profile(toml_path)
 
     assert profile.profile.display_name == "Alice Example"
-    assert profile.profile.summary == "Builds packaging tools and publishes a verified profile site."
+    assert (
+        profile.profile.summary
+        == "Builds packaging tools and publishes a verified profile site."
+    )
     assert profile.profiles[0].label == "Proof page"
     assert profile.profiles[0].url == proof_page_server.url
     assert profile.packages[0].name == "workflow-package"
@@ -193,13 +206,17 @@ def test_update_and_verify_phases_cover_live_proof_publication(
     captured = capsys.readouterr()
 
     assert stored_proof.startswith("pypi-profile-proof:")
-    assert 'stored_proof = "pypi-profile-proof:' in toml_path.read_text(encoding="utf-8")
+    assert 'stored_proof = "pypi-profile-proof:' in toml_path.read_text(
+        encoding="utf-8"
+    )
     assert "Proof page" in captured.out
     assert "verified" in captured.out
     assert "1/1 claims verified." in captured.out
 
 
-def test_build_phase_publishes_the_verified_static_site(tmp_path: Path, proof_page_server: ProofPageServer) -> None:
+def test_build_phase_publishes_the_verified_static_site(
+    tmp_path: Path, proof_page_server: ProofPageServer
+) -> None:
     from pypi_profile.cli import cmd_build, cmd_verify
 
     toml_path = tmp_path / "pypi_profile.toml"
@@ -211,11 +228,21 @@ def test_build_phase_publishes_the_verified_static_site(tmp_path: Path, proof_pa
     proof_page_server.publish(f"<html><body>{stored_proof}</body></html>")
     cmd_verify(argparse.Namespace(source=str(toml_path), profile_package=""))
 
-    cmd_build(argparse.Namespace(source=str(toml_path), output=str(output_path), resume_file="", base_url=""))
+    cmd_build(
+        argparse.Namespace(
+            source=str(toml_path), output=str(output_path), resume_file="", base_url=""
+        )
+    )
 
-    verification_data = json.loads((output_path / "api" / "verification.json").read_text(encoding="utf-8"))
-    profile_data = json.loads((output_path / "api" / "profile.json").read_text(encoding="utf-8"))
-    projects_html = (output_path / "projects" / "index.html").read_text(encoding="utf-8")
+    verification_data = json.loads(
+        (output_path / "api" / "verification.json").read_text(encoding="utf-8")
+    )
+    profile_data = json.loads(
+        (output_path / "api" / "profile.json").read_text(encoding="utf-8")
+    )
+    projects_html = (output_path / "projects" / "index.html").read_text(
+        encoding="utf-8"
+    )
 
     assert (output_path / "index.html").exists()
     assert verification_data["static_mode"] is True
