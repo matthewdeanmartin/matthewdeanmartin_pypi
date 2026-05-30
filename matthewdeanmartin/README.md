@@ -24,3 +24,10 @@ pipx inject pypi-profile matthewdeanmartin
 
 - Get the package [pypi-profile](https://pypi.org/project/pypi-profile/)
 - Read the [docs](https://matthewdeanmartin-pypi.readthedocs.io/en/latest/)
+
+## Project Links
+
+- [GitHub](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi)
+- [PyPI](https://pypi.org/project/matthewdeanmartin/)
+- [Bug Tracker](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues)
+- [Change Log](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/matthewdeanmartin/CHANGELOG.md)

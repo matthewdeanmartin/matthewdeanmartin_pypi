@@ -106,3 +106,11 @@ Not associated with the PSF. Trademarked logos are removed from the profile UI.
 
 [PyPI's template and theme](https://github.com/pypi/warehouse/blob/main/LICENSE) are Apache-licensed via
 Warehouse.
+
+## Project Links
+
+- [GitHub](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi)
+- [PyPI](https://pypi.org/project/pypi-profile/)
+- [Documentation](https://matthewdeanmartin-pypi.readthedocs.io/en/latest/)
+- [Bug Tracker](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues)
+- [Change Log](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/pypi_profile/CHANGELOG.md)
