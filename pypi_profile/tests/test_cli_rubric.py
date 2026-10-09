@@ -7,6 +7,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from typing import Any
 
@@ -19,9 +20,7 @@ SCRIPT_PATH = REPO_ROOT / "scripts" / "delete_failed_github_actions.py"
 
 
 def _load_delete_failed_script() -> Any:
-    spec = importlib.util.spec_from_file_location(
-        "delete_failed_github_actions", SCRIPT_PATH
-    )
+    spec = importlib.util.spec_from_file_location("delete_failed_github_actions", SCRIPT_PATH)
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -39,17 +38,19 @@ def _subcommands() -> list[str]:
     raise AssertionError("Could not find CLI subcommands.")
 
 
-def test_console_entry_point_help_and_version_render() -> None:
+def test_console_entry_point_help_and_version_render(tmp_path: Path) -> None:
+    scripts = Path(sysconfig.get_path("scripts"))
+    entry_point = scripts / ("pypi-profile.exe" if sys.platform == "win32" else "pypi-profile")
     help_result = subprocess.run(
-        ["uv", "run", "pypi-profile", "--help"],
-        cwd=REPO_ROOT,
+        [str(entry_point), "--help"],
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         check=False,
     )
     version_result = subprocess.run(
-        ["uv", "run", "pypi-profile", "--version"],
-        cwd=REPO_ROOT,
+        [str(entry_point), "--version"],
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         check=False,
@@ -82,12 +83,8 @@ def test_missing_required_value_returns_usage_code_and_stderr(
     assert "Profile source is required" in err
 
 
-def test_fetch_json_output_is_machine_readable(
-    capsys: pytest.CaptureFixture[str], mocker: Any, tmp_path: Path
-) -> None:
-    mocker.patch(
-        "pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml"
-    )
+def test_fetch_json_output_is_machine_readable(capsys: pytest.CaptureFixture[str], mocker: Any, tmp_path: Path) -> None:
+    mocker.patch("pypi_profile.loader.find_profile", return_value=tmp_path / "pypi_profile.toml")
     mock_profile = mocker.patch("pypi_profile.loader.load_profile").return_value
     mock_profile.profile.display_name = "Alice"
     mock_profile.profiles = []
@@ -100,9 +97,7 @@ def test_fetch_json_output_is_machine_readable(
         return_value=[{"name": "demo", "status": "confirmed"}],
     )
 
-    args = argparse.Namespace(
-        source=str(tmp_path / "pypi_profile.toml"), json=True, dry_run=False
-    )
+    args = argparse.Namespace(source=str(tmp_path / "pypi_profile.toml"), json=True, dry_run=False)
     cmd_fetch(args)
 
     out, err = capsys.readouterr()
@@ -112,14 +107,10 @@ def test_fetch_json_output_is_machine_readable(
     assert payload["package_comparison"][0]["status"] == "confirmed"
 
 
-def test_key_list_json_output_is_machine_readable(
-    capsys: pytest.CaptureFixture[str], mocker: Any
-) -> None:
+def test_key_list_json_output_is_machine_readable(capsys: pytest.CaptureFixture[str], mocker: Any) -> None:
     mocker.patch(
         "pypi_profile.key_management.key_list",
-        return_value=[
-            {"identity_or_path": "alice", "key_id": "kid-1", "source": "keyring"}
-        ],
+        return_value=[{"identity_or_path": "alice", "key_id": "kid-1", "source": "keyring"}],
     )
 
     args = argparse.Namespace(json=True, dry_run=False)

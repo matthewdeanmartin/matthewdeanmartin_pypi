@@ -114,3 +114,18 @@ Warehouse.
 - [Documentation](https://matthewdeanmartin-pypi.readthedocs.io/en/latest/)
 - [Bug Tracker](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues)
 - [Change Log](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/pypi_profile/CHANGELOG.md)
+
+
+## Python 3.15 final verification — 2026-10-09
+
+**Core supported on the tested Windows x86-64 environment:** all 347 tests pass on Python 3.15.0 final with stable published dependency wheels, including Pydantic 2.14.0/core 2.50.0. Both the local wheel and published PyPI 0.3.0 pass installed CLI help/version and real localhost HTTP checks. Existing stdlib JSON/TOML serialization works without orjson or rtoml; dependency prereleases are no longer needed.
+
+The optional `fast` extra still lacks a compatible rtoml wheel. The complete development group remains wheels-only blocked by PyYAML and source-only linkcheckmd. The workspace lock was refreshed with `uv lock --upgrade` and passes `uv lock --check`; this does not certify all development dependencies. No runtime code change, native compilation, GitHub job or upstream report was needed.
+
+GitHub Actions now has a separate Python 3.15.0 final application-test job for Linux and Windows. It requires stable published dependency wheels and tests the existing portable JSON/TOML backends. The broader quality gates and publishing builds stay on Python 3.14 while developer-wheel blockers remain. The Python setup action is upgraded to pinned v7.0.0.
+
+## Python 3.15 verification — 2026-10-04 (historical)
+
+347 tests and installed CLI help pass on 3.15.0rc3 with actual Pydantic 2.14.0b2/core 2.49.0 wheels, and on Python 3.14.7. Stable RC3 Pydantic core is wheel-blocked. The optional fast extra remains RC3 wheel-blocked by rtoml; existing portable serialization passes without orjson/rtoml. The CLI subprocess test now runs the installed executable from the tested environment outside the checkout, avoiding implicit workspace installs. No new runtime fallback was added.
+
+Dependencies were required to have published wheels; own pure-Python workspace wheels were built locally without build isolation. Locks were refreshed with uv lock --upgrade. Full developer stacks remain separately wheel-blocked (PyYAML or source-only linkcheckmd). No upstream reports or GitHub jobs were sent; bug filing belongs to the human operator.

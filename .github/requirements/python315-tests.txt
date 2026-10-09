@@ -1,0 +1,12 @@
+# Minimal wheel-published test tools; the complete dev group has wheel blockers.
+hatchling>=1.27.0
+pytest>=8.4.0
+pytest-cov>=6.0.0
+pytest-timeout>=2.4.0
+pytest-mock>=3.14.0
+pytest-asyncio
+hypothesis>=6.100.0
+pyparsing>=3.0.9
+# Third-party FastAPI TestClient uses legacy HTTPX; owned clients use HTTPX2.
+httpx>=0.27,<1
+httpx2>=2.0,<3
