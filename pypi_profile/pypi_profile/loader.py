@@ -26,11 +26,7 @@ def load_profile(path: Path, *, autopatch_public_key: bool = True) -> ProfileDat
     if path.name == "pyproject.toml":
         raw = raw.get("tool", {}).get("pypi-profile", {})
     profile = ProfileData.model_validate(raw)
-    if (
-        autopatch_public_key
-        and not profile.verification.public_key
-        and path.name == "pypi_profile.toml"
-    ):
+    if autopatch_public_key and not profile.verification.public_key and path.name == "pypi_profile.toml":
         try:
             from pypi_profile.signing import patch_public_key_in_toml
 
@@ -38,9 +34,7 @@ def load_profile(path: Path, *, autopatch_public_key: bool = True) -> ProfileDat
             if pub_b64:
                 profile.verification.public_key = pub_b64
         except (ImportError, OSError, ValueError):
-            logger.warning(
-                "Could not auto-patch public key into %s", path, exc_info=True
-            )
+            logger.warning("Could not auto-patch public key into %s", path, exc_info=True)
     logger.debug("Loaded profile for %r", profile.profile.display_name)
     return profile
 
@@ -73,9 +67,7 @@ def find_installed_profile_files() -> list[Path]:
     for entry_point in meta.entry_points(group="pypi_profile.plugins"):
         module_name = entry_point.value.partition(":")[0]
         try:
-            candidate = Path(
-                str(resources.files(module_name).joinpath("pypi_profile.toml"))
-            )
+            candidate = Path(str(resources.files(module_name).joinpath("pypi_profile.toml")))
         except (ModuleNotFoundError, TypeError):
             continue
         if candidate.exists():
@@ -97,9 +89,7 @@ def discover_installed_profiles() -> list[tuple[str, Path, ProfileData]]:
     for entry_point in meta.entry_points(group="pypi_profile.plugins"):
         module_name = entry_point.value.partition(":")[0]
         try:
-            candidate = Path(
-                str(resources.files(module_name).joinpath("pypi_profile.toml"))
-            )
+            candidate = Path(str(resources.files(module_name).joinpath("pypi_profile.toml")))
         except (ModuleNotFoundError, TypeError):
             continue
         if candidate.exists():

@@ -18,13 +18,7 @@ from pathlib import Path
 from tkinter import filedialog, font, scrolledtext, ttk
 from typing import Any, Literal, TypedDict, Union, cast
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib
+import tomllib
 
 TkVar = Union[tk.StringVar, tk.BooleanVar]
 
@@ -134,9 +128,7 @@ def has_signing_key() -> bool:
     try:
         backend = keyring.get_keyring()
         if not isinstance(backend, keyring.backends.fail.Keyring):
-            keyring.get_password(
-                "pypi-profile", keyring.get_keyring().__class__.__name__
-            )
+            keyring.get_password("pypi-profile", keyring.get_keyring().__class__.__name__)
             # Any non-fail backend counts — we can't easily check without knowing the username yet
             # so just confirm the backend is usable; load_secret_key will resolve the rest.
             return True
@@ -216,9 +208,7 @@ def profile_text(path_str: str) -> str:
         for lnk in profiles:
             vstat = lnk.get("verification", "self_asserted")
             proof = "✓" if lnk.get("stored_proof") else "·"
-            lines.append(
-                f"  {proof} {lnk.get('label', lnk.get('kind', '?'))}: {lnk.get('url', '')}"
-            )
+            lines.append(f"  {proof} {lnk.get('label', lnk.get('kind', '?'))}: {lnk.get('url', '')}")
             if vstat not in ("self_asserted", ""):
                 lines.append(f"      verification: {vstat}")
         lines.append("")
@@ -229,9 +219,7 @@ def profile_text(path_str: str) -> str:
         for c in contacts:
             vis = c.get("visibility", "public")
             aud = ", ".join(c.get("audience", []))
-            lines.append(
-                f"  - {c.get('label', c.get('kind', '?'))}: {c.get('value', '')}  [{vis}] {aud}"
-            )
+            lines.append(f"  - {c.get('label', c.get('kind', '?'))}: {c.get('value', '')}  [{vis}] {aud}")
         lines.append("")
 
     hiring = data.get("hiring", {})
@@ -248,9 +236,7 @@ def profile_text(path_str: str) -> str:
     if projects:
         lines.append(f"## Projects ({len(projects)})")
         for proj in projects:
-            lines.append(
-                f"  - **{proj.get('name', '?')}**  {proj.get('role', '')}  [{proj.get('state', '')}]"
-            )
+            lines.append(f"  - **{proj.get('name', '?')}**  {proj.get('role', '')}  [{proj.get('state', '')}]")
             if proj.get("url"):
                 lines.append(f"      {proj['url']}")
         lines.append("")
@@ -495,8 +481,7 @@ COMMANDS: list[GuiCommand] = [
             "--url: the full URL to your profile on that platform\n"
             "--label: display label (defaults to the platform name)\n"
             "--rel-me: set rel_me = true (for IndieWeb / webfinger verification)\n\n"  # nosec: B608
-            "Supported platforms:\n"
-            + "\n".join(f"  {s['label']}: {s['notes']}" for s in IDENTITY_SITES)
+            "Supported platforms:\n" + "\n".join(f"  {s['label']}: {s['notes']}" for s in IDENTITY_SITES)
         ),
         "args": [
             {
@@ -1116,11 +1101,7 @@ class PypiProfileGui(tk.Tk):
         # Global signing key — source of truth for all signing commands.
         # Default to keyring if available; fall back to disk path.
         keyring_available = detect_keyring_status().startswith("active")
-        default_key = (
-            KEYRING_SENTINEL
-            if keyring_available
-            else str(Path("~/.pypi_profile/minisign.key").expanduser())
-        )
+        default_key = KEYRING_SENTINEL if keyring_available else str(Path("~/.pypi_profile/minisign.key").expanduser())
         self.global_key_path = tk.StringVar(value=default_key)
         self.global_key_path.trace_add("write", self.on_key_changed)
         self.global_key_password = tk.StringVar(value="")
@@ -1153,9 +1134,7 @@ class PypiProfileGui(tk.Tk):
         label_width = 11
 
         top_bar = tk.Frame(self, bd=1, relief=tk.GROOVE)
-        top_bar.grid(
-            row=0, column=1, columnspan=2, sticky="ew", padx=(0, 4), pady=(4, 0)
-        )
+        top_bar.grid(row=0, column=1, columnspan=2, sticky="ew", padx=(0, 4), pady=(4, 0))
         top_bar.columnconfigure(1, weight=2)
         top_bar.columnconfigure(4, weight=1)
 
@@ -1169,9 +1148,7 @@ class PypiProfileGui(tk.Tk):
                 padx=4,
             ).grid(row=row, column=col, sticky="e", pady=2)
 
-        def val_lbl(
-            parent: tk.Frame, var: tk.StringVar, row: int, col: int, columnspan: int = 1
-        ) -> None:
+        def val_lbl(parent: tk.Frame, var: tk.StringVar, row: int, col: int, columnspan: int = 1) -> None:
             tk.Label(
                 parent,
                 textvariable=var,
@@ -1196,12 +1173,8 @@ class PypiProfileGui(tk.Tk):
             state="normal",
             font=font_value,
         )
-        self.profile_picker.grid(
-            row=0, column=1, columnspan=2, sticky="ew", pady=(4, 2), padx=(0, 4)
-        )
-        self.profile_picker.bind(
-            "<<ComboboxSelected>>", self.on_profile_picker_selected
-        )
+        self.profile_picker.grid(row=0, column=1, columnspan=2, sticky="ew", pady=(4, 2), padx=(0, 4))
+        self.profile_picker.bind("<<ComboboxSelected>>", self.on_profile_picker_selected)
         self.profile_picker.bind("<Return>", self.on_profile_picker_selected)
 
         tk.Button(
@@ -1240,9 +1213,7 @@ class PypiProfileGui(tk.Tk):
             state="normal",
             font=font_value,
         )
-        self.key_picker.grid(
-            row=2, column=1, columnspan=2, sticky="ew", pady=2, padx=(0, 4)
-        )
+        self.key_picker.grid(row=2, column=1, columnspan=2, sticky="ew", pady=2, padx=(0, 4))
         self.key_picker.bind("<<ComboboxSelected>>", self.on_key_picker_selected)
         self.key_picker.bind("<Return>", self.on_key_picker_selected)
         self.after(150, self.refresh_key_list)
@@ -1274,9 +1245,7 @@ class PypiProfileGui(tk.Tk):
             font=font_value,
             anchor="w",
         )
-        self.bar_key_label.grid(
-            row=3, column=1, columnspan=2, sticky="ew", pady=2, padx=(0, 4)
-        )
+        self.bar_key_label.grid(row=3, column=1, columnspan=2, sticky="ew", pady=2, padx=(0, 4))
 
         tk.Label(
             top_bar,
@@ -1378,9 +1347,7 @@ class PypiProfileGui(tk.Tk):
         args_outer.columnconfigure(0, weight=1)
         self.args_frame = args_outer
 
-        tk.Label(
-            center, text="Output", anchor="w", font=("Helvetica", 10, "bold")
-        ).grid(row=2, column=0, sticky="w")
+        tk.Label(center, text="Output", anchor="w", font=("Helvetica", 10, "bold")).grid(row=2, column=0, sticky="w")
 
         self.output = scrolledtext.ScrolledText(center, font=mono, wrap=tk.WORD)
         self.output.grid(row=3, column=0, sticky="nsew")
@@ -1415,9 +1382,7 @@ class PypiProfileGui(tk.Tk):
         )
         self.open_btn.pack(side=tk.LEFT, padx=(0, 4))
         self.status_var = tk.StringVar(value="")
-        self.status_label = tk.Label(
-            btn_bar, textvariable=self.status_var, fg="#888888"
-        )
+        self.status_label = tk.Label(btn_bar, textvariable=self.status_var, fg="#888888")
         self.status_label.pack(side=tk.LEFT, padx=8)
 
     def build_right_panel(self) -> None:
@@ -1426,12 +1391,10 @@ class PypiProfileGui(tk.Tk):
         right.rowconfigure(1, weight=1)
         right.columnconfigure(0, weight=1)
 
-        tk.Label(
-            right, text="Help", font=("Helvetica", 11, "bold"), anchor="w", pady=4
-        ).grid(row=0, column=0, sticky="ew", padx=6)
-        self.help_text = scrolledtext.ScrolledText(
-            right, font=("Helvetica", 10), wrap=tk.WORD, relief=tk.FLAT
+        tk.Label(right, text="Help", font=("Helvetica", 11, "bold"), anchor="w", pady=4).grid(
+            row=0, column=0, sticky="ew", padx=6
         )
+        self.help_text = scrolledtext.ScrolledText(right, font=("Helvetica", 10), wrap=tk.WORD, relief=tk.FLAT)
         self.help_text.grid(row=1, column=0, sticky="nsew", padx=4, pady=(0, 4))
         self.help_text.insert(tk.END, HELP_INTRO)
         self.help_text.config(state=tk.DISABLED)
@@ -1456,11 +1419,7 @@ class PypiProfileGui(tk.Tk):
         kind, display = classify_key(info["public_key"])
         self.bar_key_var.set(display)
         if hasattr(self, "bar_key_label"):
-            color = (
-                "#006600"
-                if kind == "public"
-                else ("#cc0000" if kind == "private" else "#888888")
-            )
+            color = "#006600" if kind == "public" else ("#cc0000" if kind == "private" else "#888888")
             self.bar_key_label.config(fg=color)
 
     def update_keyring_identity_hint(self) -> None:
@@ -1599,11 +1558,7 @@ class PypiProfileGui(tk.Tk):
         set_var(label_var, chosen_label)
         cmd = self.current_cmd
         if cmd and cmd["name"] == "add-identity-site":
-            extra = (
-                f"\nSelected platform: {chosen_label}"
-                f"\nURL template: {site['url_template']}"
-                f"\nNotes: {site['notes']}"
-            )
+            extra = f"\nSelected platform: {chosen_label}\nURL template: {site['url_template']}\nNotes: {site['notes']}"
             self.update_help(cmd["help"] + extra)
 
     # ── Command selection ─────────────────────────────────────────────────
@@ -1654,9 +1609,9 @@ class PypiProfileGui(tk.Tk):
         self.arg_widgets.clear()
 
         if not cmd["args"]:
-            tk.Label(
-                self.args_frame, text="No arguments needed.", fg="#888888", pady=4
-            ).grid(row=0, column=0, columnspan=3, padx=8)
+            tk.Label(self.args_frame, text="No arguments needed.", fg="#888888", pady=4).grid(
+                row=0, column=0, columnspan=3, padx=8
+            )
             return
 
         self.args_frame.columnconfigure(1, weight=1)
@@ -1667,10 +1622,7 @@ class PypiProfileGui(tk.Tk):
 
             # Determine live default for this field
             default: str | bool
-            if flag in KEY_FLAGS:
-                default = self.global_key_path.get()
-            else:
-                default = arg["default"]
+            default = self.global_key_path.get() if flag in KEY_FLAGS else arg["default"]
 
             tk.Label(self.args_frame, text=label_text + ":", anchor="e").grid(
                 row=row_i, column=0, sticky="e", padx=(8, 4), pady=3
@@ -1678,9 +1630,7 @@ class PypiProfileGui(tk.Tk):
 
             if kind == "bool":
                 bool_var = tk.BooleanVar(value=bool(default))
-                tk.Checkbutton(self.args_frame, variable=bool_var).grid(
-                    row=row_i, column=1, sticky="w", pady=3
-                )
+                tk.Checkbutton(self.args_frame, variable=bool_var).grid(row=row_i, column=1, sticky="w", pady=3)
                 self.arg_widgets[flag] = bool_var
 
             elif kind == "choice":
@@ -1700,13 +1650,9 @@ class PypiProfileGui(tk.Tk):
             elif kind == "password":
                 password_var = tk.StringVar(value=str(default))
                 pw_frame = tk.Frame(self.args_frame)
-                pw_frame.grid(
-                    row=row_i, column=1, columnspan=2, sticky="ew", pady=3, padx=(0, 8)
-                )
+                pw_frame.grid(row=row_i, column=1, columnspan=2, sticky="ew", pady=3, padx=(0, 8))
                 pw_frame.columnconfigure(0, weight=1)
-                tk.Entry(pw_frame, textvariable=password_var, show="*", width=36).grid(
-                    row=0, column=0, sticky="ew"
-                )
+                tk.Entry(pw_frame, textvariable=password_var, show="*", width=36).grid(row=0, column=0, sticky="ew")
                 tk.Label(
                     pw_frame,
                     text="Leave blank — keyring handles this automatically.",
@@ -1959,9 +1905,7 @@ class PypiProfileGui(tk.Tk):
                 return
 
             if not serve_dir.is_dir():
-                self.append_output(
-                    f"\nERROR: build output directory not found: {serve_dir}\n"
-                )
+                self.append_output(f"\nERROR: build output directory not found: {serve_dir}\n")
                 self.schedule_on_done(1, cmd_ref)
                 return
 
@@ -1974,9 +1918,7 @@ class PypiProfileGui(tk.Tk):
                     client_address: tuple[str, int],
                     server: socketserver.BaseServer,
                 ) -> None:
-                    super().__init__(
-                        request, client_address, server, directory=serve_dir_str
-                    )
+                    super().__init__(request, client_address, server, directory=serve_dir_str)
 
                 def log_message(  # pylint: disable=arguments-differ,redefined-builtin
                     self, format: str, *args: object
@@ -2005,9 +1947,7 @@ class PypiProfileGui(tk.Tk):
         """Show current proof tokens from the TOML with per-platform paste instructions."""
         source = self.active_source.get().strip()
         if not source:
-            self.append_output(
-                "No profile selected. Choose a pypi_profile.toml in the top bar.\n"
-            )
+            self.append_output("No profile selected. Choose a pypi_profile.toml in the top bar.\n")
             self.after(0, lambda: self.finish_current_command(1))
             return
 
@@ -2059,9 +1999,7 @@ class PypiProfileGui(tk.Tk):
             kind = entry.get("kind", "other")
             label = entry.get("label", kind)
             proof = entry.get("stored_proof", "")
-            hint = PASTE_HINTS.get(
-                kind, "Paste the token somewhere visible on the page."
-            )
+            hint = PASTE_HINTS.get(kind, "Paste the token somewhere visible on the page.")
 
             lines.append(f"\n{label}  —  {url}\n")
             lines.append(f"Where to paste: {hint}\n")
@@ -2070,9 +2008,7 @@ class PypiProfileGui(tk.Tk):
                 lines.append("\nToken:\n")
                 lines.append(proof + "\n")
             else:
-                lines.append(
-                    "\n(No token yet — run 'Update Proofs' to generate one.)\n"
-                )
+                lines.append("\n(No token yet — run 'Update Proofs' to generate one.)\n")
 
             lines.append("-" * 72 + "\n")
 
@@ -2181,8 +2117,7 @@ class PypiProfileGui(tk.Tk):
         template = site["url_template"] if site else ""
         if not url or (template and url == template):
             self.append_output(
-                "ERROR: Please fill in the Profile URL field with your actual profile URL.\n"
-                f"Template was: {template}\n"
+                f"ERROR: Please fill in the Profile URL field with your actual profile URL.\nTemplate was: {template}\n"
             )
             self.after(0, lambda: self.finish_current_command(1))
             return
@@ -2209,9 +2144,7 @@ class PypiProfileGui(tk.Tk):
 
             self.append_output(f"Added [[profiles]] entry to {p}\n\n")
             self.append_output(new_block)
-            self.append_output(
-                "\nNext step: run 'Update Proofs' to sign this URL and embed the proof.\n"
-            )
+            self.append_output("\nNext step: run 'Update Proofs' to sign this URL and embed the proof.\n")
             self.after(0, lambda: self.finish_current_command(0))
             self.active_source.set(source)
         except OSError as exc:
@@ -2235,11 +2168,7 @@ class PypiProfileGui(tk.Tk):
         # Check current_cmd (not finished cmd) — prevents a background task from enabling
         # Run after the user has already switched to a readonly command.
         current = self.current_cmd
-        if (
-            current is not None
-            and not current["readonly"]
-            and self.running_proc is None
-        ):
+        if current is not None and not current["readonly"] and self.running_proc is None:
             self.run_btn.config(state=tk.NORMAL)
         msg = f"Exited {rc}"
         self.status_var.set(msg)

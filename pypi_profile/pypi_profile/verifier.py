@@ -11,7 +11,7 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from pypi_profile.claims import (
@@ -69,9 +69,7 @@ def import_minisign() -> Any:
         return minisign
     except ImportError as exc:
         logger.debug("py-minisign not installed; verification unavailable")
-        raise ImportError(
-            "py-minisign is required for verification. Install it with: uv add py-minisign"
-        ) from exc
+        raise ImportError("py-minisign is required for verification. Install it with: uv add py-minisign") from exc
 
 
 def fetch_page(url: str) -> str:
@@ -142,7 +140,7 @@ def verify_tiny_token(
         return "invalid"
 
     if now is None:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
     current_year = now.year
 
     ed_pk = Ed25519PublicKey.from_public_bytes(raw_pk)
@@ -364,9 +362,7 @@ def diagnose_tokens(  # pylint: disable=too-many-return-statements
 
     if not tokens:
         steps.append("No pypi-profile-proof tokens found on page.")
-        steps.append(
-            "Paste the proof string from 'Add proof-of-control' into the target page."
-        )
+        steps.append("Paste the proof string from 'Add proof-of-control' into the target page.")
         return "unverified", steps
 
     steps.append(f"Found {len(tokens)} proof token(s) on page.")
@@ -375,9 +371,7 @@ def diagnose_tokens(  # pylint: disable=too-many-return-statements
         if is_tiny_token(token_str):
             steps.append(f"Token {i} (tiny format): {len(token_str)} chars, sig-only.")
             if not public_key_b64:
-                steps.append(
-                    "  ↳ No public_key in [verification] — cannot verify tiny token."
-                )
+                steps.append("  ↳ No public_key in [verification] — cannot verify tiny token.")
                 return "unverified", steps
             status = verify_tiny_token(
                 token_str,
@@ -393,9 +387,7 @@ def diagnose_tokens(  # pylint: disable=too-many-return-statements
             continue
         if is_fingerprint_token(token_str):
             steps.append(f"Token {i} (fingerprint): {token_str!r}")
-            steps.append(
-                "  ↳ Fingerprint tokens need a resolver to fetch the full proof; skipping here."
-            )
+            steps.append("  ↳ Fingerprint tokens need a resolver to fetch the full proof; skipping here.")
             continue
 
         try:
@@ -416,32 +408,22 @@ def diagnose_tokens(  # pylint: disable=too-many-return-statements
             steps.append(f"  ↳ Subject mismatch: expected {subject_url!r}")
             continue
         if claim_username != pypi_username:
-            steps.append(
-                f"  ↳ Username mismatch: token has {claim_username!r}, expected {pypi_username!r}"
-            )
+            steps.append(f"  ↳ Username mismatch: token has {claim_username!r}, expected {pypi_username!r}")
             continue
         if claim_package != profile_package:
-            steps.append(
-                f"  ↳ Package mismatch: token has {claim_package!r}, expected {profile_package!r}"
-            )
+            steps.append(f"  ↳ Package mismatch: token has {claim_package!r}, expected {profile_package!r}")
             continue
 
         steps.append("  ↳ Subject, username, and package match.")
 
         if is_expired(claim):
             exp = claim.get("expires_at") or claim.get("e")
-            steps.append(
-                f"  ↳ Claim expired (expires_at: {exp}). Re-run: pypi-profile update-proofs <source>"
-            )
+            steps.append(f"  ↳ Claim expired (expires_at: {exp}). Re-run: pypi-profile update-proofs <source>")
             return "expired", steps
 
         if not public_key_b64:
-            steps.append(
-                "  ↳ No public_key in [verification] — cannot verify signature."
-            )
-            steps.append(
-                "    Run: pypi-profile keygen  and add the public key to your TOML."
-            )
+            steps.append("  ↳ No public_key in [verification] — cannot verify signature.")
+            steps.append("    Run: pypi-profile keygen  and add the public key to your TOML.")
             return "unverified", steps
 
         # Check signature format
@@ -453,9 +435,7 @@ def diagnose_tokens(  # pylint: disable=too-many-return-statements
             try:
                 padding = (4 - len(sig_raw) % 4) % 4
                 sig_bytes = base64.urlsafe_b64decode(sig_raw + "=" * padding)
-                steps.append(
-                    f"  ↳ Compact signature: {len(sig_bytes)} bytes (expected 64)."
-                )
+                steps.append(f"  ↳ Compact signature: {len(sig_bytes)} bytes (expected 64).")
                 if len(sig_bytes) != 64:
                     steps.append(
                         f"  ↳ Wrong length ({len(sig_bytes)}). Token was probably signed with an old format."
@@ -472,9 +452,7 @@ def diagnose_tokens(  # pylint: disable=too-many-return-statements
                 return "invalid", steps
             try:
                 sig_bytes = base64.standard_b64decode(sig_raw)
-                steps.append(
-                    f"  ↳ Full signature: {len(sig_bytes)} bytes (expected 74)."
-                )
+                steps.append(f"  ↳ Full signature: {len(sig_bytes)} bytes (expected 74).")
                 if len(sig_bytes) != 74:
                     steps.append(
                         f"  ↳ Wrong length ({len(sig_bytes)} bytes). "
@@ -506,12 +484,8 @@ def diagnose_tokens(  # pylint: disable=too-many-return-statements
             steps.append("  ↳ Signature valid. ✓")
             return "verified", steps
         steps.append("  ↳ Signature INVALID — does not verify against public key.")
-        steps.append(
-            "    Check that public_key in [verification] matches the key used to sign."
-        )
-        steps.append(
-            "    If you regenerated your keypair, re-run: pypi-profile update-proofs <source>"
-        )
+        steps.append("    Check that public_key in [verification] matches the key used to sign.")
+        steps.append("    If you regenerated your keypair, re-run: pypi-profile update-proofs <source>")
         return "invalid", steps
 
     steps.append(
@@ -536,9 +510,7 @@ def verify_mastodon_link(
     pypi_username: str = "",
 ) -> ClaimStatus:
     """Verify a Mastodon profile using the Mastodon API rel-me link check."""
-    status, _ = diagnose_mastodon_link(
-        link, profile_package, public_key_b64, pypi_username
-    )
+    status, _ = diagnose_mastodon_link(link, profile_package, public_key_b64, pypi_username)
     return status
 
 
@@ -563,9 +535,7 @@ def diagnose_mastodon_link(  # pylint: disable=too-many-return-statements
 
     m = re.match(r"https?://([^/]+)/@([^/]+)", link.url)
     if not m:
-        steps.append(
-            f"URL {link.url!r} does not look like a Mastodon profile URL (expected https://instance/@user)."
-        )
+        steps.append(f"URL {link.url!r} does not look like a Mastodon profile URL (expected https://instance/@user).")
         return "unverified", steps
 
     instance, username = m.group(1), m.group(2)
@@ -573,9 +543,7 @@ def diagnose_mastodon_link(  # pylint: disable=too-many-return-statements
     steps.append(f"Fetching Mastodon account via API: {api_url}")
 
     try:
-        req = urllib.request.Request(
-            api_url, headers={"User-Agent": "pypi-profile/0.1"}
-        )
+        req = urllib.request.Request(api_url, headers={"User-Agent": "pypi-profile/0.1"})
         with urllib.request.urlopen(req, timeout=10) as r:  # nosec B310
             data = json_module.loads(r.read().decode())
     except (OSError, ValueError, urllib.error.URLError) as exc:
@@ -598,33 +566,19 @@ def diagnose_mastodon_link(  # pylint: disable=too-many-return-statements
         # Mastodon wraps values in HTML; extract href URLs for matching.
         field_urls = extract_urls_from_field(raw_value)
         field_urls_str = ", ".join(field_urls)
-        steps.append(
-            f"  Field {name!r}: urls={field_urls_str}  verified_at={verified_at!r}"
-        )
+        steps.append(f"  Field {name!r}: urls={field_urls_str}  verified_at={verified_at!r}")
 
         for pattern in identity_patterns:
             if any(pattern in u for u in field_urls):
                 if verified_at:
-                    steps.append(
-                        f"  -> Contains {pattern!r} and is Mastodon-verified. ✓"
-                    )
+                    steps.append(f"  -> Contains {pattern!r} and is Mastodon-verified. ✓")
                     return "verified", steps
-                steps.append(
-                    f"  -> Contains {pattern!r} but NOT yet verified by Mastodon."
-                )
-                steps.append(
-                    "     Mastodon verifies links by checking for a rel='me' backlink."
-                )
-                steps.append(
-                    "     pypi.org/user/<name> pages don't carry rel='me', so this won't auto-verify."
-                )
-                steps.append(
-                    "     Use proof-token verification instead (see 'Add proof-of-control' below)."
-                )
+                steps.append(f"  -> Contains {pattern!r} but NOT yet verified by Mastodon.")
+                steps.append("     Mastodon verifies links by checking for a rel='me' backlink.")
+                steps.append("     pypi.org/user/<name> pages don't carry rel='me', so this won't auto-verify.")
+                steps.append("     Use proof-token verification instead (see 'Add proof-of-control' below).")
 
-    steps.append(
-        f"No Mastodon-verified field matching any of {identity_patterns} found."
-    )
+    steps.append(f"No Mastodon-verified field matching any of {identity_patterns} found.")
     steps.append("Falling back to proof-token check on the profile page...")
 
     try:
@@ -637,15 +591,11 @@ def diagnose_mastodon_link(  # pylint: disable=too-many-return-statements
     steps.append(f"Found {len(tokens)} proof token(s) on Mastodon profile page.")
 
     if not tokens:
-        steps.append(
-            "Paste your compact proof string into the Mastodon post bio or a pinned post."
-        )
+        steps.append("Paste your compact proof string into the Mastodon post bio or a pinned post.")
         return "unverified", steps
 
     if not public_key_b64:
-        steps.append(
-            "No public_key in [verification] — cannot verify proof token signature."
-        )
+        steps.append("No public_key in [verification] — cannot verify proof token signature.")
         return "unverified", steps
 
     status, token_steps = diagnose_tokens(
@@ -666,9 +616,7 @@ def verify_profile_link(
     pypi_username: str,
 ) -> ClaimStatus:
     """Fetch a profile URL and attempt to verify a proof-of-control claim."""
-    status, _ = diagnose_profile_link(
-        link, public_key_b64, profile_package, pypi_username
-    )
+    status, _ = diagnose_profile_link(link, public_key_b64, profile_package, pypi_username)
     return status
 
 
@@ -683,16 +631,12 @@ def diagnose_profile_link(
     hostname = urllib.parse.urlsplit(link.url).hostname or ""
 
     if hostname in SCRAPER_HOSTILE_DOMAINS:
-        steps.append(
-            f"{hostname} actively blocks automated requests — live verification is not possible."
-        )
+        steps.append(f"{hostname} actively blocks automated requests — live verification is not possible.")
         steps.append("Self-assertion is the only available option for this platform.")
         return "unverified", steps
 
     if link.kind == "mastodon":
-        return diagnose_mastodon_link(
-            link, profile_package, public_key_b64, pypi_username
-        )
+        return diagnose_mastodon_link(link, profile_package, public_key_b64, pypi_username)
 
     if not public_key_b64:
         steps.append("No public_key in [verification] — cannot verify any signatures.")
@@ -729,9 +673,7 @@ def verify_all_profiles(
     public_key_b64 = profile.verification.public_key
     pypi_username = profile.identity.pypi_username
 
-    logger.debug(
-        "Verifying %d profile link(s) for %r", len(profile.profiles), pypi_username
-    )
+    logger.debug("Verifying %d profile link(s) for %r", len(profile.profiles), pypi_username)
     results = []
     for link in profile.profiles:
         status: ClaimStatus = verify_profile_link(

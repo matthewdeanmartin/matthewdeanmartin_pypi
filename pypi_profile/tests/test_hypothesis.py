@@ -7,7 +7,7 @@ encoding/decoding roundtrips, regex parsing, sanitisation, and expiry logic.
 from __future__ import annotations
 
 import string
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -18,15 +18,13 @@ from hypothesis import strategies as st
 
 printable_text = st.text(alphabet=string.printable, min_size=0, max_size=200)
 safe_text = st.text(min_size=1, max_size=100)
-nonempty_text = st.text(
-    min_size=1, max_size=80, alphabet=string.ascii_letters + string.digits + "-_."
-)
+nonempty_text = st.text(min_size=1, max_size=80, alphabet=string.ascii_letters + string.digits + "-_.")
 
 # Reasonable datetimes — avoid edge cases like year 0 or year 9999 overflow
 reasonable_datetime = st.datetimes(
     min_value=datetime(2020, 1, 1),
     max_value=datetime(2035, 12, 31),
-    timezones=st.just(timezone.utc),
+    timezones=st.just(UTC),
 )
 
 
@@ -45,9 +43,7 @@ class TestClaimsEncodeDecodeRoundtrip:
         nonce=nonempty_text,
         issued=reasonable_datetime,
     )
-    def test_full_claim_roundtrip(
-        self, profile_package, pypi_username, subject_url, nonce, issued
-    ):
+    def test_full_claim_roundtrip(self, profile_package, pypi_username, subject_url, nonce, issued):
         from pypi_profile.claims import build_claim, decode_claim, encode_claim
 
         expires = issued + timedelta(days=365)
@@ -72,9 +68,7 @@ class TestClaimsEncodeDecodeRoundtrip:
         nonce=nonempty_text,
         issued=reasonable_datetime,
     )
-    def test_compact_claim_roundtrip(
-        self, profile_package, pypi_username, subject_url, nonce, issued
-    ):
+    def test_compact_claim_roundtrip(self, profile_package, pypi_username, subject_url, nonce, issued):
         from pypi_profile.claims import build_compact_claim, decode_claim, encode_claim
 
         expires = issued + timedelta(days=365)
@@ -107,9 +101,7 @@ class TestClaimsEncodeDecodeRoundtrip:
         pypi_username=nonempty_text,
         subject_url=nonempty_text,
     )
-    def test_encode_always_starts_with_prefix(
-        self, profile_package, pypi_username, subject_url
-    ):
+    def test_encode_always_starts_with_prefix(self, profile_package, pypi_username, subject_url):
         from pypi_profile.claims import PROOF_PREFIX, build_compact_claim, encode_claim
 
         claim = build_compact_claim(
@@ -147,9 +139,7 @@ class TestIsCompactClaim:
         pypi_username=nonempty_text,
         subject_url=nonempty_text,
     )
-    def test_compact_build_is_detected_as_compact(
-        self, profile_package, pypi_username, subject_url
-    ):
+    def test_compact_build_is_detected_as_compact(self, profile_package, pypi_username, subject_url):
         from pypi_profile.claims import build_compact_claim, is_compact_claim
 
         claim = build_compact_claim(
@@ -164,9 +154,7 @@ class TestIsCompactClaim:
         pypi_username=nonempty_text,
         subject_url=nonempty_text,
     )
-    def test_full_build_is_not_compact(
-        self, profile_package, pypi_username, subject_url
-    ):
+    def test_full_build_is_not_compact(self, profile_package, pypi_username, subject_url):
         from pypi_profile.claims import build_claim, is_compact_claim
 
         claim = build_claim(
@@ -189,7 +177,7 @@ class TestIsExpired:
     def test_future_expiry_not_expired_full_format(self, future_offset_days):
         from pypi_profile.claims import build_claim, is_expired
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         claim = build_claim(
             profile_package="pkg",
             pypi_username="user",
@@ -205,7 +193,7 @@ class TestIsExpired:
     def test_past_expiry_is_expired_full_format(self, past_offset_days):
         from pypi_profile.claims import build_claim, is_expired
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         claim = build_claim(
             profile_package="pkg",
             pypi_username="user",
@@ -221,7 +209,7 @@ class TestIsExpired:
     def test_future_expiry_not_expired_compact_format(self, future_offset_days):
         from pypi_profile.claims import build_compact_claim, is_expired
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         claim = build_compact_claim(
             profile_package="pkg",
             pypi_username="user",
@@ -235,7 +223,7 @@ class TestIsExpired:
     def test_past_expiry_is_expired_compact_format(self, past_offset_days):
         from pypi_profile.claims import build_compact_claim, is_expired
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         claim = build_compact_claim(
             profile_package="pkg",
             pypi_username="user",
@@ -266,7 +254,7 @@ class TestIsExpired:
         """Both formats must report the same expiry status for equivalent timestamps."""
         from pypi_profile.claims import build_claim, build_compact_claim, is_expired
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         expires = now + timedelta(days=future_offset_days)
         full_claim = build_claim(
             profile_package="pkg",
@@ -305,12 +293,8 @@ class TestBuildClaimTimestamps:
             key_id="AABB",
             issued_at=issued,
         )
-        issued_at = datetime.strptime(claim["issued_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
-            tzinfo=timezone.utc
-        )
-        expires_at = datetime.strptime(
-            claim["expires_at"], "%Y-%m-%dT%H:%M:%SZ"
-        ).replace(tzinfo=timezone.utc)
+        issued_at = datetime.strptime(claim["issued_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+        expires_at = datetime.strptime(claim["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
         assert expires_at > issued_at
 
     @given(issued=reasonable_datetime)
@@ -374,9 +358,7 @@ class TestFindProofTokens:
         pypi_username=nonempty_text,
         subject_url=nonempty_text,
     )
-    def test_encoded_claim_is_found_in_text(
-        self, profile_package, pypi_username, subject_url
-    ):
+    def test_encoded_claim_is_found_in_text(self, profile_package, pypi_username, subject_url):
         from pypi_profile.claims import build_compact_claim, encode_claim
         from pypi_profile.verifier import find_proof_tokens
 
@@ -407,9 +389,7 @@ class TestFindProofTokens:
         pypi_username=nonempty_text,
         subject_url=nonempty_text,
     )
-    def test_case_insensitive_prefix_is_found(
-        self, profile_package, pypi_username, subject_url
-    ):
+    def test_case_insensitive_prefix_is_found(self, profile_package, pypi_username, subject_url):
         from pypi_profile.claims import build_compact_claim, encode_claim
         from pypi_profile.verifier import find_proof_tokens
 
@@ -619,11 +599,7 @@ class TestShouldSkipDir:
 
         assert should_skip_dir(name) is True
 
-    @given(
-        name=st.sampled_from(
-            [".VENV", "VENV", ".Git", "NODE_MODULES", "__PYCACHE__", "DIST"]
-        )
-    )
+    @given(name=st.sampled_from([".VENV", "VENV", ".Git", "NODE_MODULES", "__PYCACHE__", "DIST"]))
     def test_skip_is_case_insensitive(self, name):
         from pypi_profile.finder import should_skip_dir
 

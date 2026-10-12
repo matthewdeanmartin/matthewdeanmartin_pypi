@@ -18,9 +18,7 @@ if TYPE_CHECKING:
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-JOHN_DOE_TOML = (
-    Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
-)
+JOHN_DOE_TOML = Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
 
 
 # ---------------------------------------------------------------------------
@@ -57,9 +55,7 @@ def minimal_profile() -> ProfileData:
     )
 
     return ProfileData(
-        profile=ProfileSection(
-            kind="individual", display_name="Alice Test", summary="A test profile"
-        ),
+        profile=ProfileSection(kind="individual", display_name="Alice Test", summary="A test profile"),
         identity=IdentitySection(
             pypi_username="alice_test",
             display_name="Alice Test",
@@ -129,9 +125,7 @@ def minimal_profile() -> ProfileData:
                 end_date="present",
             ),
         ],
-        hiring=HiringSection(
-            employment_types=["contracting"], work_model=["remote"], jurisdiction=["US"]
-        ),
+        hiring=HiringSection(employment_types=["contracting"], work_model=["remote"], jurisdiction=["US"]),
         succession=SuccessionSection(
             policy="Contact Jane if unreachable for 30 days.",
             last_reviewed="2026-01-01",
@@ -144,9 +138,7 @@ def minimal_profile() -> ProfileData:
                 )
             ],
         ),
-        verification=VerificationSection(
-            public_key="", preferred_signature_backend="minisign"
-        ),
+        verification=VerificationSection(public_key="", preferred_signature_backend="minisign"),
     )
 
 
@@ -386,9 +378,7 @@ class TestJsonApiMinimal:
         data = client.get("/api/people.json").json()
         assert data == []
 
-    def test_verification_json_stored_proof_gives_verified_status(
-        self, minimal_profile
-    ):
+    def test_verification_json_stored_proof_gives_verified_status(self, minimal_profile):
         from pypi_profile.server import build_app
 
         minimal_profile.profiles[0].stored_proof = "pypi-profile-proof: dummytoken"
@@ -398,9 +388,7 @@ class TestJsonApiMinimal:
         assert github_result["status"] == "verified"
         assert github_result["has_stored_proof"] is True
 
-    def test_verification_json_no_stored_proof_uses_verification_field(
-        self, minimal_profile
-    ):
+    def test_verification_json_no_stored_proof_uses_verification_field(self, minimal_profile):
         from pypi_profile.server import build_app
 
         minimal_profile.profiles[0].verification = "self_asserted"
@@ -417,9 +405,7 @@ class TestJsonApiMinimal:
 
 
 class TestStaticMode:
-    def test_static_mode_verification_no_live_requests(
-        self, minimal_profile: ProfileData, mocker: Any
-    ) -> None:
+    def test_static_mode_verification_no_live_requests(self, minimal_profile: ProfileData, mocker: Any) -> None:
         from pypi_profile.server import build_app
 
         mock_diagnose = mocker.patch("pypi_profile.verifier.diagnose_all_profiles")
@@ -427,14 +413,10 @@ class TestStaticMode:
         client.get("/api/verification.json")
         mock_diagnose.assert_not_called()
 
-    def test_dynamic_mode_calls_diagnose(
-        self, minimal_profile: ProfileData, mocker: Any
-    ) -> None:
+    def test_dynamic_mode_calls_diagnose(self, minimal_profile: ProfileData, mocker: Any) -> None:
         from pypi_profile.server import build_app
 
-        mock_diagnose = mocker.patch(
-            "pypi_profile.verifier.diagnose_all_profiles", return_value=[]
-        )
+        mock_diagnose = mocker.patch("pypi_profile.verifier.diagnose_all_profiles", return_value=[])
         client = TestClient(build_app(minimal_profile, static_mode=False))
         client.get("/api/verification.json")
         mock_diagnose.assert_called_once()
@@ -471,9 +453,7 @@ class TestContentTypes:
             "/succession",
         ]:
             r = minimal_client.get(path)
-            assert (
-                "text/html" in r.headers["content-type"]
-            ), f"Expected HTML content type for {path}"
+            assert "text/html" in r.headers["content-type"], f"Expected HTML content type for {path}"
 
     def test_json_endpoints_return_json_content_type(self, minimal_client):
         for path in [
@@ -484,9 +464,7 @@ class TestContentTypes:
             "/api/verification.json",
         ]:
             r = minimal_client.get(path)
-            assert (
-                "application/json" in r.headers["content-type"]
-            ), f"Expected JSON content type for {path}"
+            assert "application/json" in r.headers["content-type"], f"Expected JSON content type for {path}"
 
 
 # ---------------------------------------------------------------------------
@@ -498,18 +476,14 @@ class TestAllowCodeFlag:
     def test_summary_renders_with_allow_code_true(self, minimal_profile):
         from pypi_profile.server import build_app
 
-        client = TestClient(
-            build_app(minimal_profile, allow_code=True, static_mode=True)
-        )
+        client = TestClient(build_app(minimal_profile, allow_code=True, static_mode=True))
         r = client.get("/")
         assert r.status_code == 200
 
     def test_summary_renders_with_allow_code_false(self, minimal_profile):
         from pypi_profile.server import build_app
 
-        client = TestClient(
-            build_app(minimal_profile, allow_code=False, static_mode=True)
-        )
+        client = TestClient(build_app(minimal_profile, allow_code=False, static_mode=True))
         r = client.get("/")
         assert r.status_code == 200
 
@@ -523,20 +497,14 @@ class TestBaseUrl:
     def test_build_app_with_base_url(self, minimal_profile):
         from pypi_profile.server import build_app
 
-        client = TestClient(
-            build_app(
-                minimal_profile, base_url="/profiles/alice_test", static_mode=True
-            )
-        )
+        client = TestClient(build_app(minimal_profile, base_url="/profiles/alice_test", static_mode=True))
         r = client.get("/")
         assert r.status_code == 200
 
     def test_build_app_with_hub_base(self, minimal_profile):
         from pypi_profile.server import build_app
 
-        client = TestClient(
-            build_app(minimal_profile, hub_base="/profiles", static_mode=True)
-        )
+        client = TestClient(build_app(minimal_profile, hub_base="/profiles", static_mode=True))
         r = client.get("/")
         assert r.status_code == 200
 
@@ -552,17 +520,11 @@ class TestProfilePackageNaming:
 
         # When profile_package is empty, it should default to pypi-profile-{username}
         # Verify the app still builds and serves correctly
-        client = TestClient(
-            build_app(minimal_profile, profile_package="", static_mode=True)
-        )
+        client = TestClient(build_app(minimal_profile, profile_package="", static_mode=True))
         assert client.get("/api/profile.json").status_code == 200
 
     def test_explicit_package_name_accepted(self, minimal_profile):
         from pypi_profile.server import build_app
 
-        client = TestClient(
-            build_app(
-                minimal_profile, profile_package="custom-pkg-name", static_mode=True
-            )
-        )
+        client = TestClient(build_app(minimal_profile, profile_package="custom-pkg-name", static_mode=True))
         assert client.get("/api/profile.json").status_code == 200

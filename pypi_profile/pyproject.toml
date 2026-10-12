@@ -6,14 +6,13 @@ readme = "README.md"
 authors = [{ name = "Matthew Martin", email = "matthewdeanmartin@gmail.com" }]
 keywords = ["pypi", "profile"]
 license = "Apache-2.0"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -27,7 +26,6 @@ dependencies = [
     "uvicorn>=0.30.0",
     "jinja2>=3.1.0",
     "pydantic>=2.0.0",
-    "tomli>=2.0.0; python_version < '3.11'",
     "prompt-toolkit>=3.0.0",
     "keyring>=25.7.0",
     "py-minisign>=0.13.2",
@@ -126,10 +124,10 @@ dev = [
     "vulture>=2.11",
     "deadcode>=2.4.0",
     "griffe>=1.0.0",
-    "pydoclint>=0.8.0; python_version >= '3.10'",
+    "pydoclint>=0.8.0",
     "pydoctest==0.2.1",
-    "refurb>=2.0.0; python_version >= '3.10'",
-    "crosshair-tool>=0.0.80; python_version >= '3.10'",
+    "refurb>=2.0.0",
+    "crosshair-tool>=0.0.80",
     "deptry>=0.20.0",
     "import-linter>=2.0",
     "build>=1.5.0",
@@ -156,7 +154,7 @@ junit_family = "xunit1"
 
 [tool.black]
 line-length = 120
-target-version = ["py310"]
+target-version = ["py311"]
 include = '\.pyi?$'
 exclude = '''
 (
@@ -174,7 +172,7 @@ py_version = 310
 skip_gitignore = true
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 strict = true
 packages = ["pypi_profile", "tests"]
 
@@ -189,11 +187,11 @@ ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["B", "E", "F", "UP", "SIM", "RUF", "W"]
-ignore = ["E501", "UP007", "RUF001", "SIM108"]
+ignore = ["RUF100", "E501", "UP007", "RUF001", "SIM108"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["B011", "S101"]

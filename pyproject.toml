@@ -5,3 +5,6 @@ members = ["pypi_profile", "matthewdeanmartin", "john_doe"]
 
 [tool.uv.pip]
 universal = true
+
+[tool.ruff.lint]
+ignore = ["RUF100"]  # unused noqa differs across Python versions

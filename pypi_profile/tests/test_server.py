@@ -8,9 +8,7 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-JOHN_DOE_TOML = (
-    Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
-)
+JOHN_DOE_TOML = Path(__file__).parent.parent.parent / "john_doe" / "john_doe" / "pypi_profile.toml"
 
 
 @pytest.fixture()

@@ -75,9 +75,7 @@ def test_cli_key_export(capsys, mocker, tmp_path):
         },
     )
 
-    with patch.object(
-        sys, "argv", ["pypi-profile", "key-export", "--output", str(out_path)]
-    ):
+    with patch.object(sys, "argv", ["pypi-profile", "key-export", "--output", str(out_path)]):
         assert main() == 0
 
     out, _ = capsys.readouterr()

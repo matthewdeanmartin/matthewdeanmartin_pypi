@@ -7,7 +7,7 @@ import hashlib
 import logging
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from pypi_profile.serialization import json_dumps_bytes, json_loads
@@ -46,7 +46,7 @@ def build_claim(
 ) -> dict[str, Any]:
     """Return an unsigned full claim dict ready for signing."""
     if issued_at is None:
-        issued_at = datetime.now(tz=timezone.utc)
+        issued_at = datetime.now(tz=UTC)
     if expires_at is None:
         try:
             expires_at = issued_at.replace(year=issued_at.year + 1)
@@ -88,7 +88,7 @@ def build_compact_claim(
     Typical encoded length: ~360 chars — well under Mastodon's 500-char limit.
     """
     if issued_at is None:
-        issued_at = datetime.now(tz=timezone.utc)
+        issued_at = datetime.now(tz=UTC)
     if expires_at is None:
         try:
             expires_at = issued_at.replace(year=issued_at.year + 1)
@@ -130,7 +130,7 @@ def build_tiny_claim(
     Typical encoded length: ~88 chars (2-char prefix + 86-char base64url sig).
     """
     if year is None:
-        year = datetime.now(tz=timezone.utc).year
+        year = datetime.now(tz=UTC).year
     return {
         "p": profile_package,
         "u": pypi_username,
@@ -195,9 +195,7 @@ def fingerprint_of_full_proof(full_token: str, key_id_hex: str) -> str:
         raise ValueError("full_token must be non-empty")
     keyid = key_id_hex.lower().removeprefix("0x")[:16]
     if len(keyid) != 16:
-        raise ValueError(
-            f"key_id must be at least 8 bytes (16 hex chars), got {key_id_hex!r}"
-        )
+        raise ValueError(f"key_id must be at least 8 bytes (16 hex chars), got {key_id_hex!r}")
     digest = hashlib.blake2b(full_token.encode(), digest_size=8).hexdigest()
     return f"{FINGERPRINT_PREFIX}{keyid}:{digest}"
 
@@ -206,9 +204,7 @@ def parse_fingerprint(token: str) -> tuple[str, str]:
     """Return (key_id_hex, hash_hex) parsed from a fingerprint token."""
     token = token.strip()
     if not token.startswith(FINGERPRINT_PREFIX):
-        raise ValueError(
-            f"not a fingerprint token (missing {FINGERPRINT_PREFIX!r} prefix)"
-        )
+        raise ValueError(f"not a fingerprint token (missing {FINGERPRINT_PREFIX!r} prefix)")
     body = token[len(FINGERPRINT_PREFIX) :]
     parts = body.split(":")
     if len(parts) != 2 or len(parts[0]) != 16 or len(parts[1]) != 16:
@@ -218,9 +214,7 @@ def parse_fingerprint(token: str) -> tuple[str, str]:
 
 def is_tiny_token(s: str) -> bool:
     """Return True if s looks like a tiny token."""
-    return s.strip().startswith(TINY_PREFIX) and not s.strip().startswith(
-        FINGERPRINT_PREFIX
-    )
+    return s.strip().startswith(TINY_PREFIX) and not s.strip().startswith(FINGERPRINT_PREFIX)
 
 
 def is_fingerprint_token(s: str) -> bool:
@@ -263,7 +257,7 @@ def is_expired(claim: dict[str, Any]) -> bool:
         if not exp:
             return False
         try:
-            return datetime.now(tz=timezone.utc).timestamp() > int(exp)
+            return datetime.now(tz=UTC).timestamp() > int(exp)
         except (TypeError, ValueError):
             return False
 
@@ -271,12 +265,8 @@ def is_expired(claim: dict[str, Any]) -> bool:
     if not expires_str:
         return False
     try:
-        expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%SZ").replace(
-            tzinfo=timezone.utc
-        )
-        return datetime.now(tz=timezone.utc) > expires
+        expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+        return datetime.now(tz=UTC) > expires
     except ValueError:
-        logger.debug(
-            "Could not parse expires_at %r in claim", expires_str, exc_info=True
-        )
+        logger.debug("Could not parse expires_at %r in claim", expires_str, exc_info=True)
         return False

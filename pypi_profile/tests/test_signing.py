@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import sys
+from datetime import UTC
 
 import pytest
+import tomllib
 
 from pypi_profile.claims import (
     PROOF_PREFIX,
@@ -15,11 +16,6 @@ from pypi_profile.claims import (
     is_compact_claim,
     is_expired,
 )
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
 
 # --- claims.py tests --------------------------------------------------------
 
@@ -133,9 +129,7 @@ def test_generate_keypair_and_sign_verify(tmp_path):
     from pypi_profile.signing import generate_keypair, sign_controls_url
     from pypi_profile.verifier import verify_claim_signature
 
-    sk_path, pk_path, pub_b64 = generate_keypair(
-        key_dir=tmp_path, password="", force=True
-    )
+    sk_path, pk_path, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
     assert sk_path.exists()
     assert pk_path.exists()
     assert pub_b64
@@ -161,9 +155,7 @@ def test_compact_sign_verify_roundtrip(tmp_path):
     from pypi_profile.signing import generate_keypair, sign_controls_url
     from pypi_profile.verifier import verify_claim_signature
 
-    sk_path, _pk_path, pub_b64 = generate_keypair(
-        key_dir=tmp_path, password="", force=True
-    )
+    sk_path, _pk_path, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
 
     proof = sign_controls_url(
         profile_package="pypi-profile-test",
@@ -191,9 +183,7 @@ def test_compact_sign_verify_wrong_key(tmp_path):
     from pypi_profile.verifier import verify_claim_signature
 
     sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, password="", force=True)
-    _sk2, _pk2, pub_b64_other = generate_keypair(
-        key_dir=tmp_path / "other", password="", force=True
-    )
+    _sk2, _pk2, pub_b64_other = generate_keypair(key_dir=tmp_path / "other", password="", force=True)
 
     proof = sign_controls_url(
         profile_package="pypi-profile-test",
@@ -234,12 +224,8 @@ def test_verify_claim_signature_wrong_key(tmp_path):
     from pypi_profile.signing import generate_keypair, sign_controls_url
     from pypi_profile.verifier import verify_claim_signature
 
-    sk_path, _pk_path, _pub_b64 = generate_keypair(
-        key_dir=tmp_path, password="", force=True
-    )
-    _sk2, _pk2, pub_b64_other = generate_keypair(
-        key_dir=tmp_path / "other", password="", force=True
-    )
+    sk_path, _pk_path, _pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
+    _sk2, _pk2, pub_b64_other = generate_keypair(key_dir=tmp_path / "other", password="", force=True)
 
     proof = sign_controls_url(
         profile_package="pypi-profile-test",
@@ -472,8 +458,7 @@ def test_patch_proofs_distinct_per_url(tmp_path):
 
     # Proofs must be different (different subjects)
     assert (
-        proofs["https://github.com/testuser"]
-        != proofs["https://mastodon.social/@testuser/99999"]
+        proofs["https://github.com/testuser"] != proofs["https://mastodon.social/@testuser/99999"]
     ), "Both profiles received the same stored_proof — subject was not applied per URL"
 
     # Each proof must encode the correct subject URL
@@ -607,9 +592,7 @@ def test_tiny_sign_verify_rejects_wrong_key(tmp_path):
     from pypi_profile.verifier import verify_tiny_token
 
     sk_path, _pk, _pub = generate_keypair(key_dir=tmp_path, password="", force=True)
-    _sk2, _pk2, pub_b64_other = generate_keypair(
-        key_dir=tmp_path / "other", password="", force=True
-    )
+    _sk2, _pk2, pub_b64_other = generate_keypair(key_dir=tmp_path / "other", password="", force=True)
     tok = sign_controls_url(
         profile_package="pypi-profile-test",
         pypi_username="testuser",
@@ -631,7 +614,7 @@ def test_tiny_sign_verify_rejects_wrong_key(tmp_path):
 
 def test_tiny_accepts_prior_year(tmp_path):
     """A token signed last year is still accepted within the rolling window."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from pypi_profile.claims import encode_tiny_token, tiny_message_bytes
     from pypi_profile.signing import generate_keypair, load_secret_key
@@ -640,7 +623,7 @@ def test_tiny_accepts_prior_year(tmp_path):
     sk_path, _pk, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
     sk = load_secret_key(sk_path, password="")
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     past_year = now.year - TINY_ACCEPTED_YEARS_BACK
     msg = tiny_message_bytes(
         profile_package="pypi-profile-test",
@@ -664,7 +647,7 @@ def test_tiny_accepts_prior_year(tmp_path):
 
 
 def test_tiny_rejects_token_older_than_window(tmp_path):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from pypi_profile.claims import encode_tiny_token, tiny_message_bytes
     from pypi_profile.signing import generate_keypair, load_secret_key
@@ -673,7 +656,7 @@ def test_tiny_rejects_token_older_than_window(tmp_path):
     sk_path, _pk, pub_b64 = generate_keypair(key_dir=tmp_path, password="", force=True)
     sk = load_secret_key(sk_path, password="")
 
-    too_old_year = datetime.now(tz=timezone.utc).year - (TINY_ACCEPTED_YEARS_BACK + 1)
+    too_old_year = datetime.now(tz=UTC).year - (TINY_ACCEPTED_YEARS_BACK + 1)
     msg = tiny_message_bytes(
         profile_package="pypi-profile-test",
         pypi_username="testuser",

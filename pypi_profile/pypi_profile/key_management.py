@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import datetime
 import os
-import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -134,9 +133,7 @@ def key_info(
     generated = "unknown"
     if disk_key_path.exists():
         mtime = disk_key_path.stat().st_mtime
-        generated = datetime.datetime.fromtimestamp(
-            mtime, tz=datetime.timezone.utc
-        ).strftime("%Y-%m-%d")
+        generated = datetime.datetime.fromtimestamp(mtime, tz=datetime.UTC).strftime("%Y-%m-%d")
 
     toml_entries = load_all_toml_public_keys()
     binding = key_match_status(pub_b64, toml_entries)
@@ -178,9 +175,7 @@ def key_list(extra_dirs: list[Path] | None = None) -> list[dict[str, Any]]:
 
     if keyring_is_usable():
         for identity in ["default", keyring_username()]:
-            raw = load_key_bytes_from_keyring(
-                identity if identity != "default" else None
-            )
+            raw = load_key_bytes_from_keyring(identity if identity != "default" else None)
             if raw is None:
                 continue
             label = f"{KEYRING_SERVICE}/{identity}"
@@ -302,7 +297,7 @@ def key_rotate(
 
     archived_path: Path | None = None
     if old_sk_bytes is not None and not no_keep_old:
-        ts = datetime.datetime.now(tz=datetime.timezone.utc).strftime("%Y%m%d-%H%M%S")
+        ts = datetime.datetime.now(tz=datetime.UTC).strftime("%Y%m%d-%H%M%S")
         effective_dir = key_dir or DEFAULT_KEY_DIR
         archived_path = effective_dir / f"{DEFAULT_SK_NAME}.{ts}.bak"
         archived_path.write_bytes(old_sk_bytes)
@@ -346,13 +341,7 @@ def key_recover(
             "message": "Key found — use key-rotate instead of key-recover.",
         }
 
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib
+    import tomllib
 
     urls_with_proofs: list[str] = []
     if toml_path.exists():
@@ -429,9 +418,7 @@ def key_export(
     elif env_path:
         disk_path = Path(env_path).expanduser()
         if not disk_path.exists():
-            raise FileNotFoundError(
-                f"Secret key not found at {disk_path} (from PYPI_PROFILE_KEY_PATH)"
-            )
+            raise FileNotFoundError(f"Secret key not found at {disk_path} (from PYPI_PROFILE_KEY_PATH)")
         sk_bytes = disk_path.read_bytes()
         source = str(disk_path)
     elif keyring_is_usable():
@@ -467,9 +454,7 @@ def key_export(
         }
 
     if output_path is None:
-        raise ValueError(
-            "output_path is required for key-export (never write key material to stdout)"
-        )
+        raise ValueError("output_path is required for key-export (never write key material to stdout)")
 
     output_path.write_bytes(sk_bytes)
     return {
@@ -512,9 +497,7 @@ def key_import(
     key_id = derive_key_id(sk_bytes)
 
     if disk_path.exists() and not force:
-        raise FileExistsError(
-            f"Key already exists at {disk_path}. Use --force to overwrite."
-        )
+        raise FileExistsError(f"Key already exists at {disk_path}. Use --force to overwrite.")
 
     stored_keyring = False
     if not no_keyring and keyring_is_usable():

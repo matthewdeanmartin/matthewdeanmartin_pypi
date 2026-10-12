@@ -88,9 +88,7 @@ def test_key_info_disk(tmp_path, mocker, mock_minisign):
     mock_sk.get_public_key.return_value = mock_pk
     mock_minisign.return_value = mock_sk
 
-    mocker.patch(
-        "pypi_profile.key_management.load_all_toml_public_keys", return_value=[]
-    )
+    mocker.patch("pypi_profile.key_management.load_all_toml_public_keys", return_value=[])
 
     info = key_info(sk_path=sk_path)
     assert info["not_found"] is False
@@ -101,9 +99,7 @@ def test_key_info_disk(tmp_path, mocker, mock_minisign):
 
 def test_key_list(mocker, mock_minisign):
     mocker.patch("pypi_profile.key_management.keyring_is_usable", return_value=False)
-    mocker.patch(
-        "pypi_profile.key_management.load_all_toml_public_keys", return_value=[]
-    )
+    mocker.patch("pypi_profile.key_management.load_all_toml_public_keys", return_value=[])
 
     # Mocking Path.glob and exists is tricky, let's just mock the whole search part or use tmp_path
     mocker.patch("pathlib.Path.is_dir", return_value=False)
@@ -203,9 +199,7 @@ def test_key_rotate_success(tmp_path, mocker):
         "pypi_profile.key_management.generate_keypair",
         return_value=(tmp_path / "new.key", tmp_path / "new.pub", "newpubb64"),
     )
-    mocker.patch(
-        "pypi_profile.key_management.patch_proofs_in_toml", return_value=["url1"]
-    )
+    mocker.patch("pypi_profile.key_management.patch_proofs_in_toml", return_value=["url1"])
 
     mock_sk = MagicMock()
     mock_sk._keynum_sk.key_id = b"\x01\x02\x03\x04\x05\x06\x07\x08"
@@ -232,9 +226,7 @@ def test_key_recover_success(tmp_path, mocker):
         "pypi_profile.key_management.generate_keypair",
         return_value=(tmp_path / "new.key", tmp_path / "new.pub", "newpubb64"),
     )
-    mocker.patch(
-        "pypi_profile.key_management.patch_proofs_in_toml", return_value=["url1"]
-    )
+    mocker.patch("pypi_profile.key_management.patch_proofs_in_toml", return_value=["url1"])
     mocker.patch("pypi_profile.key_management.patch_public_key_in_toml")
 
     mock_sk = MagicMock()

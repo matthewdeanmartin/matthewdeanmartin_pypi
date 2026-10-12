@@ -112,9 +112,7 @@ def wants_interactive(args: argparse.Namespace) -> bool:
         return False
     if getattr(args, "interactive", False):
         if not can_prompt():
-            raise CliError(
-                "--interactive requires an interactive terminal.", EXIT_USAGE
-            )
+            raise CliError("--interactive requires an interactive terminal.", EXIT_USAGE)
         return True
     return can_prompt()
 
@@ -172,14 +170,10 @@ def require_value(
     if current:
         return current
     if wants_interactive(args):
-        value = prompt_text(
-            label, default=default, required=True, choices=choices, secret=secret
-        )
+        value = prompt_text(label, default=default, required=True, choices=choices, secret=secret)
         setattr(args, name, value)
         return value
-    raise CliError(
-        f"{label} is required. Re-run with --interactive to be prompted.", EXIT_USAGE
-    )
+    raise CliError(f"{label} is required. Re-run with --interactive to be prompted.", EXIT_USAGE)
 
 
 def maybe_prompt_value(
@@ -202,9 +196,7 @@ def maybe_prompt_value(
     return default
 
 
-def maybe_prompt_bool(
-    args: argparse.Namespace, name: str, *, label: str, default: bool = False
-) -> bool:
+def maybe_prompt_bool(args: argparse.Namespace, name: str, *, label: str, default: bool = False) -> bool:
     """Prompt for a boolean value only when interactive mode is enabled and the default is still in use."""
     current = bool(getattr(args, name, default))
     if current != default:
@@ -215,9 +207,7 @@ def maybe_prompt_bool(
     return current
 
 
-def maybe_prompt_path(
-    args: argparse.Namespace, name: str, *, label: str, default: str = ""
-) -> str:
+def maybe_prompt_path(args: argparse.Namespace, name: str, *, label: str, default: str = "") -> str:
     """Prompt for a path-like argument when interactive mode is enabled."""
     return maybe_prompt_value(args, name, label=label, default=default)
 
@@ -226,11 +216,7 @@ def raise_invalid_profile(toml_path: Path, errors: Sequence[Any]) -> None:
     """Raise a formatted validation failure."""
     lines = [f"INVALID: {toml_path}"]
     for err in errors:
-        loc = (
-            " -> ".join(str(part) for part in err["loc"])
-            if err.get("loc")
-            else "(root)"
-        )
+        loc = " -> ".join(str(part) for part in err["loc"]) if err.get("loc") else "(root)"
         lines.append(f"  {loc}: {err['msg']}")
     raise CliError("\n".join(lines), EXIT_USAGE)
 
@@ -244,9 +230,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
     maybe_prompt_path(args, "source", label="Profile source (leave blank for hub mode)")
     args.host = maybe_prompt_value(args, "host", label="Host", default="127.0.0.1")
     args.port = int(maybe_prompt_value(args, "port", label="Port", default="8000"))
-    args.allow_code = maybe_prompt_bool(
-        args, "allow_code", label="Allow plugin code execution", default=False
-    )
+    args.allow_code = maybe_prompt_bool(args, "allow_code", label="Allow plugin code execution", default=False)
 
     if not args.source:
         # Hub mode: no source given — discover all installed profiles.
@@ -342,12 +326,8 @@ def key_status() -> str:
 
 def cmd_validate(args: argparse.Namespace) -> None:
     """Validate a pypi_profile.toml — thin shim kept for backward compatibility."""
-    args.path = maybe_prompt_path(
-        args, "path", label="Profile source", default="pypi_profile.toml"
-    )
-    args.source = getattr(args, "source", None) or getattr(
-        args, "path", "pypi_profile.toml"
-    )
+    args.path = maybe_prompt_path(args, "path", label="Profile source", default="pypi_profile.toml")
+    args.source = getattr(args, "source", None) or getattr(args, "path", "pypi_profile.toml")
     args.no_validate = False
     cmd_inspect(args)
 
@@ -361,12 +341,8 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     if is_dry_run(args):
         if dest.exists() and not args.force:
-            logger.error(
-                "Output file %s already exists (use --force to overwrite)", dest
-            )
-            raise CliError(
-                f"{dest} already exists. Use --force to overwrite.", EXIT_USAGE
-            )
+            logger.error("Output file %s already exists (use --force to overwrite)", dest)
+            raise CliError(f"{dest} already exists. Use --force to overwrite.", EXIT_USAGE)
         if args.from_json_resume:
             jrp = Path(args.from_json_resume)
             if not jrp.exists():
@@ -457,18 +433,14 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     # Optionally fetch live data
     if args.fetch:
-        pypi_username = (
-            profile_data.get("identity", {}).get("pypi_username", "") or username
-        )
+        pypi_username = profile_data.get("identity", {}).get("pypi_username", "") or username
         github_url = ""
         for p in profile_data.get("profiles", []):
             if p.get("kind") == "github":
                 github_url = p.get("url", "")
                 break
         if not pypi_username and not github_url:
-            print(
-                "WARNING: --fetch requires --username or a GitHub profile in JSON Resume. Skipping live fetch."
-            )
+            print("WARNING: --fetch requires --username or a GitHub profile in JSON Resume. Skipping live fetch.")
         else:
             import re
 
@@ -493,9 +465,7 @@ def cmd_init(args: argparse.Namespace) -> None:
                     live["github"] = fetch_github_profile(gh_user)
                     print(f"Fetching GitHub repos for {gh_user!r} ...")
                     live["github_repos"] = fetch_github_repos(gh_user)
-                    print(
-                        f"  Found {len(live.get('github_repos', []))} repos on GitHub."
-                    )
+                    print(f"  Found {len(live.get('github_repos', []))} repos on GitHub.")
                     print(f"Fetching FUNDING.yml from GitHub for {gh_user!r} ...")
                     gh_funding = fetch_github_funding(gh_user)
                     if gh_funding:
@@ -511,14 +481,10 @@ def cmd_init(args: argparse.Namespace) -> None:
     write_toml_from_data(dest, profile_data, username=username, kind=kind)
     print(f"Created {dest}")
     if not args.fetch:
-        print(
-            "Tip: run with --fetch to pre-fill data from PyPI/GitHub/GitLab/Mastodon."
-        )
+        print("Tip: run with --fetch to pre-fill data from PyPI/GitHub/GitLab/Mastodon.")
 
 
-def write_toml_from_data(
-    dest: Path, data: dict[str, Any], username: str = "", kind: str = "individual"
-) -> None:
+def write_toml_from_data(dest: Path, data: dict[str, Any], username: str = "", kind: str = "individual") -> None:
     """Write a pypi_profile.toml from a merged data dict."""
 
     profile_sec = data.get("profile", {})
@@ -536,18 +502,10 @@ def write_toml_from_data(
     verification = data.get("verification", {})
     funding = data.get("funding", {})
 
-    display_name = (
-        profile_sec.get("display_name", "")
-        or identity_sec.get("display_name", "")
-        or "Your Name"
-    )
-    summary = (
-        profile_sec.get("summary", "") or "Python developer and package publisher."
-    )
+    display_name = profile_sec.get("display_name", "") or identity_sec.get("display_name", "") or "Your Name"
+    summary = profile_sec.get("summary", "") or "Python developer and package publisher."
     legal_name = identity_sec.get("legal_name", "") or display_name
-    pypi_username = (
-        identity_sec.get("pypi_username", "") or username or "your-pypi-username"
-    )
+    pypi_username = identity_sec.get("pypi_username", "") or username or "your-pypi-username"
     timezone = identity_sec.get("timezone", "") or "UTC"
     location = identity_sec.get("location", "") or ""
 
@@ -573,11 +531,11 @@ def write_toml_from_data(
         humans = [{"id": pypi_username, "display_name": display_name, "role": "Owner"}]
     for h in humans:
         lines.append("[[humans]]")
-        lines.append(f'id = {toml_str(h.get("id", pypi_username))}')
-        lines.append(f'display_name = {toml_str(h.get("display_name", display_name))}')
-        lines.append(f'role = {toml_str(h.get("role", "Owner"))}')
+        lines.append(f"id = {toml_str(h.get('id', pypi_username))}")
+        lines.append(f"display_name = {toml_str(h.get('display_name', display_name))}")
+        lines.append(f"role = {toml_str(h.get('role', 'Owner'))}")
         if h.get("bio"):
-            lines.append(f'bio = {toml_str(h["bio"])}')
+            lines.append(f"bio = {toml_str(h['bio'])}")
         lines.append("")
 
     # Profiles (external links)
@@ -592,9 +550,9 @@ def write_toml_from_data(
         ]
     for p in profiles:
         lines.append("[[profiles]]")
-        lines.append(f'kind = {toml_str(p.get("kind", "website"))}')
-        lines.append(f'label = {toml_str(p.get("label", ""))}')
-        lines.append(f'url = {toml_str(p.get("url", ""))}')
+        lines.append(f"kind = {toml_str(p.get('kind', 'website'))}")
+        lines.append(f"label = {toml_str(p.get('label', ''))}")
+        lines.append(f"url = {toml_str(p.get('url', ''))}")
         lines.append('verification = "self_asserted"')
         lines.append("")
 
@@ -611,25 +569,25 @@ def write_toml_from_data(
         ]
     for c in contact_methods:
         lines.append("[[contact_methods]]")
-        lines.append(f'kind = {toml_str(c.get("kind", "email"))}')
-        lines.append(f'label = {toml_str(c.get("label", ""))}')
-        lines.append(f'value = {toml_str(c.get("value", ""))}')
+        lines.append(f"kind = {toml_str(c.get('kind', 'email'))}")
+        lines.append(f"label = {toml_str(c.get('label', ''))}")
+        lines.append(f"value = {toml_str(c.get('value', ''))}")
         audience = c.get("audience", [])
         lines.append(f"audience = {_json_dumps(audience)}")
-        lines.append(f'visibility = {toml_str(c.get("visibility", "public"))}')
+        lines.append(f"visibility = {toml_str(c.get('visibility', 'public'))}")
         lines.append("")
 
     # Packages
     if packages:
         for pkg in packages:
             lines.append("[[packages]]")
-            lines.append(f'name = {toml_str(pkg.get("name", ""))}')
-            lines.append(f'role = {toml_str(pkg.get("role", "maintainer"))}')
-            lines.append(f'state = {toml_str(pkg.get("state", "active"))}')
+            lines.append(f"name = {toml_str(pkg.get('name', ''))}")
+            lines.append(f"role = {toml_str(pkg.get('role', 'maintainer'))}")
+            lines.append(f"state = {toml_str(pkg.get('state', 'active'))}")
             if pkg.get("summary"):
-                lines.append(f'summary = {toml_str(pkg["summary"])}')
+                lines.append(f"summary = {toml_str(pkg['summary'])}")
             if pkg.get("url"):
-                lines.append(f'url = {toml_str(pkg["url"])}')
+                lines.append(f"url = {toml_str(pkg['url'])}")
             lines.append("")
     else:
         lines.append("[[packages]]")
@@ -642,44 +600,42 @@ def write_toml_from_data(
     # Projects
     for proj in projects:
         lines.append("[[projects]]")
-        lines.append(f'name = {toml_str(proj.get("name", ""))}')
-        lines.append(f'url = {toml_str(proj.get("url", ""))}')
-        lines.append(f'role = {toml_str(proj.get("role", "creator"))}')
-        lines.append(f'state = {toml_str(proj.get("state", "active"))}')
+        lines.append(f"name = {toml_str(proj.get('name', ''))}")
+        lines.append(f"url = {toml_str(proj.get('url', ''))}")
+        lines.append(f"role = {toml_str(proj.get('role', 'creator'))}")
+        lines.append(f"state = {toml_str(proj.get('state', 'active'))}")
         if proj.get("summary"):
-            lines.append(f'summary = {toml_str(proj["summary"])}')
+            lines.append(f"summary = {toml_str(proj['summary'])}")
         lines.append("")
 
     # Work experience
     for w in work_experience:
         lines.append("[[work_experience]]")
-        lines.append(f'organization = {toml_str(w.get("organization", ""))}')
-        lines.append(f'title = {toml_str(w.get("title", ""))}')
-        lines.append(f'start_date = {toml_str(w.get("start_date", ""))}')
-        lines.append(f'end_date = {toml_str(w.get("end_date", "present"))}')
+        lines.append(f"organization = {toml_str(w.get('organization', ''))}")
+        lines.append(f"title = {toml_str(w.get('title', ''))}")
+        lines.append(f"start_date = {toml_str(w.get('start_date', ''))}")
+        lines.append(f"end_date = {toml_str(w.get('end_date', 'present'))}")
         if w.get("summary"):
-            lines.append(f'summary = {toml_str(w["summary"])}')
+            lines.append(f"summary = {toml_str(w['summary'])}")
         lines.append("")
 
     # Hiring
     lines.append("[hiring]")
-    lines.append(
-        f'open_to_work_since = {toml_str(hiring.get("open_to_work_since", ""))}'
-    )
+    lines.append(f"open_to_work_since = {toml_str(hiring.get('open_to_work_since', ''))}")
     et = hiring.get("employment_types", [])
     lines.append(f"employment_types = {_json_dumps(et)}")
     wm = hiring.get("work_model", [])
     lines.append(f"work_model = {_json_dumps(wm)}")
     jur = hiring.get("jurisdiction", [])
     lines.append(f"jurisdiction = {_json_dumps(jur)}")
-    lines.append(f'speaking = {toml_bool(hiring.get("speaking", False))}')
-    lines.append(f'sponsorship = {toml_bool(hiring.get("sponsorship", False))}')
+    lines.append(f"speaking = {toml_bool(hiring.get('speaking', False))}")
+    lines.append(f"sponsorship = {toml_bool(hiring.get('sponsorship', False))}")
     lines.append("")
 
     # Contracting
     if contracting:
         lines.append("[contracting]")
-        lines.append(f'legal_entity = {toml_str(contracting.get("legal_entity", ""))}')
+        lines.append(f"legal_entity = {toml_str(contracting.get('legal_entity', ''))}")
         et = contracting.get("engagement_types", [])
         lines.append(f"engagement_types = {_json_dumps(et)}")
         lines.append("")
@@ -705,9 +661,7 @@ def write_toml_from_data(
 
     # Verification
     lines.append("[verification]")
-    lines.append(
-        f'public_key = {toml_str(verification.get("public_key", "") if verification else "")}'
-    )
+    lines.append(f"public_key = {toml_str(verification.get('public_key', '') if verification else '')}")
     lines.append('preferred_signature_backend = "minisign"')
     lines.append("")
 
@@ -762,25 +716,17 @@ def cmd_inspect(args: argparse.Namespace) -> None:
         profile = load_profile(toml_path, autopatch_public_key=False)
     except ValidationError as exc:
         if no_validate:
-            logger.debug(
-                "Schema validation failed (ignored due to --no-validate): %s", exc
-            )
-            print(
-                "WARNING: schema errors present (run without --no-validate to see them)"
-            )
+            logger.debug("Schema validation failed (ignored due to --no-validate): %s", exc)
+            print("WARNING: schema errors present (run without --no-validate to see them)")
             # Load raw TOML for partial display
             from pypi_profile.serialization import TOMLDecodeError, toml_load_path
 
             try:
                 raw = toml_load_path(toml_path)
                 print(f"Profile file: {toml_path}")
-                print(
-                    f"Principal:    {raw.get('profile', {}).get('display_name', '?')!r}"
-                )
+                print(f"Principal:    {raw.get('profile', {}).get('display_name', '?')!r}")
             except (OSError, TOMLDecodeError) as raw_exc:
-                logger.debug(
-                    "Could not read raw TOML for inspect fallback: %s", raw_exc
-                )
+                logger.debug("Could not read raw TOML for inspect fallback: %s", raw_exc)
             return
         logger.error("Profile validation failed: %s", exc)
         raise_invalid_profile(toml_path, exc.errors())
@@ -831,9 +777,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     if is_dry_run(args):
         print_dry_run(
             "doctor would inspect config files, signing keys, and bundled resources.",
-            [
-                "checks=config file, public key, signing key, bundled templates/static assets, optional deps"
-            ],
+            ["checks=config file, public key, signing key, bundled templates/static assets, optional deps"],
         )
         return
 
@@ -874,13 +818,9 @@ def cmd_doctor(args: argparse.Namespace) -> None:
         for p in found_configs:
             ok_check("profile config", str(p))
         if len(found_configs) > 1:
-            info_check(
-                "multiple configs found", "only the first will be used by most commands"
-            )
+            info_check("multiple configs found", "only the first will be used by most commands")
     else:
-        info_check(
-            "no pypi_profile.toml found in current directory", "run: pypi-profile init"
-        )
+        info_check("no pypi_profile.toml found in current directory", "run: pypi-profile init")
     if not json_mode:
         print()
 
@@ -898,9 +838,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
             if profile.verification.public_key:
                 ok_check("public_key present in [verification]")
             else:
-                info_check(
-                    "public_key missing from [verification]", "run: pypi-profile keygen"
-                )
+                info_check("public_key missing from [verification]", "run: pypi-profile keygen")
         except (OSError, ValidationError, ValueError):
             info_check("could not parse pypi_profile.toml to check public key")
     else:
@@ -992,9 +930,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 
     summary = "All required checks passed." if ok else "Some required checks failed."
     if wants_json_output(args):
-        emit_json(
-            {"ok": ok, "version": __version__, "checks": findings, "summary": summary}
-        )
+        emit_json({"ok": ok, "version": __version__, "checks": findings, "summary": summary})
         return
     print(summary)
     if not ok:
@@ -1032,9 +968,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         print(f"Fetching live data for: {profile.profile.display_name!r}")
         print()
 
-    live = fetch_all(
-        profile, verbose=True, include_owned=getattr(args, "include_owned", False)
-    )
+    live = fetch_all(profile, verbose=True, include_owned=getattr(args, "include_owned", False))
     report = compare_packages(profile, live)
 
     if wants_json_output(args):
@@ -1057,13 +991,9 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             "no_data": "❓",
             "unverified": "❓",
         }.get(item["status"], "❓")
-        print(
-            f"  {status_icon} {item['name']!r} (asserted: {item['asserted_role']}) — {item['note']}"
-        )
+        print(f"  {status_icon} {item['name']!r} (asserted: {item['asserted_role']}) — {item['note']}")
         if item.get("pypi_version"):
-            print(
-                f"      latest version: {item['pypi_version']}  {item.get('pypi_summary', '')[:80]}"
-            )
+            print(f"      latest version: {item['pypi_version']}  {item.get('pypi_summary', '')[:80]}")
 
     if live.get("github"):
         gh = live["github"]
@@ -1101,9 +1031,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
         print()
         print("=== Build identities (PyPI Trusted Publishers) ===")
         for ident in build_idents:
-            label = (
-                f"{ident.get('kind', '')}:{ident.get('repository', '') or '(unknown)'}"
-            )
+            label = f"{ident.get('kind', '')}:{ident.get('repository', '') or '(unknown)'}"
             extras = []
             if ident.get("workflow"):
                 extras.append(f"workflow={ident['workflow']}")
@@ -1112,9 +1040,7 @@ def cmd_fetch(args: argparse.Namespace) -> None:
             suffix = f"  ({', '.join(extras)})" if extras else ""
             print(f"  {label}{suffix}")
             pkgs = ident.get("packages") or []
-            print(
-                f"      {ident.get('file_count', 0)} file(s) across {len(pkgs)} package(s): {', '.join(pkgs)}"
-            )
+            print(f"      {ident.get('file_count', 0)} file(s) across {len(pkgs)} package(s): {', '.join(pkgs)}")
             if ident.get("identity_url"):
                 print(f"      {ident['identity_url']}")
 
@@ -1126,18 +1052,10 @@ def cmd_keygen(args: argparse.Namespace) -> None:
     from pypi_profile.signing import DEFAULT_KEY_DIR, DEFAULT_PK_NAME, DEFAULT_SK_NAME
 
     args.key_dir = maybe_prompt_path(args, "key_dir", label="Key directory", default="")
-    args.password = maybe_prompt_value(
-        args, "password", label="Key password", default="", secret=True
-    )
-    args.keyring_identity = maybe_prompt_value(
-        args, "keyring_identity", label="Keyring identity", default=""
-    )
-    args.no_keyring = maybe_prompt_bool(
-        args, "no_keyring", label="Store only on disk", default=False
-    )
-    args.force = maybe_prompt_bool(
-        args, "force", label="Overwrite existing keys", default=False
-    )
+    args.password = maybe_prompt_value(args, "password", label="Key password", default="", secret=True)
+    args.keyring_identity = maybe_prompt_value(args, "keyring_identity", label="Keyring identity", default="")
+    args.no_keyring = maybe_prompt_bool(args, "no_keyring", label="Store only on disk", default=False)
+    args.force = maybe_prompt_bool(args, "force", label="Overwrite existing keys", default=False)
 
     env_key_path = os.environ.get("PYPI_PROFILE_KEY_PATH", "")
     if args.key_dir:
@@ -1164,9 +1082,7 @@ def cmd_keygen(args: argparse.Namespace) -> None:
                     if isinstance(username, str):
                         keyring_identity_arg = username
             except (OSError, TOMLDecodeError) as exc:
-                logger.debug(
-                    "Could not derive keyring identity from local TOML: %s", exc
-                )
+                logger.debug("Could not derive keyring identity from local TOML: %s", exc)
     keyring_identity: str | None = keyring_identity_arg or None
     store_in_keyring: bool = not getattr(args, "no_keyring", False)
 
@@ -1183,9 +1099,7 @@ def cmd_keygen(args: argparse.Namespace) -> None:
             f"force={args.force}",
         ]
         if Path("pypi_profile.toml").exists():
-            details.append(
-                "would also patch pypi_profile.toml with the generated public key if needed"
-            )
+            details.append("would also patch pypi_profile.toml with the generated public key if needed")
         print_dry_run("keygen would generate a minisign keypair.", details)
         return
 
@@ -1223,9 +1137,7 @@ def cmd_keygen(args: argparse.Namespace) -> None:
 
     if store_in_keyring and keyring_is_usable():
         username = keyring_username(keyring_identity)
-        print(
-            f"Key storage: system keyring (service='pypi-profile', username={username!r})"
-        )
+        print(f"Key storage: system keyring (service='pypi-profile', username={username!r})")
         print(f"  Disk copy also kept at {sk_path} as a fallback.")
         if not keyring_identity:
             print(
@@ -1234,9 +1146,7 @@ def cmd_keygen(args: argparse.Namespace) -> None:
             )
     else:
         print(f"Key storage: disk only ({sk_path})")
-        print(
-            "  Tip: use a keyring backend to avoid keeping the secret key as a plaintext file."
-        )
+        print("  Tip: use a keyring backend to avoid keeping the secret key as a plaintext file.")
     print()
 
     # Auto-patch public_key into any pypi_profile.toml found in the cwd.
@@ -1274,17 +1184,9 @@ def cmd_sign(args: argparse.Namespace) -> None:
     args.source = require_value(args, "source", label="Profile source")
     args.url = require_value(args, "url", label="Controlled URL")
     args.key = maybe_prompt_path(args, "key", label="Secret key path", default="")
-    args.password = maybe_prompt_value(
-        args, "password", label="Key password", default="", secret=True
-    )
-    args.profile_package = maybe_prompt_value(
-        args, "profile_package", label="Profile package override", default=""
-    )
-    if (
-        getattr(args, "format", None) is None
-        and not getattr(args, "compact", False)
-        and wants_interactive(args)
-    ):
+    args.password = maybe_prompt_value(args, "password", label="Key password", default="", secret=True)
+    args.profile_package = maybe_prompt_value(args, "profile_package", label="Profile package override", default="")
+    if getattr(args, "format", None) is None and not getattr(args, "compact", False) and wants_interactive(args):
         args.format = prompt_text(
             "Token format",
             default="full",
@@ -1374,9 +1276,7 @@ def cmd_verify(args: argparse.Namespace) -> None:
     from pypi_profile.loader import find_profile, load_profile
 
     args.source = require_value(args, "source", label="Profile source")
-    args.profile_package = maybe_prompt_value(
-        args, "profile_package", label="Profile package override", default=""
-    )
+    args.profile_package = maybe_prompt_value(args, "profile_package", label="Profile package override", default="")
 
     try:
         toml_path = find_profile(args.source)
@@ -1385,9 +1285,7 @@ def cmd_verify(args: argparse.Namespace) -> None:
         raise CliError(str(exc), EXIT_USAGE) from exc
 
     profile = load_profile(toml_path, autopatch_public_key=not is_dry_run(args))
-    profile_package = (
-        args.profile_package or f"pypi-profile-{profile.identity.pypi_username}"
-    )
+    profile_package = args.profile_package or f"pypi-profile-{profile.identity.pypi_username}"
 
     if is_dry_run(args):
         print_dry_run(
@@ -1487,9 +1385,7 @@ def cmd_find_profiles(args: argparse.Namespace) -> None:
     """Scan for pypi_profile.toml files and pyproject.toml with [tool.pypi-profile]."""
     from pypi_profile.finder import find_profile_files
 
-    args.root = maybe_prompt_path(
-        args, "root", label="Root directory to scan", default=""
-    )
+    args.root = maybe_prompt_path(args, "root", label="Root directory to scan", default="")
     root = Path(args.root).expanduser().resolve() if args.root else None
     found = find_profile_files(root=root)
     if is_dry_run(args):
@@ -1508,9 +1404,7 @@ def cmd_find_profiles(args: argparse.Namespace) -> None:
         print("No profile files found.")
         return
     if wants_json_output(args):
-        emit_json(
-            {"root": str(root or Path.cwd()), "matches": [str(path) for path in found]}
-        )
+        emit_json({"root": str(root or Path.cwd()), "matches": [str(path) for path in found]})
         return
     for p in found:
         print(p)
@@ -1603,15 +1497,9 @@ def cmd_update_proofs(args: argparse.Namespace) -> None:
 
     args.source = require_value(args, "source", label="Profile source")
     args.key = maybe_prompt_path(args, "key", label="Secret key path", default="")
-    args.password = maybe_prompt_value(
-        args, "password", label="Key password", default="", secret=True
-    )
-    args.profile_package = maybe_prompt_value(
-        args, "profile_package", label="Profile package override", default=""
-    )
-    args.force = maybe_prompt_bool(
-        args, "force", label="Re-sign existing stored proofs", default=False
-    )
+    args.password = maybe_prompt_value(args, "password", label="Key password", default="", secret=True)
+    args.profile_package = maybe_prompt_value(args, "profile_package", label="Profile package override", default="")
+    args.force = maybe_prompt_bool(args, "force", label="Re-sign existing stored proofs", default=False)
 
     try:
         toml_path = find_profile(args.source)
@@ -1627,9 +1515,7 @@ def cmd_update_proofs(args: argparse.Namespace) -> None:
     password = args.password or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "")
 
     if is_dry_run(args):
-        pending = len(
-            [link for link in profile.profiles if args.force or not link.stored_proof]
-        )
+        pending = len([link for link in profile.profiles if args.force or not link.stored_proof])
         print_dry_run(
             "update-proofs would sign profile URLs and write stored_proof values.",
             [
@@ -1674,13 +1560,9 @@ def cmd_update_proofs(args: argparse.Namespace) -> None:
         for url in updated:
             print(f"  {url}")
         print()
-        print(
-            "Commit the updated TOML so the static build can use these proofs without the private key."
-        )
+        print("Commit the updated TOML so the static build can use these proofs without the private key.")
     else:
-        print(
-            "No URLs needed updating (all already have stored_proof, or no key found)."
-        )
+        print("No URLs needed updating (all already have stored_proof, or no key found).")
 
 
 def cmd_key_info(args: argparse.Namespace) -> None:
@@ -1771,21 +1653,11 @@ def cmd_key_rotate(args: argparse.Namespace) -> None:
     from pypi_profile.loader import find_profile, load_profile
 
     args.source = require_value(args, "source", label="Profile source")
-    args.key_dir = maybe_prompt_path(
-        args, "key_dir", label="New key directory", default=""
-    )
-    args.keyring_identity = maybe_prompt_value(
-        args, "keyring_identity", label="New keyring identity", default=""
-    )
-    args.password = maybe_prompt_value(
-        args, "password", label="New key password", default="", secret=True
-    )
-    args.profile_package = maybe_prompt_value(
-        args, "profile_package", label="Profile package override", default=""
-    )
-    args.no_keep_old = maybe_prompt_bool(
-        args, "no_keep_old", label="Skip archiving the old key", default=False
-    )
+    args.key_dir = maybe_prompt_path(args, "key_dir", label="New key directory", default="")
+    args.keyring_identity = maybe_prompt_value(args, "keyring_identity", label="New keyring identity", default="")
+    args.password = maybe_prompt_value(args, "password", label="New key password", default="", secret=True)
+    args.profile_package = maybe_prompt_value(args, "profile_package", label="Profile package override", default="")
+    args.no_keep_old = maybe_prompt_bool(args, "no_keep_old", label="Skip archiving the old key", default=False)
 
     try:
         toml_path = find_profile(args.source)
@@ -1798,11 +1670,7 @@ def cmd_key_rotate(args: argparse.Namespace) -> None:
     profile_package = args.profile_package or f"pypi-profile-{pypi_username}"
     key_dir = Path(args.key_dir).expanduser() if getattr(args, "key_dir", "") else None
     keyring_identity = getattr(args, "keyring_identity", "") or None
-    password = (
-        getattr(args, "password", "")
-        or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "")
-        or None
-    )
+    password = getattr(args, "password", "") or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "") or None
 
     if is_dry_run(args):
         print_dry_run(
@@ -1851,9 +1719,7 @@ def cmd_key_rotate(args: argparse.Namespace) -> None:
             print(f"  {url}")
     print()
     print("NOTE: stored_proof values published on external pages before this rotation")
-    print(
-        "      will appear invalid until those pages are updated with the new proof strings."
-    )
+    print("      will appear invalid until those pages are updated with the new proof strings.")
     print("Commit the updated TOML to source control.")
 
 
@@ -1865,18 +1731,10 @@ def cmd_key_recover(args: argparse.Namespace) -> None:
     from pypi_profile.loader import find_profile, load_profile
 
     args.source = require_value(args, "source", label="Profile source")
-    args.key_dir = maybe_prompt_path(
-        args, "key_dir", label="New key directory", default=""
-    )
-    args.keyring_identity = maybe_prompt_value(
-        args, "keyring_identity", label="New keyring identity", default=""
-    )
-    args.password = maybe_prompt_value(
-        args, "password", label="New key password", default="", secret=True
-    )
-    args.profile_package = maybe_prompt_value(
-        args, "profile_package", label="Profile package override", default=""
-    )
+    args.key_dir = maybe_prompt_path(args, "key_dir", label="New key directory", default="")
+    args.keyring_identity = maybe_prompt_value(args, "keyring_identity", label="New keyring identity", default="")
+    args.password = maybe_prompt_value(args, "password", label="New key password", default="", secret=True)
+    args.profile_package = maybe_prompt_value(args, "profile_package", label="Profile package override", default="")
 
     try:
         toml_path = find_profile(args.source)
@@ -1889,11 +1747,7 @@ def cmd_key_recover(args: argparse.Namespace) -> None:
     profile_package = args.profile_package or f"pypi-profile-{pypi_username}"
     key_dir = Path(args.key_dir).expanduser() if getattr(args, "key_dir", "") else None
     keyring_identity = getattr(args, "keyring_identity", "") or None
-    password = (
-        getattr(args, "password", "")
-        or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "")
-        or None
-    )
+    password = getattr(args, "password", "") or os.environ.get("PYPI_PROFILE_KEY_PASSWORD", "") or None
 
     if is_dry_run(args):
         print_dry_run(
@@ -1954,9 +1808,7 @@ def cmd_key_export(args: argparse.Namespace) -> None:
     else:
         args.output = require_value(args, "output", label="Export file")
     sk_path = Path(args.key).expanduser() if getattr(args, "key", "") else None
-    output_path = (
-        Path(args.output).expanduser() if getattr(args, "output", "") else None
-    )
+    output_path = Path(args.output).expanduser() if getattr(args, "output", "") else None
 
     if is_dry_run(args):
         print_dry_run(
@@ -1988,18 +1840,10 @@ def cmd_key_import(args: argparse.Namespace) -> None:
     from pypi_profile.key_management import key_import
 
     args.file = require_value(args, "file", label="Exported key file")
-    args.key_dir = maybe_prompt_path(
-        args, "key_dir", label="Disk key directory", default=""
-    )
-    args.keyring_identity = maybe_prompt_value(
-        args, "keyring_identity", label="Keyring identity", default=""
-    )
-    args.no_keyring = maybe_prompt_bool(
-        args, "no_keyring", label="Store only on disk", default=False
-    )
-    args.force = maybe_prompt_bool(
-        args, "force", label="Overwrite existing disk key", default=False
-    )
+    args.key_dir = maybe_prompt_path(args, "key_dir", label="Disk key directory", default="")
+    args.keyring_identity = maybe_prompt_value(args, "keyring_identity", label="Keyring identity", default="")
+    args.no_keyring = maybe_prompt_bool(args, "no_keyring", label="Store only on disk", default=False)
+    args.force = maybe_prompt_bool(args, "force", label="Overwrite existing disk key", default=False)
 
     import_path = Path(args.file).expanduser()
     key_dir = Path(args.key_dir).expanduser() if getattr(args, "key_dir", "") else None
@@ -2049,15 +1893,9 @@ def cmd_build(args: argparse.Namespace) -> None:
     from pypi_profile.loader import find_profile, load_profile
 
     args.source = require_value(args, "source", label="Profile source")
-    args.output = maybe_prompt_value(
-        args, "output", label="Output directory", default="dist"
-    )
-    args.base_url = maybe_prompt_value(
-        args, "base_url", label="Base URL prefix", default=""
-    )
-    args.resume_file = maybe_prompt_path(
-        args, "resume_file", label="JSON Resume file", default=""
-    )
+    args.output = maybe_prompt_value(args, "output", label="Output directory", default="dist")
+    args.base_url = maybe_prompt_value(args, "base_url", label="Base URL prefix", default="")
+    args.resume_file = maybe_prompt_path(args, "resume_file", label="JSON Resume file", default="")
     output = Path(args.output)
     resume_file = Path(args.resume_file).expanduser() if args.resume_file else None
     try:
@@ -2111,9 +1949,7 @@ def build_parser() -> argparse.ArgumentParser:
             "in an interactive terminal; use --no-interactive for CI and scripts."
         ),
     )
-    parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
-    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "--log-level",
         default="WARNING",
@@ -2140,14 +1976,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     serve_p.add_argument("--host", default="127.0.0.1")
     serve_p.add_argument("--port", type=int, default=8000)
-    serve_p.add_argument(
-        "--allow-code", action="store_true", help="Enable plugin code execution"
-    )
+    serve_p.add_argument("--allow-code", action="store_true", help="Enable plugin code execution")
     serve_p.set_defaults(func=cmd_serve)
 
-    validate_p = subparsers.add_parser(
-        "validate", help="Validate a pypi_profile.toml (alias for inspect)"
-    )
+    validate_p = subparsers.add_parser("validate", help="Validate a pypi_profile.toml (alias for inspect)")
     add_dry_run_argument(validate_p)
     add_interactive_arguments(validate_p)
     validate_p.add_argument(
@@ -2176,9 +2008,7 @@ def build_parser() -> argparse.ArgumentParser:
         ],
     )
     init_p.add_argument("--username", default="", help="PyPI username")
-    init_p.add_argument(
-        "--output", default="", help="Output path (default: pypi_profile.toml)"
-    )
+    init_p.add_argument("--output", default="", help="Output path (default: pypi_profile.toml)")
     init_p.add_argument("--force", action="store_true", help="Overwrite existing file")
     init_import_group = init_p.add_mutually_exclusive_group()
     init_import_group.add_argument(
@@ -2200,9 +2030,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     init_p.set_defaults(func=cmd_init)
 
-    inspect_p = subparsers.add_parser(
-        "inspect", help="Inspect a profile (and validate schema by default)"
-    )
+    inspect_p = subparsers.add_parser("inspect", help="Inspect a profile (and validate schema by default)")
     add_dry_run_argument(inspect_p)
     add_interactive_arguments(inspect_p)
     inspect_p.add_argument(
@@ -2211,9 +2039,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Profile package name, directory, or .toml path",
     )
-    inspect_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    inspect_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     inspect_p.add_argument(
         "--no-validate",
         action="store_true",
@@ -2248,9 +2074,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fetch_p.set_defaults(func=cmd_fetch)
 
-    fetch_alias_p = subparsers.add_parser(
-        "fetch", help="Alias for fetch-claims (deprecated)"
-    )
+    fetch_alias_p = subparsers.add_parser("fetch", help="Alias for fetch-claims (deprecated)")
     add_dry_run_argument(fetch_alias_p)
     add_interactive_arguments(fetch_alias_p)
     fetch_alias_p.add_argument(
@@ -2259,9 +2083,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Profile package name, directory, or .toml path",
     )
-    fetch_alias_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    fetch_alias_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     fetch_alias_p.add_argument(
         "--include-owned",
         action="store_true",
@@ -2280,9 +2102,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     dump_p.set_defaults(func=cmd_api_dump)
 
-    keygen_p = subparsers.add_parser(
-        "keygen", help="Generate a minisign keypair for signing claims"
-    )
+    keygen_p = subparsers.add_parser("keygen", help="Generate a minisign keypair for signing claims")
     add_dry_run_argument(keygen_p)
     add_interactive_arguments(keygen_p)
     keygen_p.add_argument(
@@ -2310,14 +2130,10 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Skip storing the secret key in the system keyring; write to disk only.",
     )
-    keygen_p.add_argument(
-        "--force", action="store_true", help="Overwrite existing key files"
-    )
+    keygen_p.add_argument("--force", action="store_true", help="Overwrite existing key files")
     keygen_p.set_defaults(func=cmd_keygen)
 
-    sign_p = subparsers.add_parser(
-        "sign", help="Sign a proof-of-control claim for an external URL"
-    )
+    sign_p = subparsers.add_parser("sign", help="Sign a proof-of-control claim for an external URL")
     add_dry_run_argument(sign_p)
     add_interactive_arguments(sign_p)
     sign_p.add_argument(
@@ -2340,9 +2156,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to secret key file (default: ~/.pypi_profile/minisign.key)",
     )
     sign_p.add_argument("--password", default="", help="Password for the secret key")
-    sign_p.add_argument(
-        "--profile-package", default="", help="Profile package name override"
-    )
+    sign_p.add_argument("--profile-package", default="", help="Profile package name override")
     sign_p.add_argument(
         "--format",
         choices=["full", "compact", "tiny", "fingerprint"],
@@ -2362,9 +2176,7 @@ def build_parser() -> argparse.ArgumentParser:
     sign_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     sign_p.set_defaults(func=cmd_sign)
 
-    verify_p = subparsers.add_parser(
-        "verify", help="Verify proof-of-control claims for declared profile URLs"
-    )
+    verify_p = subparsers.add_parser("verify", help="Verify proof-of-control claims for declared profile URLs")
     add_dry_run_argument(verify_p)
     add_interactive_arguments(verify_p)
     verify_p.add_argument(
@@ -2373,9 +2185,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Profile package name, directory, or .toml path",
     )
-    verify_p.add_argument(
-        "--profile-package", default="", help="Profile package name override"
-    )
+    verify_p.add_argument("--profile-package", default="", help="Profile package name override")
     verify_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     verify_p.set_defaults(func=cmd_verify)
 
@@ -2396,25 +2206,17 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Path to secret key file (default: ~/.pypi_profile/minisign.key)",
     )
-    update_proofs_p.add_argument(
-        "--password", default="", help="Password for the secret key"
-    )
-    update_proofs_p.add_argument(
-        "--profile-package", default="", help="Profile package name override"
-    )
+    update_proofs_p.add_argument("--password", default="", help="Password for the secret key")
+    update_proofs_p.add_argument("--profile-package", default="", help="Profile package name override")
     update_proofs_p.add_argument(
         "--force",
         action="store_true",
         help="Re-sign even if stored_proof is already present",
     )
-    update_proofs_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    update_proofs_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     update_proofs_p.set_defaults(func=cmd_update_proofs)
 
-    build_p = subparsers.add_parser(
-        "build", help="Generate a static site from a profile"
-    )
+    build_p = subparsers.add_parser("build", help="Generate a static site from a profile")
     add_dry_run_argument(build_p)
     add_interactive_arguments(build_p)
     build_p.add_argument(
@@ -2423,9 +2225,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Profile package name, directory, or .toml path",
     )
-    build_p.add_argument(
-        "--output", default="dist", help="Output directory (default: dist/)"
-    )
+    build_p.add_argument("--output", default="dist", help="Output directory (default: dist/)")
     build_p.add_argument(
         "--base-url",
         default="",
@@ -2452,9 +2252,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Root directory to scan (default: current directory)",
     )
-    find_profiles_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    find_profiles_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     find_profiles_p.set_defaults(func=cmd_find_profiles)
 
     generate_missing_p = subparsers.add_parser(
@@ -2486,9 +2284,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Overwrite generated profiles even when a matching destination exists",
     )
-    generate_missing_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    generate_missing_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     generate_missing_p.set_defaults(func=cmd_generate_missing)
 
     gui_p = subparsers.add_parser("gui", help="Launch the Tkinter GUI")
@@ -2496,9 +2292,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_interactive_arguments(gui_p)
     gui_p.set_defaults(func=cmd_gui)
 
-    key_info_p = subparsers.add_parser(
-        "key-info", help="Inspect the active signing key (read-only)"
-    )
+    key_info_p = subparsers.add_parser("key-info", help="Inspect the active signing key (read-only)")
     add_dry_run_argument(key_info_p)
     add_interactive_arguments(key_info_p)
     key_info_p.add_argument(
@@ -2507,22 +2301,16 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="PATH",
         help="Path to secret key file (default: keyring or ~/.pypi_profile/minisign.key)",
     )
-    key_info_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    key_info_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_info_p.set_defaults(func=cmd_key_info)
 
     key_list_p = subparsers.add_parser("key-list", help="List all known signing keys")
     add_dry_run_argument(key_list_p)
     add_interactive_arguments(key_list_p)
-    key_list_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    key_list_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_list_p.set_defaults(func=cmd_key_list)
 
-    key_rotate_p = subparsers.add_parser(
-        "key-rotate", help="Replace the active signing key and re-sign all proofs"
-    )
+    key_rotate_p = subparsers.add_parser("key-rotate", help="Replace the active signing key and re-sign all proofs")
     add_dry_run_argument(key_rotate_p)
     add_interactive_arguments(key_rotate_p)
     key_rotate_p.add_argument(
@@ -2543,12 +2331,8 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="NAME",
         help="Keyring identity name for the new key",
     )
-    key_rotate_p.add_argument(
-        "--password", default="", help="Password for the new secret key"
-    )
-    key_rotate_p.add_argument(
-        "--profile-package", default="", help="Profile package name override"
-    )
+    key_rotate_p.add_argument("--password", default="", help="Password for the new secret key")
+    key_rotate_p.add_argument("--profile-package", default="", help="Profile package name override")
     key_rotate_p.add_argument(
         "--no-keep-old",
         action="store_true",
@@ -2561,14 +2345,10 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Skip interactive confirmation prompt",
     )
-    key_rotate_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    key_rotate_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_rotate_p.set_defaults(func=cmd_key_rotate)
 
-    key_recover_p = subparsers.add_parser(
-        "key-recover", help="Recover from a lost signing key"
-    )
+    key_recover_p = subparsers.add_parser("key-recover", help="Recover from a lost signing key")
     add_dry_run_argument(key_recover_p)
     add_interactive_arguments(key_recover_p)
     key_recover_p.add_argument(
@@ -2589,20 +2369,12 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="NAME",
         help="Keyring identity name for the new key",
     )
-    key_recover_p.add_argument(
-        "--password", default="", help="Password for the new secret key"
-    )
-    key_recover_p.add_argument(
-        "--profile-package", default="", help="Profile package name override"
-    )
-    key_recover_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    key_recover_p.add_argument("--password", default="", help="Password for the new secret key")
+    key_recover_p.add_argument("--profile-package", default="", help="Profile package name override")
+    key_recover_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_recover_p.set_defaults(func=cmd_key_recover)
 
-    key_export_p = subparsers.add_parser(
-        "key-export", help="Export the secret key to a file for secure transfer"
-    )
+    key_export_p = subparsers.add_parser("key-export", help="Export the secret key to a file for secure transfer")
     add_dry_run_argument(key_export_p)
     add_interactive_arguments(key_export_p)
     key_export_p.add_argument(
@@ -2617,19 +2389,13 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="FILE",
         help="Output file path (required unless --dry-run)",
     )
-    key_export_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    key_export_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_export_p.set_defaults(func=cmd_key_export)
 
-    key_import_p = subparsers.add_parser(
-        "key-import", help="Install an exported key file into keyring/disk"
-    )
+    key_import_p = subparsers.add_parser("key-import", help="Install an exported key file into keyring/disk")
     add_dry_run_argument(key_import_p)
     add_interactive_arguments(key_import_p)
-    key_import_p.add_argument(
-        "file", nargs="?", default="", help="Path to the exported key file"
-    )
+    key_import_p.add_argument("file", nargs="?", default="", help="Path to the exported key file")
     key_import_p.add_argument(
         "--keyring-identity",
         default="",
@@ -2654,9 +2420,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Overwrite existing key on disk",
     )
-    key_import_p.add_argument(
-        "--json", action="store_true", help="Emit JSON for scripting"
-    )
+    key_import_p.add_argument("--json", action="store_true", help="Emit JSON for scripting")
     key_import_p.set_defaults(func=cmd_key_import)
 
     return parser
