@@ -3,6 +3,17 @@
 [tool.uv.workspace]
 members = ["pypi_profile", "matthewdeanmartin", "john_doe"]
 
+[tool.pytest.ini_options]
+# Workspace-root runs: every member has a tests/ package with a test_plugin.py,
+# so the default prepend import mode collides on `tests.test_plugin`.
+minversion = "6.0"
+testpaths = ["pypi_profile/tests", "matthewdeanmartin/tests", "john_doe/tests"]
+addopts = "-q --timeout=60 --import-mode=importlib"
+markers = [
+    "slow: performance benchmarks (run with -m slow)",
+    "integration: integration tests (run with -m integration)",
+]
+
 [tool.uv.pip]
 universal = true
 
