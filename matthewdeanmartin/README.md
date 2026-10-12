@@ -31,3 +31,10 @@ pipx inject pypi-profile matthewdeanmartin
 - [PyPI](https://pypi.org/project/matthewdeanmartin/)
 - [Bug Tracker](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues)
 - [Change Log](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/matthewdeanmartin/CHANGELOG.md)
+
+
+## Python 3.15 verification — 2026-10-04
+
+Three plugin tests and installed-wheel entry-point/data loading pass on 3.15.0rc3 with Pydantic prerelease wheels and on 3.14.7. Stable RC3 is blocked through the pypi-profile dependency. No runtime change or new native fallback was needed.
+
+Dependencies were required to have published wheels; own pure-Python workspace wheels were built locally without build isolation. Locks were refreshed with uv lock --upgrade. Full developer stacks remain separately wheel-blocked (PyYAML or source-only linkcheckmd). No upstream reports or GitHub jobs were sent; bug filing belongs to the human operator.

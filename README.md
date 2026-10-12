@@ -47,3 +47,10 @@ automatically.
 - Keyoxide - https://docs.keyoxide.org/
 - Keybase - https://keybase.io/matthewmartin
 -
+
+
+## HTTPX2 migration verification (2026-10-04)
+
+Direct profile-test and template dependency declarations use HTTPX2. Profile package passes all 347 tests on RC3 pre and 3.14.7. Hosting/server acceleration extras not certified; RC3 stable not run.
+
+Dependency locks upgraded and checked. Published dependency wheels only; no native builds or GitHub jobs. Application HTTPX2 objects remain separate from third-party HTTPX objects. Current HTTPX2 releases use the OS trust store. Experimental RC3 tests may require Pydantic prerelease wheels; stable support is reported separately. Changes local; human operators decide releases and upstream reports.
