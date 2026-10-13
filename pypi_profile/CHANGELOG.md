@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Requires Python 3.11 or newer; Python 3.10 is no longer supported.
 - Skip trace support
 
+### Fixed
+
+- Loading TOML from an open binary file no longer fails when the optional `fast` extra (rtoml) is installed.
+
 ## [0.3.0] - 2026-05-16
 
 ### Changed

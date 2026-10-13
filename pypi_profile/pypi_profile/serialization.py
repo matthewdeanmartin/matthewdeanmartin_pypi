@@ -101,6 +101,11 @@ def toml_load(source: str | Path | Any) -> dict[str, Any]:
     """Load TOML from a path, file handle, or string."""
     if rtoml is not None:
         try:
+            if hasattr(source, "read"):
+                # rtoml.load only accepts text handles; callers pass binary ones (tomllib's contract)
+                data = source.read()
+                text = data.decode("utf-8") if isinstance(data, bytes) else data
+                return cast(dict[str, Any], rtoml.loads(text))
             return cast(dict[str, Any], rtoml.load(source))
         except rtoml.TomlParsingError as exc:
             raise TOMLDecodeError(str(exc)) from exc
