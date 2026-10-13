@@ -9,7 +9,8 @@ PYLINT_TEST_TARGETS := tests
 MARKDOWN_TARGETS := $(wildcard README.md CHANGELOG.md AGENTS.md docs)
 YAML_TARGETS := $(wildcard mkdocs.yml .readthedocs.yaml .github/dependabot.yml)
 ABOUT_FILE := matthewdeanmartin/__about__.py
-AUDIT_IGNORE := PYSEC-2022-42969
+# PYSEC-2026-3740: nltk (dev-only, via troml-dev-status -> textstat) has no fixed release yet.
+AUDIT_IGNORE := PYSEC-2022-42969 PYSEC-2026-3740
 
 .PHONY: \
 	sync pre-commit-install \
@@ -148,9 +149,9 @@ bandit:
 
 audit:
 	@echo "=== uv audit ==="
-	@$(UV) audit --ignore-until-fixed $(AUDIT_IGNORE)
+	@$(UV) audit $(foreach id,$(AUDIT_IGNORE),--ignore-until-fixed $(id))
 	@echo "=== pip-audit ==="
-	@$(UV) run pip-audit --ignore-vuln $(AUDIT_IGNORE)
+	@$(UV) run pip-audit $(foreach id,$(AUDIT_IGNORE),--ignore-vuln $(id))
 
 smoke:
 	@$(UV) run bash scripts/basic_checks.sh

@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Python 3.14 and 3.15 support.
 - Skip trace support
+
 ### Changed
+
 - Requires Python 3.11 or newer; Python 3.10 is no longer supported.
 
 ## [0.1.0] - 2026-05-16
@@ -31,5 +33,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Table of contents support
 - Installed profile packages support
 
-[Unreleased]: https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/releases/tag/v0.1.0
+[unreleased]: https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/compare/v0.1.0...HEAD

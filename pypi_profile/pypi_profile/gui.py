@@ -1281,13 +1281,13 @@ class PypiProfileGui(tk.Tk):
         def on_frame_configure(_event: object = None) -> None:
             canvas.configure(scrollregion=canvas.bbox("all"))
 
-        def on_canvas_configure(event: tk.Event) -> None:  # type: ignore[type-arg]
+        def on_canvas_configure(event: tk.Event) -> None:
             canvas.itemconfig(canvas_window, width=event.width)
 
         left.bind("<Configure>", on_frame_configure)
         canvas.bind("<Configure>", on_canvas_configure)
 
-        def on_mousewheel(event: tk.Event) -> None:  # type: ignore[type-arg]
+        def on_mousewheel(event: tk.Event) -> None:
             canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
         canvas.bind_all("<MouseWheel>", on_mousewheel)

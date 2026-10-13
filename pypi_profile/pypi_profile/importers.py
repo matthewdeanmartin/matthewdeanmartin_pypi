@@ -771,7 +771,8 @@ def _validate_skip_trace_export(raw: dict[str, Any]) -> dict[str, Any]:
         from skip_trace.pypi_profile_export import PypiProfileExchange
     except ImportError:
         return raw
-    return PypiProfileExchange.model_validate(raw).model_dump(mode="json")
+    validated: dict[str, Any] = PypiProfileExchange.model_validate(raw).model_dump(mode="json")
+    return validated
 
 
 def from_skip_trace_export(path: Path) -> dict[str, Any]:

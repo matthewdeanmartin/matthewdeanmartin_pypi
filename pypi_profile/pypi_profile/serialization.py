@@ -2,21 +2,23 @@
 
 from __future__ import annotations
 
+import importlib
 import json as stdlib_json
 import types
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
+# importlib keeps the optional accelerators typed the same whether or not they are installed.
 orjson: types.ModuleType | None
 try:
-    import orjson  # type: ignore[import-not-found]
+    orjson = importlib.import_module("orjson")
 except ImportError:
     orjson = None
 
 rtoml: types.ModuleType | None
 try:
-    import rtoml  # type: ignore[import-not-found]
+    rtoml = importlib.import_module("rtoml")
 except ImportError:
     rtoml = None
 
@@ -106,10 +108,10 @@ def toml_load(source: str | Path | Any) -> dict[str, Any]:
     try:
         if isinstance(source, Path):
             with open(source, "rb") as fh:
-                return cast(dict[str, Any], stdlib_toml.load(fh))
+                return stdlib_toml.load(fh)
         if hasattr(source, "read"):
-            return cast(dict[str, Any], stdlib_toml.load(source))
-        return cast(dict[str, Any], stdlib_toml.loads(_normalize_text(source)))
+            return stdlib_toml.load(source)
+        return stdlib_toml.loads(_normalize_text(source))
     except stdlib_toml.TOMLDecodeError as exc:
         raise TOMLDecodeError(str(exc)) from exc
 

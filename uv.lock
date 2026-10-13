@@ -2359,11 +2359,44 @@ dependencies = [
     { name = "pypi-profile" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "bandit" },
+    { name = "black" },
+    { name = "isort" },
+    { name = "jiggle-version" },
+    { name = "mdformat" },
+    { name = "metametameta" },
+    { name = "mypy" },
+    { name = "pip-audit" },
+    { name = "pylint" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "ruff" },
+]
+
 [package.metadata]
 requires-dist = [{ name = "pypi-profile", editable = "pypi_profile" }]
 
 [package.metadata.requires-dev]
-dev = []
+dev = [
+    { name = "bandit", specifier = ">=1.9.4" },
+    { name = "black", specifier = ">=26.0.0" },
+    { name = "isort", specifier = ">=6.0.0" },
+    { name = "jiggle-version", specifier = ">=2.1.0" },
+    { name = "mdformat", specifier = ">=1.0.0" },
+    { name = "metametameta", specifier = ">=0.1.5" },
+    { name = "mypy", specifier = ">=1.18.0" },
+    { name = "pip-audit", specifier = ">=2.7.0" },
+    { name = "pylint", specifier = ">=4.0.0" },
+    { name = "pytest", specifier = ">=8.4.0" },
+    { name = "pytest-cov", specifier = ">=6.0.0" },
+    { name = "pytest-timeout", specifier = ">=2.4.0" },
+    { name = "pytest-xdist", specifier = ">=3.5.0" },
+    { name = "ruff", specifier = ">=0.12.0" },
+]
 
 [[package]]
 name = "mccabe"

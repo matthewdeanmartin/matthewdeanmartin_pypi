@@ -18,9 +18,9 @@ __version__ = "0.3.0"
 __description__ = "The missing PyPI(tm) profile page — link your profile with signatures. Not associated with PSF."
 __readme__ = "README.md"
 __credits__ = [{"name": "Matthew Martin", "email": "matthewdeanmartin@gmail.com"}]
-__keywords__ = ["pypi", "profile", "cli"]
+__keywords__ = ["pypi", "profile"]
 __license__ = "Apache-2.0"
-__requires_python__ = ">=3.10"
+__requires_python__ = ">=3.11"
 __status__ = "4 - Beta"
 __dependencies__ = [
     "pluggy>=1.5.0",
@@ -28,7 +28,6 @@ __dependencies__ = [
     "uvicorn>=0.30.0",
     "jinja2>=3.1.0",
     "pydantic>=2.0.0",
-    "tomli>=2.0.0; python_version < '3.11'",
     "prompt-toolkit>=3.0.0",
     "keyring>=25.7.0",
     "py-minisign>=0.13.2",

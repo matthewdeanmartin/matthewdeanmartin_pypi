@@ -32,7 +32,6 @@ pipx inject pypi-profile matthewdeanmartin
 - [Bug Tracker](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues)
 - [Change Log](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/matthewdeanmartin/CHANGELOG.md)
 
-
 ## Python 3.15 verification — 2026-10-04
 
 Three plugin tests and installed-wheel entry-point/data loading pass on 3.15.0rc3 with Pydantic prerelease wheels and on 3.14.7. Stable RC3 is blocked through the pypi-profile dependency. No runtime change or new native fallback was needed.

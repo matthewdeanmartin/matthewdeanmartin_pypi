@@ -115,7 +115,6 @@ Warehouse.
 - [Bug Tracker](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/issues)
 - [Change Log](https://github.com/matthewdeanmartin/matthewdeanmartin_pypi/blob/main/pypi_profile/CHANGELOG.md)
 
-
 ## Python 3.15 final verification — 2026-10-09
 
 **Core supported on the tested Windows x86-64 environment:** all 347 tests pass on Python 3.15.0 final with stable published dependency wheels, including Pydantic 2.14.0/core 2.50.0. Both the local wheel and published PyPI 0.3.0 pass installed CLI help/version and real localhost HTTP checks. Existing stdlib JSON/TOML serialization works without orjson or rtoml; dependency prereleases are no longer needed.

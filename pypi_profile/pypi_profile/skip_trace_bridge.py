@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import importlib.metadata as meta
-import subprocess
+import subprocess  # nosec B404 - runs a caller-chosen interpreter with a fixed argument list
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +16,7 @@ def _site_packages_from_python(python_executable: Path) -> list[Path]:
         "-c",
         "import json, site; print(json.dumps(site.getsitepackages()))",
     ]
-    output = subprocess.check_output(command, text=True)
+    output = subprocess.check_output(command, text=True)  # nosec B603
     raw_paths = json_loads(output)
     return [Path(str(path)).resolve() for path in raw_paths]
 
@@ -45,7 +45,7 @@ def list_installed_package_names(target: Path | None = None) -> list[str]:
     distributions = (
         meta.distributions(path=[str(path) for path in search_paths]) if search_paths else meta.distributions()
     )
-    names = {dist.metadata["Name"] for dist in distributions if dist.metadata.get("Name")}
+    names = {dist.metadata["Name"] for dist in distributions if "Name" in dist.metadata}
     return sorted(names)
 
 
