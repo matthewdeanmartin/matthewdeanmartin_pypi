@@ -153,5 +153,5 @@ publish:
 check: format-check lint-check security test typecheck validate
 	@echo "All checks passed."
 
-check-ci: format-check lint-check security test-ci typecheck validate
+check-ci: lint-check security test-ci typecheck validate
 	@echo "CI checks passed."

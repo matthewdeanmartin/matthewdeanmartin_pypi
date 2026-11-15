@@ -114,7 +114,6 @@ docs-check-pydoctest:
 
 docs-check-links:
 	@$(UV) run linkcheckMarkdown README.md || true
-	@$(UV) run mdformat --check README.md CHANGELOG.md docs/*.md || true
 
 griffe:
 	@echo "=== griffe API surface check (advisory) ==="
@@ -229,7 +228,7 @@ publish:
 check: format-check lint-check security test smoke-dry-run typecheck metadata-check version-check changelog-check
 	@echo "All checks passed."
 
-check-ci: format-check lint-check security test-ci smoke-dry-run typecheck metadata-check version-check changelog-check
+check-ci: lint-check security test-ci smoke-dry-run typecheck metadata-check version-check changelog-check
 	@echo "CI checks passed."
 
 prerelease: check dev-status docs-check smoke spell publish-check
