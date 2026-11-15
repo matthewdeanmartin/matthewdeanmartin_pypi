@@ -1,0 +1,31 @@
+name: Create pypi-profile Draft Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pypi_profile/**"
+      - ".github/workflows/draft_release_pypi_profile.yml"
+  workflow_dispatch:
+
+concurrency: changelog-pypi-profile
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pypi_profile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Create or update pypi-profile draft
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uvx --from keepachangelog-manager-fork==6.10.1 kaclm github-release --repository "$GITHUB_REPOSITORY" --draft

@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/build_pypi_profile.yml"
       - ".github/workflows/publish_pypi_profile.yml"
+      - ".github/workflows/draft_release_pypi_profile.yml"
       - "pypi_profile/**"
       - "pypi_ds/**"
       - "john_doe/**"
@@ -15,6 +16,7 @@ on:
     paths:
       - ".github/workflows/build_pypi_profile.yml"
       - ".github/workflows/publish_pypi_profile.yml"
+      - ".github/workflows/draft_release_pypi_profile.yml"
       - "pypi_profile/**"
       - "pypi_ds/**"
       - "john_doe/**"

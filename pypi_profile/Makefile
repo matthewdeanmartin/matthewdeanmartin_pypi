@@ -27,7 +27,8 @@ AUDIT_IGNORE := PYSEC-2022-42969 PYSEC-2026-3740
 	smoke smoke-dry-run test test-ci tox \
 	typecheck typecheck-mypy \
 	metadata metadata-check version-check dev-status \
-	gha-validate gha-pin gha-upgrade publish-gha \
+	changelog-check \
+	gha-validate gha-pin gha-upgrade draft-gha \
 	prerelease publish-check publish \
 	check check-ci help
 
@@ -36,7 +37,8 @@ help:
 	@echo "Targets: sync format format-check lint lint-check spell smoke-dry-run test test-ci tox"
 	@echo "         typecheck security docs-check build-docs dead-code explore"
 	@echo "         metadata metadata-check version-check dev-status"
-	@echo "         gha-validate gha-pin gha-upgrade publish-gha (delegates to repo root)"
+	@echo "         changelog-check"
+	@echo "         gha-validate gha-pin gha-upgrade draft-gha"
 	@echo "         check check-ci prerelease publish-check publish"
 
 sync:
@@ -200,6 +202,9 @@ version-check:
 dev-status:
 	@$(UV) run troml-dev-status validate .
 
+changelog-check:
+	@$(UV) run --frozen changelogmanager validate --strict
+
 gha-validate:
 	@"$(MAKE)" -C .. gha-validate
 
@@ -208,8 +213,8 @@ gha-pin:
 
 gha-upgrade: gha-pin gha-validate
 
-publish-gha:
-	gh workflow run publish_pypi_profile.yml --ref main
+draft-gha:
+	gh workflow run draft_release_pypi_profile.yml --ref main
 
 publish-check:
 	@$(UV) run python -c "from pathlib import Path; import shutil; [shutil.rmtree(path) for path in (Path('build'), Path('dist')) if path.exists()]"
@@ -221,10 +226,10 @@ publish-check:
 publish:
 	@$(UV) publish
 
-check: format-check lint-check security test smoke-dry-run typecheck metadata-check version-check
+check: format-check lint-check security test smoke-dry-run typecheck metadata-check version-check changelog-check
 	@echo "All checks passed."
 
-check-ci: format-check lint-check security test-ci smoke-dry-run typecheck metadata-check version-check
+check-ci: format-check lint-check security test-ci smoke-dry-run typecheck metadata-check version-check changelog-check
 	@echo "CI checks passed."
 
 prerelease: check dev-status docs-check smoke spell publish-check

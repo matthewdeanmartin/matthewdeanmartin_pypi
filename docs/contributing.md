@@ -48,3 +48,19 @@ The root repository now has separate GitHub Actions workflows for:
 - publishing `matthewdeanmartin`
 
 That separation keeps package feedback clearer in this workspace monorepo.
+
+### Releasing pypi-profile
+
+Record user-facing changes in `pypi_profile/CHANGELOG.md` and run
+`make -C pypi_profile changelog-check`. A push to `main` that changes
+`pypi_profile/` creates or refreshes a draft GitHub release. You can also run
+`make -C pypi_profile draft-gha` to dispatch that draft workflow.
+
+Review and publish the draft release tagged `pypi-profile-vX.Y.Z` on GitHub.
+The release workflow checks that its tag points at the current `main`, then
+uses keepachangelog-manager to promote `[Unreleased]`, bump
+`pypi_profile/pyproject.toml` and `pypi_profile/pypi_profile/__about__.py`,
+and open a release PR. It refreshes the workspace lockfile on that branch,
+runs the package checks, and uploads the built distribution to PyPI. Merge
+the release PR after the upload succeeds. Releases with other tag prefixes
+do not start this package's workflow.
