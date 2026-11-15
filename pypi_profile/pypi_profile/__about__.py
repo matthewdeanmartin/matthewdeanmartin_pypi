@@ -14,7 +14,7 @@ __all__ = [
 ]
 
 __title__ = "pypi-profile"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __description__ = "The missing PyPI(tm) profile page — link your profile with signatures. Not associated with PSF."
 __readme__ = "README.md"
 __credits__ = [{"name": "Matthew Martin", "email": "matthewdeanmartin@gmail.com"}]
